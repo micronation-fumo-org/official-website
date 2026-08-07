@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "FUMO Official Website"
+version = "1.0.0"
+id = "artifacts/fumo-website"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24777
+
+[services.development]
+run = "pnpm --filter @workspace/fumo-website run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fumo-website", "run", "build" ]
+publicDir = "artifacts/fumo-website/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24777"
+BASE_PATH = "/"

@@ -1,0 +1,1 @@
+- [FUMO Auth & Admin System](fumo-auth-admin.md) — argon2id, tier-based admin levels, default super-admin seeding on startup

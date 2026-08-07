@@ -1,0 +1,7 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "XvHTXIbt7eycPx6zAHbg_"
+uri = "file://.local/session_plan.md"
+type = "text"
