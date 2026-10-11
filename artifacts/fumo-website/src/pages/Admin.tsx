@@ -143,7 +143,7 @@ export default function Admin() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-primary flex items-start gap-2 leading-tight">
               <Shield className="w-6 h-6 shrink-0 mt-1" />
-              <span className="break-words">歡迎回來，{user!.voterName}</span>
+              <span className="break-words"><span className="block sm:inline">歡迎回來，</span><span className="block sm:inline">{user!.voterName}</span></span>
             </h1>
             <div className="flex items-center gap-2 mt-2">
               <p className="text-muted-foreground">管理面板 Admin Panel</p>
