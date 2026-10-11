@@ -617,6 +617,38 @@ router.post("/admin/accounts", async (req, res) => {
   }
 });
 
+// Admin: delete an entire vote (super admin only)
+router.delete("/admin/votes/:voteId", async (req, res) => {
+  try {
+    const adminVoterId = req.query.adminId as string;
+    if (!adminVoterId) {
+      res.status(400).json({ error: "Missing adminId" });
+      return;
+    }
+    const admin = await getAccount(adminVoterId);
+    if (!admin || admin.adminLevel < ADMIN_LEVEL_SUPER) {
+      res.status(403).json({ error: "只有最高管理員才能刪除投票。" });
+      return;
+    }
+    const voteId = parseInt(req.params.voteId, 10);
+    if (isNaN(voteId)) {
+      res.status(400).json({ error: "Invalid vote ID" });
+      return;
+    }
+    const vote = await db.select({ id: votesTable.id }).from(votesTable).where(eq(votesTable.id, voteId)).limit(1);
+    if (vote.length === 0) {
+      res.status(404).json({ error: "Vote not found" });
+      return;
+    }
+    await db.delete(ballotsTable).where(eq(ballotsTable.voteId, voteId));
+    await db.delete(votesTable).where(eq(votesTable.id, voteId));
+    res.json({ success: true, message: "Vote deleted" });
+  } catch (err) {
+    logger.error({ err }, "Error deleting vote");
+    res.status(500).json({ error: "Failed to delete vote" });
+  }
+});
+
 // Admin: delete a ballot (requires level >= 2)
 router.delete("/admin/ballots/:ballotId", async (req, res) => {
   try {

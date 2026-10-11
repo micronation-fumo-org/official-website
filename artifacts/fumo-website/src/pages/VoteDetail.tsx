@@ -2,13 +2,13 @@ import { toChineseError } from "@/lib/errorMessage";
 import { apiUrl } from "@/lib/api";
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Clock, Vote, CheckCircle2, Users, AlertTriangle, XCircle, LogIn } from "lucide-react";
+import { Clock, Vote, CheckCircle2, Users, AlertTriangle, XCircle, LogIn, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -79,12 +79,22 @@ async function closeVoteApi(voteId: string, adminId: string): Promise<any> {
   return data;
 }
 
+async function deleteVoteApi(voteId: string, adminId: string): Promise<any> {
+  const res = await fetch(apiUrl(`/api/admin/votes/${voteId}?adminId=${encodeURIComponent(adminId)}`), {
+    method: "DELETE",
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "刪除投票失敗。");
+  return data;
+}
+
 export default function VoteDetail() {
   const { isEnglish } = useLanguage();
   const params = useParams<{ id: string }>();
+  const [, navigate] = useLocation();
   const voteId = params.id || "";
   const queryClient = useQueryClient();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
 
   const [password, setPassword] = useState("");
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
@@ -127,6 +137,17 @@ export default function VoteDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vote", voteId] });
       queryClient.invalidateQueries({ queryKey: ["votes"] });
+    },
+    onError: (err: Error) => {
+      setVoteError(toChineseError(err));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteVoteApi(voteId, user?.voterId || ""),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["votes"] });
+      navigate("/votes");
     },
     onError: (err: Error) => {
       setVoteError(toChineseError(err));
@@ -203,20 +224,37 @@ export default function VoteDetail() {
     <div className="min-h-screen bg-muted/20 py-12">
       <div className="container mx-auto px-4 max-w-3xl">
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2 flex-wrap">
-            <h1 className="text-3xl font-bold text-primary">{vote.name}</h1>
-            <Badge
-              variant={isVotingOpen ? "default" : "secondary"}
-              className={isVotingOpen ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}
-            >
-              {vote.isClosed ? (
-                <><XCircle className="w-3 h-3 mr-1" />{isEnglish ? "Closed" : "已關閉"}</>
-              ) : vote.isExpired ? (
-                <><Clock className="w-3 h-3 mr-1" />{isEnglish ? "Expired" : "已過期"}</>
-              ) : (
-                <><CheckCircle2 className="w-3 h-3 mr-1" />{isEnglish ? "Active" : "進行中"}</>
-              )}
-            </Badge>
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-3xl font-bold text-primary">{vote.name}</h1>
+              <Badge
+                variant={isVotingOpen ? "default" : "secondary"}
+                className={isVotingOpen ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}
+              >
+                {vote.isClosed ? (
+                  <><XCircle className="w-3 h-3 mr-1" />{isEnglish ? "Closed" : "已關閉"}</>
+                ) : vote.isExpired ? (
+                  <><Clock className="w-3 h-3 mr-1" />{isEnglish ? "Expired" : "已過期"}</>
+                ) : (
+                  <><CheckCircle2 className="w-3 h-3 mr-1" />{isEnglish ? "Active" : "進行中"}</>
+                )}
+              </Badge>
+            </div>
+            {isSuperAdmin && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (confirm(isEnglish ? "Delete this entire vote and all ballots? This cannot be undone." : "確定要刪除整個投票及其所有投票記錄嗎？此操作無法復原。")) {
+                    deleteMutation.mutate();
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+                className="shrink-0 border-red-300 text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                {deleteMutation.isPending ? (isEnglish ? "Deleting..." : "刪除中...") : (isEnglish ? "Delete vote" : "刪除投票")}
+              </Button>
+            )}
           </div>
           {vote.description && <p className="text-muted-foreground">{vote.description}</p>}
           <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground flex-wrap">
