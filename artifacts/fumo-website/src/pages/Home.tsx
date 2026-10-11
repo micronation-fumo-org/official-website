@@ -69,7 +69,7 @@ export default function Home() {
           >
             <div className="h-px w-12 bg-secondary" />
             <p className="text-lg md:text-xl font-medium tracking-widest text-secondary">
-              維護和平，促進合作
+              眾志成城，攜手共進
             </p>
             <div className="h-px w-12 bg-secondary" />
           </motion.div>

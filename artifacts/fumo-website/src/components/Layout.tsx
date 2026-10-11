@@ -244,7 +244,7 @@ export function Layout({ children }: LayoutProps) {
               <h3 className="font-bold text-lg">聯合微國家組織<br/><span className="text-sm font-normal text-primary-foreground/80">Federation of United Micronations Organisation</span></h3>
             </div>
             <p className="text-primary-foreground/70 text-sm max-w-xs">
-              維護和平，促進合作 (Maintaining Peace, Promoting Cooperation).
+              眾志成城，攜手共進 (United in determination, advancing together).
             </p>
           </div>
 
