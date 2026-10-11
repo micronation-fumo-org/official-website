@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api";
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Shield, LogIn, UserPlus, LogOut, User } from "lucide-react";
@@ -25,7 +26,7 @@ function AdminPromotionForm() {
       return;
     }
     try {
-      const res = await fetch("/api/admin/promote", {
+      const res = await fetch(apiUrl("/api/admin/promote"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ voterId: voterId.trim(), code: code.trim() }),

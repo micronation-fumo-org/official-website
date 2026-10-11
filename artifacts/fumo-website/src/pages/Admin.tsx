@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -18,7 +19,7 @@ interface Account {
 }
 
 async function fetchAccounts(adminId: string): Promise<Account[]> {
-  const res = await fetch(`/api/admin/accounts?adminId=${encodeURIComponent(adminId)}`);
+  const res = await fetch(apiUrl(`/api/admin/accounts?adminId=${encodeURIComponent(adminId)}`));
   if (!res.ok) {
     const data = await res.json();
     throw new Error(data.error || "Failed to fetch accounts");
@@ -27,7 +28,7 @@ async function fetchAccounts(adminId: string): Promise<Account[]> {
 }
 
 async function updateAccount(adminId: string, voterId: string, updates: { newPassword?: string; adminLevel?: number }): Promise<any> {
-  const res = await fetch(`/api/admin/accounts?adminId=${encodeURIComponent(adminId)}`, {
+  const res = await fetch(apiUrl(`/api/admin/accounts?adminId=${encodeURIComponent(adminId)}`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ voterId, ...updates }),

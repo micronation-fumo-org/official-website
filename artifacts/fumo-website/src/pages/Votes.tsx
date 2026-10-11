@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,7 @@ interface VoteItem {
 }
 
 async function fetchVotes(): Promise<VoteItem[]> {
-  const res = await fetch("/api/votes");
+  const res = await fetch(apiUrl("/api/votes"));
   if (!res.ok) throw new Error("Failed to fetch votes");
   return res.json();
 }

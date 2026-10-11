@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api";
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "wouter";
@@ -43,19 +44,19 @@ interface ResultsData {
 }
 
 async function fetchVoteDetail(id: string): Promise<VoteDetail> {
-  const res = await fetch(`/api/votes/${id}`);
+  const res = await fetch(apiUrl(`/api/votes/${id}`));
   if (!res.ok) throw new Error("Failed to fetch vote");
   return res.json();
 }
 
 async function fetchResults(id: string): Promise<ResultsData> {
-  const res = await fetch(`/api/votes/${id}/results`);
+  const res = await fetch(apiUrl(`/api/votes/${id}/results`));
   if (!res.ok) throw new Error("Failed to fetch results");
   return res.json();
 }
 
 async function castBallot(voteId: string, voterId: string, password: string, selectedOptions: string[]): Promise<any> {
-  const res = await fetch(`/api/votes/${voteId}/ballot`, {
+  const res = await fetch(apiUrl(`/api/votes/${voteId}/ballot`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ voterId, password, selectedOptions }),
@@ -66,7 +67,7 @@ async function castBallot(voteId: string, voterId: string, password: string, sel
 }
 
 async function closeVoteApi(voteId: string, adminId: string): Promise<any> {
-  const res = await fetch(`/api/votes/${voteId}/close`, {
+  const res = await fetch(apiUrl(`/api/votes/${voteId}/close`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ adminId }),
