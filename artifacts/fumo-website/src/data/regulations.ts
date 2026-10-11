@@ -8,7 +8,7 @@ export interface Regulation {
 }
 
 export const charterUrl = "https://hackmd.io/hXuHNG-nSMKFX-9Psp1uug";
-export const regulationsDirectoryUrl = "https://hackmd.io/@Linxian3301/rJaDkwWsbl";
+export const regulationsDirectoryUrl = "https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/HJeBOxjctGl";
 
 export const regulations: Regulation[] = [
   {

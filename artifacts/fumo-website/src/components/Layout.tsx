@@ -264,7 +264,7 @@ export function Layout({ children }: LayoutProps) {
           <div>
             <h4 className="font-bold mb-4 text-secondary">官方資源 Resources</h4>
             <div className="flex flex-col gap-2">
-              <a href="https://hackmd.io/@Linxian3301/rJaDkwWsbl" target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">
+              <a href="https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/HJeBOxjctGl" target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">
                 法規目錄 Regulations Directory
               </a>
               <a href="https://hackmd.io/hXuHNG-nSMKFX-9Psp1uug" target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">
