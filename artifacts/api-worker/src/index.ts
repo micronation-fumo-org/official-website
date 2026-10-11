@@ -48,6 +48,7 @@ const ADMIN_NONE = 0;
 const ADMIN_TIER1 = 1;
 const ADMIN_TIER2 = 2;
 const ADMIN_SUPER = 9;
+const PBKDF2_ITERATIONS = 100000;
 
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
 const parseJson = async (c: any) => { try { return await c.req.json(); } catch { return null; } };
@@ -85,7 +86,7 @@ async function voters() {
 const findVoter = (list: Voter[], id: string) => { for (const v of list) { const rep = v.reps.find(r => r.id === id); if (rep) return { countryName: v.countryName, voterName: rep.name }; } return null; };
 
 const enc = new TextEncoder();
-async function hashPassword(password: string) { const salt = crypto.getRandomValues(new Uint8Array(16)); const key = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]); const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 120000, hash: "SHA-256" }, key, 256); return `pbkdf2$120000$${toB64(salt)}$${toB64(new Uint8Array(bits))}`; }
+async function hashPassword(password: string) { const salt = crypto.getRandomValues(new Uint8Array(16)); const key = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]); const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" }, key, 256); return `pbkdf2$${PBKDF2_ITERATIONS}$${toB64(salt)}$${toB64(new Uint8Array(bits))}`; }
 async function verifyPassword(password: string, stored: string) { const [kind, iter, salt, expected] = stored.split("$"); if (kind !== "pbkdf2") return false; const key = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]); const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: fromB64(salt), iterations: Number(iter), hash: "SHA-256" }, key, 256); return toB64(new Uint8Array(bits)) === expected; }
 function toB64(bytes: Uint8Array) { let s = ""; bytes.forEach(b => s += String.fromCharCode(b)); return btoa(s); }
 function fromB64(value: string) { const s = atob(value); return Uint8Array.from(s, c => c.charCodeAt(0)); }
