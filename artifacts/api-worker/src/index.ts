@@ -93,15 +93,23 @@ function fromB64(value: string) { const s = atob(value); return Uint8Array.from(
 const app: App = new Hono();
 app.use("/*", async (c, next) => cors({ origin: c.env.CORS_ORIGIN || "*", allowMethods: ["GET", "POST", "DELETE", "OPTIONS"], allowHeaders: ["Content-Type"] })(c, next));
 app.use("/*", async (c, next) => {
-  const existing = await account(c.env.DB, DEFAULT_ADMIN_ID);
-  if (!existing) {
-    await c.env.DB.prepare("INSERT OR IGNORE INTO voter_accounts (voter_id, voter_name, country_name, password_hash, admin_level) VALUES (?, ?, ?, ?, ?)")
-      .bind(DEFAULT_ADMIN_ID, "系統最高管理員", "FUMO", await hashPassword("changeme"), ADMIN_SUPER)
-      .run();
-  } else if (existing.admin_level < ADMIN_SUPER) {
-    await c.env.DB.prepare("UPDATE voter_accounts SET admin_level = ?, updated_at = datetime('now') WHERE voter_id = ?")
-      .bind(ADMIN_SUPER, DEFAULT_ADMIN_ID)
-      .run();
+  // Health checks must stay independent from database bootstrap so deployment
+  // and D1 binding problems remain diagnosable instead of becoming opaque 500s.
+  if (c.req.path === "/api/healthz") return next();
+  try {
+    const existing = await account(c.env.DB, DEFAULT_ADMIN_ID);
+    if (!existing) {
+      await c.env.DB.prepare("INSERT OR IGNORE INTO voter_accounts (voter_id, voter_name, country_name, password_hash, admin_level) VALUES (?, ?, ?, ?, ?)")
+        .bind(DEFAULT_ADMIN_ID, "系統最高管理員", "FUMO", await hashPassword("changeme"), ADMIN_SUPER)
+        .run();
+    } else if (existing.admin_level < ADMIN_SUPER) {
+      await c.env.DB.prepare("UPDATE voter_accounts SET admin_level = ?, updated_at = datetime('now') WHERE voter_id = ?")
+        .bind(ADMIN_SUPER, DEFAULT_ADMIN_ID)
+        .run();
+    }
+  } catch (error) {
+    console.error("D1 bootstrap failed", error);
+    return c.json({ error: "Database initialization failed", message: String(error) }, 500);
   }
   return next();
 });
