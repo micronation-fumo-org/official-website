@@ -15,30 +15,6 @@ const SHEET_ID = "1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0";
 const MEMBER_GID = "643747757";
 const OBSERVER_GID = "1983936747";
 
-const HEADERS_TO_FETCH = [
-  "流水號",
-  "國家名稱",
-  "國家簡稱",
-  "國家代號",
-  "最高領袖",
-  "最高首腦",
-  "國家體制",
-  "駐國總幹事",
-  "備註",
-];
-
-const HEADERS_TO_FETCH2 = [
-  "流水號",
-  "國家名稱",
-  "國家簡稱",
-  "國家代號",
-  "最高領袖",
-  "最高首腦",
-  "國家體制",
-  "駐國總幹事",
-  "備註",
-];
-
 async function fetchSheet(gid: string): Promise<string> {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
   const res = await fetch(url, { redirect: "follow" });
@@ -49,27 +25,75 @@ async function fetchSheet(gid: string): Promise<string> {
   return res.text();
 }
 
-function parseCSV(text: string): MemberState[] {
-  const lines = text.trim().split("\n");
-  if (lines.length < 2) return [];
+function parseCSVRows(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
 
-  const headers = lines[0].split(",").map((h) => h.trim());
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        field += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      row.push(field);
+      field = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && nextChar === "\n") i++;
+      row.push(field);
+      if (row.some((value) => value.trim())) rows.push(row);
+      row = [];
+      field = "";
+      continue;
+    }
+
+    field += char;
+  }
+
+  row.push(field);
+  if (row.some((value) => value.trim())) rows.push(row);
+
+  return rows;
+}
+
+function findHeaderIndex(headers: string[], names: string[]): number {
+  const normalizedHeaders = headers.map((header) => header.trim().replace(/\s+/g, ""));
+  return names.reduce((foundIndex, name) => {
+    if (foundIndex >= 0) return foundIndex;
+    return normalizedHeaders.indexOf(name.trim().replace(/\s+/g, ""));
+  }, -1);
+}
+
+function parseCSV(text: string): MemberState[] {
+  const rows = parseCSVRows(text);
+  if (rows.length < 2) return [];
+
+  const headers = rows[0].map((h) => h.trim());
   const colIndex = {
-    fullName: headers.indexOf("國家名稱"),
-    shortName: headers.indexOf("國家簡稱"),
-    abbreviation: headers.indexOf("國家代號"),
-    headOfState: headers.indexOf("最高領袖"),
-    primeMinister: headers.indexOf("最高首腦"),
-    governmentType: headers.indexOf("國家體制"),
+    fullName: findHeaderIndex(headers, ["國家名稱", "正式國名"]),
+    shortName: findHeaderIndex(headers, ["國家簡稱", "簡稱"]),
+    abbreviation: findHeaderIndex(headers, ["國家代號", "代號", "縮寫"]),
+    headOfState: findHeaderIndex(headers, ["最高領袖", "國家元首"]),
+    primeMinister: findHeaderIndex(headers, ["最高首腦", "政府首腦"]),
+    governmentType: findHeaderIndex(headers, ["國家體制", "政體"]),
   };
 
   const result: MemberState[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    // Simple CSV parsing - split by commas
-    const parts = line.split(",");
-    if (parts.length < 2) continue;
+  for (const row of rows.slice(1)) {
+    const parts = row.map((part) => part.trim());
 
     const fullName = colIndex.fullName >= 0 ? parts[colIndex.fullName]?.trim() : "";
     if (!fullName) continue;
