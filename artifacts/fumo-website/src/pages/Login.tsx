@@ -8,7 +8,6 @@ import { AlertTriangle, KeyRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
 
-import { apiUrl } from "@/lib/api";
 export default function Login() {
   const [voterId, setVoterId] = useState("");
   const [password, setPassword] = useState("");

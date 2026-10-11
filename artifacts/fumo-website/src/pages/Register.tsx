@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AlertTriangle, CheckCircle2, UserPlus } from "lucide-react";
 
-import { apiUrl } from "@/lib/api";
 export default function Register() {
   const [voterId, setVoterId] = useState("");
   const [password, setPassword] = useState("");

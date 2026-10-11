@@ -8,7 +8,6 @@ import { Vote, Clock, CheckCircle2, XCircle, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 
-import { apiUrl } from "@/lib/api";
 interface VoteItem {
   id: number;
   name: string;
