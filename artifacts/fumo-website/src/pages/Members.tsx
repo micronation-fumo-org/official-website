@@ -1,3 +1,4 @@
+import { toChineseError } from "@/lib/errorMessage";
 import { apiUrl } from "@/lib/api";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, User, Building, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface MemberState {
   fullName: string;
@@ -30,12 +32,13 @@ async function fetchMembers(): Promise<MembersApiResponse> {
   const res = await fetch(apiUrl("/api/members"));
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Failed to fetch members: ${res.status} ${text}`);
+    throw new Error(`載入成員資料失敗（${res.status}）。`);
   }
   return res.json();
 }
 
 export default function Members() {
+  const { isEnglish } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "member" | "observer">("all");
 
@@ -95,7 +98,7 @@ export default function Members() {
                   : "bg-muted text-muted-foreground hover:bg-muted"
                 }
               >
-                {member.status === "member" ? "成員國 Member" : "觀察國 Observer"}
+                {member.status === "member" ? (isEnglish ? "Member state" : "成員國") : (isEnglish ? "Observer state" : "觀察國")}
               </Badge>
             </div>
           </div>
@@ -107,7 +110,7 @@ export default function Members() {
           <div className="flex items-start gap-3">
             <Building className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">政體 Government</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{isEnglish ? "Government" : "政體"}</p>
               <p className="text-sm font-medium">{member.governmentType || "未登記"}</p>
             </div>
           </div>
@@ -118,13 +121,13 @@ export default function Members() {
               <div className="space-y-2 w-full">
                 {member.headOfState && (
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">國家元首 Head of State</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{isEnglish ? "Head of state" : "國家元首"}</p>
                     <p className="text-sm font-medium">{member.headOfState}</p>
                   </div>
                 )}
                 {member.primeMinister && member.primeMinister !== member.headOfState && (
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">政府首腦 Head of Govt.</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">{isEnglish ? "Head of government" : "政府首腦"}</p>
                     <p className="text-sm font-medium">{member.primeMinister}</p>
                   </div>
                 )}
@@ -140,18 +143,18 @@ export default function Members() {
     <div className="min-h-screen bg-muted/20 py-12">
       <div className="container mx-auto px-4">
         <div className="mb-10 text-center">
-          <h1 className="text-4xl font-bold text-primary mb-4">成員國及觀察國 Member & Observer States</h1>
+          <h1 className="text-4xl font-bold text-primary mb-4">{isEnglish ? "Member and Observer States" : "成員國及觀察國"}</h1>
           <p className="text-foreground/70 max-w-2xl mx-auto mb-6">
-            聯合微國家組織的正式成員國及觀察國名錄。本組織由多元的政治實體組成，共同致力於和平與合作。
+            {isEnglish ? "A directory of FUMO member and observer states. Our diverse political entities work together for peace and cooperation." : "聯合微國家組織的正式成員國及觀察國名錄。本組織由多元的政治實體組成，共同致力於和平與合作。"}
           </p>
           <div className="inline-flex items-center gap-3 flex-wrap justify-center mb-4">
             <div className="inline-flex items-center justify-center px-4 py-2 bg-primary/5 text-primary rounded-full border border-primary/20">
               <span className="font-bold text-xl mr-1">{memberStates.length}</span>
-              <span className="text-sm font-medium">成員國 Members</span>
+              <span className="text-sm font-medium">{isEnglish ? "Member states" : "成員國"}</span>
             </div>
             <div className="inline-flex items-center justify-center px-4 py-2 bg-muted/50 text-muted-foreground rounded-full border border-border/50">
               <span className="font-bold text-xl mr-1">{observerStates.length}</span>
-              <span className="text-sm font-medium">觀察國 Observers</span>
+              <span className="text-sm font-medium">{isEnglish ? "Observer states" : "觀察國"}</span>
             </div>
           </div>
           <div className="flex items-center justify-center gap-3">
@@ -163,12 +166,12 @@ export default function Members() {
               className="text-sm text-muted-foreground hover:text-primary"
             >
               <RefreshCw className={`w-4 h-4 mr-1 ${isFetching ? "animate-spin" : ""}`} />
-              {isFetching ? "更新中 Updating..." : "重新整理 Refresh"}
+              {isFetching ? (isEnglish ? "Updating..." : "更新中...") : (isEnglish ? "Refresh" : "重新整理")}
             </Button>
           </div>
           {data?.lastUpdated && (
             <p className="text-xs text-muted-foreground mt-2">
-              上次更新 Last updated: {new Date(data.lastUpdated).toLocaleString("zh-TW")}
+              {isEnglish ? "Last updated:" : "上次更新"} {new Date(data.lastUpdated).toLocaleString("zh-TW")}
             </p>
           )}
         </div>
@@ -180,21 +183,21 @@ export default function Members() {
             onClick={() => setActiveTab("all")}
             className={activeTab === "all" ? "bg-primary text-primary-foreground" : ""}
           >
-            全部 All ({allStates.length})
+            {isEnglish ? "All" : "全部"} ({allStates.length})
           </Button>
           <Button
             variant={activeTab === "member" ? "default" : "outline"}
             onClick={() => setActiveTab("member")}
             className={activeTab === "member" ? "bg-primary text-primary-foreground" : ""}
           >
-            成員國 Members ({memberStates.length})
+            {isEnglish ? "Member states" : "成員國"} ({memberStates.length})
           </Button>
           <Button
             variant={activeTab === "observer" ? "default" : "outline"}
             onClick={() => setActiveTab("observer")}
             className={activeTab === "observer" ? "bg-primary text-primary-foreground" : ""}
           >
-            觀察國 Observers ({observerStates.length})
+            {isEnglish ? "Observer states" : "觀察國"} ({observerStates.length})
           </Button>
         </div>
 
@@ -203,7 +206,7 @@ export default function Members() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5" />
             <Input
               type="text"
-              placeholder="搜尋國家名稱、政體或元首 (Search nations, government type, or leaders)..."
+              placeholder={isEnglish ? "Search nations, government type, or leaders..." : "搜尋國家名稱、政體或元首..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 h-14 text-base bg-white shadow-sm border-border/50 focus-visible:ring-secondary"
@@ -211,7 +214,7 @@ export default function Members() {
           </div>
           {searchQuery && (
             <p className="text-sm text-muted-foreground mt-2 px-1">
-              找到 {filteredMembers.length} 個結果
+              {isEnglish ? `${filteredMembers.length} results found` : `找到 ${filteredMembers.length} 個結果`}
             </p>
           )}
         </div>
@@ -223,8 +226,8 @@ export default function Members() {
           
           {filteredMembers.length === 0 && (
             <div className="col-span-full py-20 text-center">
-              <p className="text-xl text-muted-foreground">沒有找到符合條件的國家</p>
-              <p className="text-sm text-muted-foreground mt-2">請嘗試其他關鍵字</p>
+              <p className="text-xl text-muted-foreground">{isEnglish ? "No matching states found" : "沒有找到符合條件的國家"}</p>
+              <p className="text-sm text-muted-foreground mt-2">{isEnglish ? "Try another search term" : "請嘗試其他關鍵字"}</p>
             </div>
           )}
         </div>

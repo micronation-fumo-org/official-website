@@ -1,3 +1,4 @@
+import { toChineseError } from "@/lib/errorMessage";
 import { apiUrl } from "@/lib/api";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, AlertTriangle, CheckCircle2, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 async function createVote(body: {
   name: string;
@@ -26,11 +28,12 @@ async function createVote(body: {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Failed to create vote");
+  if (!res.ok) throw new Error(data.error || "建立投票失敗。");
   return data;
 }
 
 export default function CreateVote() {
+  const { isEnglish } = useLanguage();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { user, isAdmin } = useAuth();
@@ -48,7 +51,7 @@ export default function CreateVote() {
       setLocation(`/votes/${data.id}`);
     },
     onError: (err: Error) => {
-      setError(err.message);
+      setError(toChineseError(err));
     },
   });
 
@@ -60,20 +63,20 @@ export default function CreateVote() {
   const handleSubmit = () => {
     setError(null);
     if (!user || !isAdmin) {
-      setError("只有管理員才能建立投票");
+      setError("只有管理員才能建立投票。");
       return;
     }
     const validOptions = options.map((o) => o.trim()).filter((o) => o.length > 0);
     if (!name.trim()) {
-      setError("請輸入投票名稱");
+      setError("請輸入投票名稱。");
       return;
     }
     if (!deadline) {
-      setError("請設定截止日期");
+      setError("請設定截止日期。");
       return;
     }
     if (validOptions.length < 2) {
-      setError("至少需要兩個選項");
+      setError("至少需要兩個選項。");
       return;
     }
     mutation.mutate({
@@ -91,10 +94,10 @@ export default function CreateVote() {
       <div className="min-h-screen bg-muted/20 py-12 flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-primary mb-2">需要管理員權限</h2>
-          <p className="text-muted-foreground mb-4">只有管理員才能建立投票。</p>
+          <h2 className="text-xl font-bold text-primary mb-2">{isEnglish ? "Administrator permission required" : "需要管理員權限"}</h2>
+          <p className="text-muted-foreground mb-4">{isEnglish ? "Only administrators can create votes." : "只有管理員才能建立投票。"}</p>
           <Link href="/votes">
-            <Button variant="outline">返回投票列表</Button>
+            <Button variant="outline">{isEnglish ? "Back to voting" : "返回投票列表"}</Button>
           </Link>
         </div>
       </div>
@@ -104,41 +107,41 @@ export default function CreateVote() {
   return (
     <div className="min-h-screen bg-muted/20 py-12">
       <div className="container mx-auto px-4 max-w-2xl">
-        <h1 className="text-3xl font-bold text-primary mb-2">創建投票 Create Vote</h1>
+        <h1 className="text-3xl font-bold text-primary mb-2">{isEnglish ? "Create vote" : "創建投票 Create Vote"}</h1>
         <p className="text-muted-foreground mb-8">
-          設定一個新的投票，讓成員國代表進行投票。
+          {isEnglish ? "Set up a new vote for member-state representatives." : "設定一個新的投票，讓成員國代表進行投票。"}
         </p>
 
         <Card className="border-border/60 bg-white">
           <CardHeader>
-            <CardTitle className="text-lg font-bold text-primary">投票設定 Vote Configuration</CardTitle>
+            <CardTitle className="text-lg font-bold text-primary">{isEnglish ? "Vote configuration" : "投票設定 Vote Configuration"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <Label htmlFor="name">投票名稱 Vote Name</Label>
+              <Label htmlFor="name">{isEnglish ? "Vote name" : "投票名稱 Vote Name"}</Label>
               <Input
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="例如: 新法案決議案"
+                placeholder={isEnglish ? "e.g. Resolution on a new bill" : "例如: 新法案決議案"}
                 className="mt-1"
               />
             </div>
 
             <div>
-              <Label htmlFor="desc">說明 Description</Label>
+              <Label htmlFor="desc">{isEnglish ? "Description" : "說明 Description"}</Label>
               <Textarea
                 id="desc"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="投票的詳細說明..."
+                placeholder={isEnglish ? "Describe this vote..." : "投票的詳細說明..."}
                 className="mt-1"
                 rows={3}
               />
             </div>
 
             <div>
-              <Label htmlFor="deadline">截止日期 Deadline</Label>
+              <Label htmlFor="deadline">{isEnglish ? "Deadline" : "截止日期 Deadline"}</Label>
               <Input
                 id="deadline"
                 type="datetime-local"
@@ -149,14 +152,14 @@ export default function CreateVote() {
             </div>
 
             <div>
-              <Label>投票選項 Options</Label>
+              <Label>{isEnglish ? "Voting options" : "投票選項 Options"}</Label>
               <div className="space-y-2 mt-1">
                 {options.map((opt, idx) => (
                   <div key={idx} className="flex items-center gap-2">
                     <Input
                       value={opt}
                       onChange={(e) => updateOption(idx, e.target.value)}
-                      placeholder={`選項 ${idx + 1}`}
+                      placeholder={isEnglish ? `Option ${idx + 1}` : `選項 ${idx + 1}`}
                     />
                     {options.length > 2 && (
                       <Button
@@ -177,7 +180,7 @@ export default function CreateVote() {
                   className="mt-1"
                 >
                   <Plus className="w-4 h-4 mr-1" />
-                  新增選項 Add Option
+                  {isEnglish ? "Add option" : "新增選項"}
                 </Button>
               </div>
             </div>
@@ -189,7 +192,7 @@ export default function CreateVote() {
                 onCheckedChange={(checked) => setAllowMultiple(checked as boolean)}
               />
               <Label htmlFor="allowMultiple" className="cursor-pointer">
-                允許複選 (Allow multiple selections)
+                {isEnglish ? "Allow multiple selections" : "允許複選"}
               </Label>
             </div>
 
@@ -207,10 +210,10 @@ export default function CreateVote() {
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 <CheckCircle2 className="w-4 h-4 mr-1" />
-                {mutation.isPending ? "創建中..." : "創建投票 Create Vote"}
+                {mutation.isPending ? (isEnglish ? "Creating..." : "創建中...") : (isEnglish ? "Create vote" : "創建投票")}
               </Button>
               <Button variant="outline" onClick={() => setLocation("/votes")}>
-                取消 Cancel
+                {isEnglish ? "Cancel" : "取消"}
               </Button>
             </div>
           </CardContent>

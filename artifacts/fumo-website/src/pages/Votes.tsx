@@ -1,3 +1,4 @@
+import { toChineseError } from "@/lib/errorMessage";
 import { apiUrl } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Vote, Clock, CheckCircle2, XCircle, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface VoteItem {
   id: number;
@@ -23,11 +25,12 @@ interface VoteItem {
 
 async function fetchVotes(): Promise<VoteItem[]> {
   const res = await fetch(apiUrl("/api/votes"));
-  if (!res.ok) throw new Error("Failed to fetch votes");
+  if (!res.ok) throw new Error("載入投票列表失敗。");
   return res.json();
 }
 
 export default function Votes() {
+  const { isEnglish } = useLanguage();
   const { isAdmin } = useAuth();
   const { data, isLoading, error } = useQuery({
     queryKey: ["votes"],
@@ -95,7 +98,7 @@ export default function Votes() {
     <div className="min-h-screen bg-muted/20 py-12">
       <div className="container mx-auto px-4">
         <div className="mb-10 text-center">
-          <h1 className="text-4xl font-bold text-primary mb-4">投票 Voting</h1>
+          <h1 className="text-4xl font-bold text-primary mb-4">{isEnglish ? "Voting" : "投票"}</h1>
           <p className="text-foreground/70 max-w-2xl mx-auto mb-6">
             聯合微國家組織的正式投票。每個國家最多三位代表可以註冊，但每個投票每國只能投一票。只有成員國代表才能投票。
           </p>
@@ -103,7 +106,7 @@ export default function Votes() {
             <Link href="/votes/create">
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Plus className="w-4 h-4 mr-1" />
-                創建投票 Create Vote
+                {isEnglish ? "Create vote" : "創建投票"}
               </Button>
             </Link>
           )}
@@ -116,25 +119,25 @@ export default function Votes() {
         )}
         {error && (
           <div className="text-center py-20">
-            <p className="text-red-600">載入失敗：{(error as Error).message}</p>
+            <p className="text-red-600">載入失敗：{toChineseError(error, "載入資料失敗，請稍後再試。")}</p>
           </div>
         )}
 
         {!isLoading && !error && (
           <>
-            <h2 className="text-xl font-bold text-primary mb-4">進行中的投票 Active Votes ({activeVotes.length})</h2>
+            <h2 className="text-xl font-bold text-primary mb-4">{isEnglish ? "Active votes" : "進行中的投票"} ({activeVotes.length})</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
               {activeVotes.length === 0 ? (
-                <p className="text-muted-foreground col-span-full">目前沒有進行中的投票 No active votes</p>
+                <p className="text-muted-foreground col-span-full">{isEnglish ? "No active votes" : "目前沒有進行中的投票"}</p>
               ) : (
                 activeVotes.map((vote) => <VoteCard key={vote.id} vote={vote} />)
               )}
             </div>
 
-            <h2 className="text-xl font-bold text-muted-foreground mb-4">已結束的投票 Past Votes ({pastVotes.length})</h2>
+            <h2 className="text-xl font-bold text-muted-foreground mb-4">{isEnglish ? "Past votes" : "已結束的投票"} ({pastVotes.length})</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {pastVotes.length === 0 ? (
-                <p className="text-muted-foreground col-span-full">目前沒有已結束的投票 No past votes</p>
+                <p className="text-muted-foreground col-span-full">{isEnglish ? "No past votes" : "目前沒有已結束的投票"}</p>
               ) : (
                 pastVotes.map((vote) => <VoteCard key={vote.id} vote={vote} />)
               )}
