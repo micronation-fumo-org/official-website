@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "FUMO Official Website"
+title = "聯合微國家組織官網 F.U.M.O."
 version = "1.0.0"
 id = "artifacts/fumo-website"
 router = "path"
