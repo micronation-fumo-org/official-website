@@ -1,5 +1,5 @@
 import { apiUrl } from "@/lib/api";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,9 @@ import { AlertTriangle, CheckCircle2, UserPlus } from "lucide-react";
 
 export default function Register() {
   const [voterId, setVoterId] = useState("");
+  const [voterName, setVoterName] = useState("");
+  const [countryName, setCountryName] = useState("");
+  const [countries, setCountries] = useState<string[]>([]);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -15,11 +18,18 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
 
+  useEffect(() => {
+    fetch(apiUrl("/api/members"))
+      .then((res) => res.json())
+      .then((data) => setCountries((data.allStates ?? []).map((state: { fullName: string }) => state.fullName)))
+      .catch(() => setCountries([]));
+  }, []);
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    if (!voterId.trim() || !password.trim()) {
+    if (!voterId.trim() || !voterName.trim() || !countryName || !password.trim()) {
       setError("請填寫所有欄位");
       return;
     }
@@ -36,7 +46,7 @@ export default function Register() {
       const res = await fetch(apiUrl("/api/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ voterId: voterId.trim(), password: password.trim() }),
+        body: JSON.stringify({ voterId: voterId.trim(), voterName: voterName.trim(), countryName, password: password.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -62,7 +72,7 @@ export default function Register() {
               註冊帳戶 Register
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              僅限已登記的成員國代表可以註冊
+              會員國與觀察國使用者皆可註冊
             </p>
           </CardHeader>
           <CardContent>
@@ -76,8 +86,29 @@ export default function Register() {
                   autoComplete="username"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  必須是投票資料表中已登記的代表 Discord 數字 ID
+                  請輸入您的 Discord 數字 ID
                 </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">顯示名稱 Name</label>
+                <Input
+                  value={voterName}
+                  onChange={(e) => setVoterName(e.target.value)}
+                  placeholder="例如：大會主席"
+                  autoComplete="name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">國家 Country</label>
+                <select
+                  value={countryName}
+                  onChange={(e) => setCountryName(e.target.value)}
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">請選擇會員國或觀察國</option>
+                  {countries.map((country) => <option key={country} value={country}>{country}</option>)}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">只有名冊中的會員國與觀察國可以註冊。</p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">設定密碼 Set Password</label>
