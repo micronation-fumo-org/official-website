@@ -146,7 +146,7 @@ export default function Admin() {
               管理面板 Admin Panel
             </h1>
             <div className="flex items-center gap-2 mt-2">
-              <p className="text-muted-foreground">歡迎，{user!.voterName}</p>
+              <p className="text-muted-foreground">歡迎回來，{user!.voterName}</p>
               <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${levelInfo.color}`}>
                 {levelInfo.label}
               </span>
