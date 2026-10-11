@@ -4,8 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Book, CheckCircle2, Clock, PenTool } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Regulations() {
+  const { isEnglish } = useLanguage();
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "complete": return <CheckCircle2 className="w-4 h-4 text-green-600" />;
@@ -38,7 +40,7 @@ export default function Regulations() {
     <div className="min-h-screen bg-muted/10 py-12">
       <div className="container mx-auto px-4">
         <div className="mb-12 text-center max-w-3xl mx-auto">
-          <h1 className="text-4xl font-bold text-primary mb-4">法規與文件 Regulations</h1>
+          <h1 className="text-4xl font-bold text-primary mb-4">{isEnglish ? "Regulations and Documents" : "法規與文件"}</h1>
           <p className="text-foreground/70 mb-8">
             聯合微國家組織的法律與規範體系。所有官方文件與法規均存放於 HackMD 以確保公開透明與版本控制。
           </p>
@@ -46,7 +48,7 @@ export default function Regulations() {
             <Button asChild size="lg" className="bg-primary">
               <a href={regulationsDirectoryUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                 <Book className="w-5 h-5" />
-                完整法規目錄 Directory
+                {isEnglish ? "Regulations directory" : "完整法規目錄"}
                 <ExternalLink className="w-4 h-4 ml-1" />
               </a>
             </Button>
@@ -100,7 +102,7 @@ export default function Regulations() {
                     <CardFooter className="pt-4 border-t border-border/40">
                       <Button asChild variant="ghost" className="w-full text-secondary hover:text-secondary hover:bg-secondary/10 justify-between">
                         <a href={`https://hackmd.io/${reg.hackmdPath}`} target="_blank" rel="noopener noreferrer">
-                          閱讀全文 Read Full Text
+                          {isEnglish ? "Read full text" : "閱讀全文"}
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       </Button>

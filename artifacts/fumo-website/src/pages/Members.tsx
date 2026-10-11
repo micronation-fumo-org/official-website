@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Search, User, Building, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface MemberState {
   fullName: string;
@@ -36,6 +37,7 @@ async function fetchMembers(): Promise<MembersApiResponse> {
 }
 
 export default function Members() {
+  const { isEnglish } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "member" | "observer">("all");
 
@@ -140,7 +142,7 @@ export default function Members() {
     <div className="min-h-screen bg-muted/20 py-12">
       <div className="container mx-auto px-4">
         <div className="mb-10 text-center">
-          <h1 className="text-4xl font-bold text-primary mb-4">成員國及觀察國 Member & Observer States</h1>
+          <h1 className="text-4xl font-bold text-primary mb-4">{isEnglish ? "Member and Observer States" : "成員國及觀察國"}</h1>
           <p className="text-foreground/70 max-w-2xl mx-auto mb-6">
             聯合微國家組織的正式成員國及觀察國名錄。本組織由多元的政治實體組成，共同致力於和平與合作。
           </p>
@@ -163,7 +165,7 @@ export default function Members() {
               className="text-sm text-muted-foreground hover:text-primary"
             >
               <RefreshCw className={`w-4 h-4 mr-1 ${isFetching ? "animate-spin" : ""}`} />
-              {isFetching ? "更新中 Updating..." : "重新整理 Refresh"}
+              {isFetching ? (isEnglish ? "Updating..." : "更新中...") : (isEnglish ? "Refresh" : "重新整理")}
             </Button>
           </div>
           {data?.lastUpdated && (
@@ -180,7 +182,7 @@ export default function Members() {
             onClick={() => setActiveTab("all")}
             className={activeTab === "all" ? "bg-primary text-primary-foreground" : ""}
           >
-            全部 All ({allStates.length})
+            {isEnglish ? "All" : "全部"} ({allStates.length})
           </Button>
           <Button
             variant={activeTab === "member" ? "default" : "outline"}
@@ -203,7 +205,7 @@ export default function Members() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5" />
             <Input
               type="text"
-              placeholder="搜尋國家名稱、政體或元首 (Search nations, government type, or leaders)..."
+              placeholder={isEnglish ? "Search nations, government type, or leaders..." : "搜尋國家名稱、政體或元首..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 h-14 text-base bg-white shadow-sm border-border/50 focus-visible:ring-secondary"

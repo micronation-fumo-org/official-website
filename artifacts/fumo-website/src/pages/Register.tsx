@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AlertTriangle, CheckCircle2, UserPlus } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Register() {
+  const { isEnglish } = useLanguage();
   const [voterId, setVoterId] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -43,7 +45,7 @@ export default function Register() {
         setError(data.error || "註冊失敗");
         return;
       }
-      setSuccess(`註冊成功！歡迎，${data.voterName}。正在前往登入頁面…`);
+      setSuccess(`註冊成功！歡迎，${data.voterName}。正在{isEnglish ? "Sign in here" : "前往登入"}頁面…`);
       setTimeout(() => setLocation("/login"), 1800);
     } catch {
       setError("連線錯誤，請稍後再試");
@@ -59,7 +61,7 @@ export default function Register() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold text-primary flex items-center justify-center gap-2">
               <UserPlus className="w-6 h-6" />
-              註冊帳戶 Register
+              {isEnglish ? "Create an account" : "註冊帳戶"}
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
               註冊名單中的會員國與觀察國使用者皆可註冊
@@ -122,13 +124,13 @@ export default function Register() {
                 disabled={loading || !!success}
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                {loading ? "處理中..." : "註冊 Register"}
+                {loading ? (isEnglish ? "Processing..." : "處理中...") : (isEnglish ? "Register" : "註冊")}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">
                 已有帳戶？{" "}
                 <Link href="/login" className="text-primary font-medium hover:underline">
-                  前往登入
+                  {isEnglish ? "Sign in here" : "前往登入"}
                 </Link>
               </p>
             </form>

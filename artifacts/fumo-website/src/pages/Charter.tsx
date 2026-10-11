@@ -2,20 +2,22 @@ import { charterUrl } from "@/data/regulations";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, BookOpen } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Charter() {
+  const { isEnglish } = useLanguage();
   return (
     <div className="min-h-screen bg-muted/10 py-12">
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold text-primary mb-4">組織憲章 Charter</h1>
+          <h1 className="text-4xl font-bold text-primary mb-4">{isEnglish ? "Organisation Charter" : "組織憲章"}</h1>
           <p className="text-foreground/70 mb-6 max-w-2xl mx-auto">
             《聯合微國家組織憲章》為本組織之最高規範，確立了組織的宗旨、原則及運作架構。以下為憲章核心條文節錄。
           </p>
           <Button asChild className="bg-primary hover:bg-primary/90">
             <a href={charterUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" />
-              在 HackMD 閱讀完整憲章
+              {isEnglish ? "Read the full charter on HackMD" : "在 HackMD 閱讀完整憲章"}
               <ExternalLink className="w-4 h-4 ml-1" />
             </a>
           </Button>

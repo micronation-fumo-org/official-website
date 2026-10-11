@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { AlertTriangle, KeyRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Login() {
+  const { isEnglish } = useLanguage();
   const [voterId, setVoterId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -56,10 +58,10 @@ export default function Login() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl font-bold text-primary flex items-center justify-center gap-2">
               <KeyRound className="w-6 h-6" />
-              登入帳戶 Login
+              {isEnglish ? "Sign in" : "登入帳戶"}
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              使用您的 Discord ID 和密碼登入
+              {isEnglish ? "Sign in with your Discord ID and password" : "使用您的 Discord ID 和密碼登入"}
             </p>
           </CardHeader>
           <CardContent>
@@ -96,13 +98,13 @@ export default function Login() {
                 disabled={loading}
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                {loading ? "登入中..." : "登入 Login"}
+                {loading ? (isEnglish ? "Signing in..." : "登入中...") : (isEnglish ? "Sign in" : "登入")}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">
-                還沒有帳戶？{" "}
+                {isEnglish ? "No account yet?" : "還沒有帳戶？"}{" "}
                 <Link href="/register" className="text-primary font-medium hover:underline">
-                  前往註冊
+                  {isEnglish ? "Register here" : "前往註冊"}
                 </Link>
               </p>
             </form>
