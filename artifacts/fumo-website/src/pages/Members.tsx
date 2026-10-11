@@ -1,10 +1,11 @@
+import { apiUrl } from "@/lib/api";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, User, Building, RefreshCw, ExternalLink } from "lucide-react";
+import { Search, User, Building, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface MemberState {
@@ -21,13 +22,12 @@ interface MembersApiResponse {
   memberStates: MemberState[];
   observerStates: MemberState[];
   allStates: MemberState[];
-  source: string;
   cached: boolean;
   lastUpdated: string | null;
 }
 
 async function fetchMembers(): Promise<MembersApiResponse> {
-  const res = await fetch("/api/members");
+  const res = await fetch(apiUrl("/api/members"));
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Failed to fetch members: ${res.status} ${text}`);
@@ -155,15 +155,6 @@ export default function Members() {
             </div>
           </div>
           <div className="flex items-center justify-center gap-3">
-            <a
-              href="https://docs.google.com/spreadsheets/d/1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0/edit"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-secondary hover:text-secondary/80 transition-colors underline-offset-2 hover:underline"
-            >
-              <ExternalLink className="w-4 h-4" />
-              查看 Google Sheets 原始資料表 View Source Spreadsheet
-            </a>
             <Button
               variant="ghost"
               size="sm"

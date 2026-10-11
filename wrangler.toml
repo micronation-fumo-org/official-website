@@ -1,0 +1,15 @@
+name = "official-website"
+main = "artifacts/api-server/src/worker.ts"
+compatibility_date = "2026-10-11"
+
+[vars]
+ENVIRONMENT = "production"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "official-website"
+database_id = "04a5cd44-95eb-4a02-a954-88946515c6da"
+migrations_dir = "migrations"
+
+[dev]
+port = 8787

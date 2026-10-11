@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +33,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch(apiUrl("/api/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ voterId: voterId.trim(), password: password.trim() }),
@@ -61,7 +62,7 @@ export default function Register() {
               註冊帳戶 Register
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              僅限已登記的成員國代表可以註冊
+              註冊名單中的會員國與觀察國使用者皆可註冊
             </p>
           </CardHeader>
           <CardContent>
@@ -75,9 +76,10 @@ export default function Register() {
                   autoComplete="username"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  必須是投票資料表中已登記的代表 Discord 數字 ID
+                  請輸入註冊名單中的 Discord 數字 ID
                 </p>
               </div>
+              <p className="text-xs text-muted-foreground">註冊名單與投票代表名單分開；註冊後不會自動取得投票資格。</p>
               <div>
                 <label className="block text-sm font-medium mb-1">設定密碼 Set Password</label>
                 <Input

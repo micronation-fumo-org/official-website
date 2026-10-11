@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -18,7 +19,7 @@ interface Account {
 }
 
 async function fetchAccounts(adminId: string): Promise<Account[]> {
-  const res = await fetch(`/api/admin/accounts?adminId=${encodeURIComponent(adminId)}`);
+  const res = await fetch(apiUrl(`/api/admin/accounts?adminId=${encodeURIComponent(adminId)}`));
   if (!res.ok) {
     const data = await res.json();
     throw new Error(data.error || "Failed to fetch accounts");
@@ -27,7 +28,7 @@ async function fetchAccounts(adminId: string): Promise<Account[]> {
 }
 
 async function updateAccount(adminId: string, voterId: string, updates: { newPassword?: string; adminLevel?: number }): Promise<any> {
-  const res = await fetch(`/api/admin/accounts?adminId=${encodeURIComponent(adminId)}`, {
+  const res = await fetch(apiUrl(`/api/admin/accounts?adminId=${encodeURIComponent(adminId)}`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ voterId, ...updates }),
@@ -138,14 +139,14 @@ export default function Admin() {
   return (
     <div className="min-h-screen bg-muted/20 py-12">
       <div className="container mx-auto px-4 max-w-5xl">
-        <div className="mb-8 flex items-center justify-between flex-wrap gap-3">
+        <div className="mb-8 flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
-              <Shield className="w-6 h-6" />
-              管理面板 Admin Panel
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary flex items-start gap-2 leading-tight">
+              <Shield className="w-6 h-6 shrink-0 mt-1" />
+              <span className="break-words"><span className="block sm:inline">歡迎回來，</span><span className="block sm:inline">{user!.voterName}</span></span>
             </h1>
             <div className="flex items-center gap-2 mt-2">
-              <p className="text-muted-foreground">歡迎，{user!.voterName}</p>
+              <p className="text-muted-foreground">管理面板 Admin Panel</p>
               <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${levelInfo.color}`}>
                 {levelInfo.label}
               </span>
@@ -261,11 +262,41 @@ export default function Admin() {
                 <span className="text-sm">{accountsError.message}</span>
               </div>
             )}
+            {accounts && accounts.length > 0 && (
+              <div className="md:hidden space-y-3">
+                {accounts.map((a) => {
+                  const info = adminLevelLabel(a.adminLevel);
+                  const isSelf = a.voterId === user!.voterId;
+                  return (
+                    <div key={a.voterId} className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium break-words">{a.voterName}{isSelf && <span className="ml-1 text-xs text-muted-foreground">(你)</span>}</p>
+                          <p className="font-mono text-xs text-muted-foreground break-all mt-1">{a.voterId}</p>
+                        </div>
+                        <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium ${info.color}`}>{info.label}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div><p className="text-xs text-muted-foreground">國家</p><p className="break-words">{a.countryName}</p></div>
+                        <div><p className="text-xs text-muted-foreground">建立時間</p><p>{new Date(a.createdAt).toLocaleDateString("zh-TW")}</p></div>
+                      </div>
+                      {isSuperAdmin && !isSelf && a.adminLevel < 9 && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {a.adminLevel !== 0 && <Button variant="outline" size="sm" onClick={() => handleSetTier(a.voterId, 0)}>一般用戶</Button>}
+                          {a.adminLevel !== 1 && <Button variant="outline" size="sm" onClick={() => handleSetTier(a.voterId, 1)} className="text-blue-600">一階管理員</Button>}
+                          {a.adminLevel !== 2 && <Button variant="outline" size="sm" onClick={() => handleSetTier(a.voterId, 2)} className="text-orange-600">二階管理員</Button>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {accounts && accounts.length === 0 && (
               <p className="text-muted-foreground text-sm py-4">尚無帳戶</p>
             )}
             {accounts && accounts.length > 0 && (
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
