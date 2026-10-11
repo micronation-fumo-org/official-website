@@ -1,3 +1,4 @@
+import { toChineseError } from "@/lib/errorMessage";
 import { apiUrl } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,7 +24,7 @@ async function fetchAccounts(adminId: string): Promise<Account[]> {
   const res = await fetch(apiUrl(`/api/admin/accounts?adminId=${encodeURIComponent(adminId)}`));
   if (!res.ok) {
     const data = await res.json();
-    throw new Error(data.error || "Failed to fetch accounts");
+    throw new Error(data.error || "載入帳戶資料失敗。");
   }
   return res.json();
 }
@@ -35,7 +36,7 @@ async function updateAccount(adminId: string, voterId: string, updates: { newPas
     body: JSON.stringify({ voterId, ...updates }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Failed to update account");
+  if (!res.ok) throw new Error(data.error || "更新帳戶資料失敗。");
   return data;
 }
 
@@ -63,14 +64,14 @@ export default function Admin() {
   });
 
   const setMessage = (err: string | null, success: string | null) => {
-    setActionError(err);
+    setActionError(toChineseError(err));
     setActionSuccess(success);
   };
 
   const handleResetPassword = async () => {
     setMessage(null, null);
     if (!resetTarget.trim() || !resetPassword.trim()) {
-      setActionError(isEnglish ? "Enter the target ID and a new password" : "請輸入目標 ID 和新密碼");
+      setActionError("請輸入目標 ID 和新密碼。");
       return;
     }
     try {
@@ -80,7 +81,7 @@ export default function Admin() {
       setResetTarget("");
       refetch();
     } catch (err: any) {
-      setMessage(err.message, null);
+      setMessage(toChineseError(err), null);
     }
   };
 
@@ -93,7 +94,7 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ["admin-accounts"] });
       refetch();
     } catch (err: any) {
-      setMessage(err.message, null);
+      setMessage(toChineseError(err), null);
     }
   };
 
@@ -261,7 +262,7 @@ export default function Admin() {
             {accountsError && (
               <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md mb-4">
                 <AlertTriangle className="w-4 h-4" />
-                <span className="text-sm">{accountsError.message}</span>
+                <span className="text-sm">{toChineseError(accountsError, "載入帳戶資料失敗，請稍後再試。")}</span>
               </div>
             )}
             {accounts && accounts.length > 0 && (

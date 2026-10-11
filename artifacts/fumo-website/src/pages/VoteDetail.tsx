@@ -1,3 +1,4 @@
+import { toChineseError } from "@/lib/errorMessage";
 import { apiUrl } from "@/lib/api";
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -46,13 +47,13 @@ interface ResultsData {
 
 async function fetchVoteDetail(id: string): Promise<VoteDetail> {
   const res = await fetch(apiUrl(`/api/votes/${id}`));
-  if (!res.ok) throw new Error("Failed to fetch vote");
+  if (!res.ok) throw new Error("載入投票資料失敗。");
   return res.json();
 }
 
 async function fetchResults(id: string): Promise<ResultsData> {
   const res = await fetch(apiUrl(`/api/votes/${id}/results`));
-  if (!res.ok) throw new Error("Failed to fetch results");
+  if (!res.ok) throw new Error("載入投票結果失敗。");
   return res.json();
 }
 
@@ -63,7 +64,7 @@ async function castBallot(voteId: string, voterId: string, password: string, sel
     body: JSON.stringify({ voterId, password, selectedOptions }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Failed to cast ballot");
+  if (!res.ok) throw new Error(data.error || "提交投票失敗。");
   return data;
 }
 
@@ -74,7 +75,7 @@ async function closeVoteApi(voteId: string, adminId: string): Promise<any> {
     body: JSON.stringify({ adminId }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Failed to close vote");
+  if (!res.ok) throw new Error(data.error || "關閉投票失敗。");
   return data;
 }
 
@@ -116,7 +117,7 @@ export default function VoteDetail() {
       setPassword("");
     },
     onError: (err: Error) => {
-      setVoteError(err.message);
+      setVoteError(toChineseError(err));
       setVoteSuccess(null);
     },
   });
@@ -128,7 +129,7 @@ export default function VoteDetail() {
       queryClient.invalidateQueries({ queryKey: ["votes"] });
     },
     onError: (err: Error) => {
-      setVoteError(err.message);
+      setVoteError(toChineseError(err));
     },
   });
 
@@ -147,15 +148,15 @@ export default function VoteDetail() {
 
   const handleCast = () => {
     if (!user) {
-      setVoteError(isEnglish ? "Please sign in before voting" : "請先登入您的帳戶才能投票");
+      setVoteError("請先登入您的帳戶才能投票。");
       return;
     }
     if (!password.trim()) {
-      setVoteError(isEnglish ? "Enter your password to confirm your identity" : "請輸入您的密碼以確認身份");
+      setVoteError("請輸入您的密碼以確認身份。");
       return;
     }
     if (selectedOptions.length === 0) {
-      setVoteError(isEnglish ? "Select at least one option" : "請選擇至少一個選項");
+      setVoteError("請選擇至少一個選項。");
       return;
     }
     setVoteError(null);

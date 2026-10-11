@@ -1,3 +1,4 @@
+import { toChineseError } from "@/lib/errorMessage";
 import { apiUrl } from "@/lib/api";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -31,7 +32,7 @@ async function fetchMembers(): Promise<MembersApiResponse> {
   const res = await fetch(apiUrl("/api/members"));
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Failed to fetch members: ${res.status} ${text}`);
+    throw new Error(`載入成員資料失敗（${res.status}）。`);
   }
   return res.json();
 }

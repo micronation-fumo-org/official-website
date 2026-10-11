@@ -1,3 +1,4 @@
+import { toChineseError } from "@/lib/errorMessage";
 import { apiUrl } from "@/lib/api";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -34,7 +35,7 @@ export default function Login() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "登入失敗");
+        setError(toChineseError(data.error, "登入失敗，請確認 Discord ID 與密碼。"));
         return;
       }
       login({
@@ -45,7 +46,7 @@ export default function Login() {
       });
       setLocation("/votes");
     } catch {
-      setError("連線錯誤，請稍後再試");
+      setError("連線錯誤，請稍後再試。");
     } finally {
       setLoading(false);
     }

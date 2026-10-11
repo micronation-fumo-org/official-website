@@ -1,3 +1,4 @@
+import { toChineseError } from "@/lib/errorMessage";
 import { apiUrl } from "@/lib/api";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,7 +28,7 @@ async function createVote(body: {
     body: JSON.stringify(body),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Failed to create vote");
+  if (!res.ok) throw new Error(data.error || "建立投票失敗。");
   return data;
 }
 
@@ -50,7 +51,7 @@ export default function CreateVote() {
       setLocation(`/votes/${data.id}`);
     },
     onError: (err: Error) => {
-      setError(err.message);
+      setError(toChineseError(err));
     },
   });
 
@@ -62,20 +63,20 @@ export default function CreateVote() {
   const handleSubmit = () => {
     setError(null);
     if (!user || !isAdmin) {
-      setError(isEnglish ? "Only administrators can create votes" : "只有管理員才能建立投票");
+      setError("只有管理員才能建立投票。");
       return;
     }
     const validOptions = options.map((o) => o.trim()).filter((o) => o.length > 0);
     if (!name.trim()) {
-      setError(isEnglish ? "Enter a vote name" : "請輸入投票名稱");
+      setError("請輸入投票名稱。");
       return;
     }
     if (!deadline) {
-      setError(isEnglish ? "Set a deadline" : "請設定截止日期");
+      setError("請設定截止日期。");
       return;
     }
     if (validOptions.length < 2) {
-      setError(isEnglish ? "At least two options are required" : "至少需要兩個選項");
+      setError("至少需要兩個選項。");
       return;
     }
     mutation.mutate({

@@ -1,3 +1,4 @@
+import { toChineseError } from "@/lib/errorMessage";
 import { apiUrl } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -24,7 +25,7 @@ interface VoteItem {
 
 async function fetchVotes(): Promise<VoteItem[]> {
   const res = await fetch(apiUrl("/api/votes"));
-  if (!res.ok) throw new Error("Failed to fetch votes");
+  if (!res.ok) throw new Error("載入投票列表失敗。");
   return res.json();
 }
 
@@ -118,7 +119,7 @@ export default function Votes() {
         )}
         {error && (
           <div className="text-center py-20">
-            <p className="text-red-600">載入失敗：{(error as Error).message}</p>
+            <p className="text-red-600">載入失敗：{toChineseError(error, "載入資料失敗，請稍後再試。")}</p>
           </div>
         )}
 

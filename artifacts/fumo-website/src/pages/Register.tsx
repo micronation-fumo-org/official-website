@@ -1,3 +1,4 @@
+import { toChineseError } from "@/lib/errorMessage";
 import { apiUrl } from "@/lib/api";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -42,13 +43,13 @@ export default function Register() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "註冊失敗");
+        setError(toChineseError(data.error, "註冊失敗，請稍後再試。"));
         return;
       }
       setSuccess(`註冊成功！歡迎，${data.voterName}。正在{isEnglish ? "Sign in here" : "前往登入"}頁面…`);
       setTimeout(() => setLocation("/login"), 1800);
     } catch {
-      setError("連線錯誤，請稍後再試");
+      setError("連線錯誤，請稍後再試。");
     } finally {
       setLoading(false);
     }
