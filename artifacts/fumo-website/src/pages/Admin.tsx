@@ -141,12 +141,12 @@ export default function Admin() {
       <div className="container mx-auto px-4 max-w-5xl">
         <div className="mb-8 flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-primary flex items-center gap-2">
-              <Shield className="w-6 h-6" />
-              管理面板 Admin Panel
+            <h1 className="text-2xl sm:text-3xl font-bold text-primary flex items-start gap-2 leading-tight">
+              <Shield className="w-6 h-6 shrink-0 mt-1" />
+              <span className="break-words">歡迎回來，{user!.voterName}</span>
             </h1>
             <div className="flex items-center gap-2 mt-2">
-              <p className="text-muted-foreground">歡迎回來，{user!.voterName}</p>
+              <p className="text-muted-foreground">管理面板 Admin Panel</p>
               <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${levelInfo.color}`}>
                 {levelInfo.label}
               </span>
