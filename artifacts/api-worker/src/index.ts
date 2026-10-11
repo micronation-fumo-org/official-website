@@ -118,7 +118,7 @@ app.use("/*", async (c, next) => {
   return next();
 });
 app.get("/api/healthz", c => c.json({ status: "ok" }));
-app.get("/api/members", async c => { try { return c.json({ ...(await members()), source: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`, cached: Boolean(membersCache), lastUpdated: membersCache ? new Date(membersCache.at).toISOString() : null }); } catch (e) { return c.json({ error: "Failed to fetch member states", message: String(e) }, 500); } });
+app.get("/api/members", async c => { try { return c.json({ ...(await members()), cached: Boolean(membersCache), lastUpdated: membersCache ? new Date(membersCache.at).toISOString() : null }); } catch (e) { return c.json({ error: "Failed to fetch member states", message: String(e) }, 500); } });
 app.get("/api/voters", async c => { try { return c.json(await voters()); } catch (e) { return c.json({ error: "Failed to fetch voters", message: String(e) }, 500); } });
 
 app.get("/api/votes", async c => { const rows = await c.env.DB.prepare("SELECT v.*, COUNT(b.id) AS ballot_count FROM votes v LEFT JOIN ballots b ON b.vote_id = v.id GROUP BY v.id ORDER BY v.created_at ASC").all<VoteRow & { ballot_count: number }>(); return c.json((rows.results ?? []).map(v => asVote(v, v.ballot_count))); });
