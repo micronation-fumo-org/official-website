@@ -165,7 +165,7 @@ export default function VoteDetail() {
     if (!results) return "";
     const lines: string[] = [];
     lines.push(`"${results.voteName}"`);
-    lines.push(`共 ${results.totalVoters} 個人投票`);
+    lines.push(`共 ${results.totalVoters} 個國家投票`);
     for (const r of results.results) {
       const pct = parseFloat(r.percentage);
       const wpct = parseFloat(r.weightedPercentage);
@@ -400,7 +400,7 @@ export default function VoteDetail() {
               </div>
 
               <div className="border-t border-border pt-4">
-                <p className="text-sm font-bold text-primary mb-2">共 {results.totalVoters} 個人投票</p>
+                <p className="text-sm font-bold text-primary mb-2">共 {results.totalVoters} 個國家投票</p>
                 <div className="bg-muted p-4 rounded-md">
                   <p className="text-xs font-mono text-muted-foreground whitespace-pre-wrap">{formattedOutput}</p>
                 </div>

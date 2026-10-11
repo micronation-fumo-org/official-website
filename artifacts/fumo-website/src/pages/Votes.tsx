@@ -81,7 +81,7 @@ export default function Votes() {
                 <span>選項 Options: {vote.options.join(" / ")}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <span className="font-medium text-primary">已投票 {vote.ballotCount} 票</span>
+                <span className="font-medium text-primary">已投票 {vote.ballotCount} 國</span>
                 <span className="text-muted-foreground">· {vote.allowMultiple ? "可複選" : "單選"}</span>
               </div>
             </CardContent>
@@ -97,7 +97,7 @@ export default function Votes() {
         <div className="mb-10 text-center">
           <h1 className="text-4xl font-bold text-primary mb-4">投票 Voting</h1>
           <p className="text-foreground/70 max-w-2xl mx-auto mb-6">
-            聯合微國家組織的正式投票。使用你的 Discord ID 進行登入並投票。只有成員國代表才能投票。
+            聯合微國家組織的正式投票。每個國家最多三位代表可以註冊，但每個投票每國只能投一票。只有成員國代表才能投票。
           </p>
           {isAdmin && (
             <Link href="/votes/create">
