@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -19,7 +20,7 @@ async function createVote(body: {
   allowMultiple: boolean;
   adminId: string;
 }) {
-  const res = await fetch("/api/votes", {
+  const res = await fetch(apiUrl("/api/votes"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

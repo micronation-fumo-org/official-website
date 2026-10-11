@@ -2,84 +2,10 @@ import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Shield, LogIn, UserPlus, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface LayoutProps {
   children: ReactNode;
-}
-
-function AdminPromotionForm() {
-  const [voterId, setVoterId] = useState("");
-  const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    if (!voterId.trim() || !code.trim()) {
-      setError("請輸入 Discord ID 和驗證碼");
-      return;
-    }
-    try {
-      const res = await fetch("/api/admin/promote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ voterId: voterId.trim(), code: code.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "提升失敗");
-      setSuccess(data.message || "帳戶已提升為管理員");
-      setVoterId("");
-      setCode("");
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  return (
-    <div className="container mx-auto px-4 mt-6">
-      <div className="border-t border-primary-foreground/20 pt-6">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 text-sm text-primary-foreground/60 hover:text-primary-foreground/80 transition-colors"
-        >
-          <Shield className="w-3 h-3" />
-          {isOpen ? "收起管理員驗證模式 ▲" : "管理員驗證碼提升管理員 ▼"}
-        </button>
-        {isOpen && (
-          <form onSubmit={handleSubmit} className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 max-w-2xl">
-            <Input
-              value={voterId}
-              onChange={(e) => setVoterId(e.target.value)}
-              placeholder="Discord ID"
-              className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/50"
-            />
-            <Input
-              type="password"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="驗證碼 Verification Code"
-              className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/50"
-            />
-            <Button
-              type="submit"
-              variant="outline"
-              className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
-            >
-              <Shield className="w-4 h-4 mr-1" />
-              提升管理員 Promote
-            </Button>
-            {error && <p className="text-sm text-red-300 col-span-full">{error}</p>}
-            {success && <p className="text-sm text-green-300 col-span-full">{success}</p>}
-          </form>
-        )}
-      </div>
-    </div>
-  );
 }
 
 export function Layout({ children }: LayoutProps) {
@@ -274,10 +200,11 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </div>
 
-        <AdminPromotionForm />
-
         <div className="container mx-auto px-4 mt-8 pt-8 border-t border-primary-foreground/10 text-center text-sm text-primary-foreground/60">
-          <p>© {new Date().getFullYear()} Federation of United Micronations Organisation. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} FUMO 與 蛋包咖哩飯 所有。All rights reserved.</p>
+          <a href="https://damcurryrice.com" target="_blank" rel="noopener noreferrer" className="inline-block mt-2 hover:text-secondary transition-colors">
+            蛋包咖哩飯網站：damcurryrice.com
+          </a>
         </div>
       </footer>
     </div>

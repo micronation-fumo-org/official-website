@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api";
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "wouter";
@@ -43,19 +44,19 @@ interface ResultsData {
 }
 
 async function fetchVoteDetail(id: string): Promise<VoteDetail> {
-  const res = await fetch(`/api/votes/${id}`);
+  const res = await fetch(apiUrl(`/api/votes/${id}`));
   if (!res.ok) throw new Error("Failed to fetch vote");
   return res.json();
 }
 
 async function fetchResults(id: string): Promise<ResultsData> {
-  const res = await fetch(`/api/votes/${id}/results`);
+  const res = await fetch(apiUrl(`/api/votes/${id}/results`));
   if (!res.ok) throw new Error("Failed to fetch results");
   return res.json();
 }
 
 async function castBallot(voteId: string, voterId: string, password: string, selectedOptions: string[]): Promise<any> {
-  const res = await fetch(`/api/votes/${voteId}/ballot`, {
+  const res = await fetch(apiUrl(`/api/votes/${voteId}/ballot`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ voterId, password, selectedOptions }),
@@ -66,7 +67,7 @@ async function castBallot(voteId: string, voterId: string, password: string, sel
 }
 
 async function closeVoteApi(voteId: string, adminId: string): Promise<any> {
-  const res = await fetch(`/api/votes/${voteId}/close`, {
+  const res = await fetch(apiUrl(`/api/votes/${voteId}/close`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ adminId }),
@@ -164,7 +165,7 @@ export default function VoteDetail() {
     if (!results) return "";
     const lines: string[] = [];
     lines.push(`"${results.voteName}"`);
-    lines.push(`共 ${results.totalVoters} 個人投票`);
+    lines.push(`共 ${results.totalVoters} 個國家投票`);
     for (const r of results.results) {
       const pct = parseFloat(r.percentage);
       const wpct = parseFloat(r.weightedPercentage);
@@ -399,7 +400,7 @@ export default function VoteDetail() {
               </div>
 
               <div className="border-t border-border pt-4">
-                <p className="text-sm font-bold text-primary mb-2">共 {results.totalVoters} 個人投票</p>
+                <p className="text-sm font-bold text-primary mb-2">共 {results.totalVoters} 個國家投票</p>
                 <div className="bg-muted p-4 rounded-md">
                   <p className="text-xs font-mono text-muted-foreground whitespace-pre-wrap">{formattedOutput}</p>
                 </div>

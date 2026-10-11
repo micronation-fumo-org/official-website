@@ -1,0 +1,15 @@
+name = "fumo-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-11"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fumo-production"
+database_id = "12d68b57-505d-40e9-8581-5024867dbb01"
+migrations_dir = "migrations"
+
+[vars]
+CORS_ORIGIN = "*"
+
+[observability]
+enabled = true
