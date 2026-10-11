@@ -89,7 +89,7 @@ export function Layout({ children }: LayoutProps) {
 
   const navLinks = [
     { href: "/", label: "首頁 Home" },
-    { href: "/members", label: "成員國 Members" },
+    { href: "/members", label: "會員國 Members" },
     { href: "/votes", label: "投票 Voting" },
     { href: "/regulations", label: "法規 Regulations" },
     { href: "/charter", label: "憲章 Charter" },

@@ -147,7 +147,7 @@ export default function Members() {
           <div className="inline-flex items-center gap-3 flex-wrap justify-center mb-4">
             <div className="inline-flex items-center justify-center px-4 py-2 bg-primary/5 text-primary rounded-full border border-primary/20">
               <span className="font-bold text-xl mr-1">{memberStates.length}</span>
-              <span className="text-sm font-medium">成員國 Members</span>
+              <span className="text-sm font-medium">會員國 Members</span>
             </div>
             <div className="inline-flex items-center justify-center px-4 py-2 bg-muted/50 text-muted-foreground rounded-full border border-border/50">
               <span className="font-bold text-xl mr-1">{observerStates.length}</span>
@@ -196,7 +196,7 @@ export default function Members() {
             onClick={() => setActiveTab("member")}
             className={activeTab === "member" ? "bg-primary text-primary-foreground" : ""}
           >
-            成員國 Members ({memberStates.length})
+            會員國 Members ({memberStates.length})
           </Button>
           <Button
             variant={activeTab === "observer" ? "default" : "outline"}
