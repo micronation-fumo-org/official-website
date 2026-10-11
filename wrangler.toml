@@ -8,7 +8,7 @@ ENVIRONMENT = "production"
 [[d1_databases]]
 binding = "DB"
 database_name = "official-website"
-database_id = "REPLACE_WITH_CLOUDFLARE_D1_DATABASE_ID"
+database_id = "04a5cd44-95eb-4a02-a954-88946515c6da"
 migrations_dir = "migrations"
 
 [dev]

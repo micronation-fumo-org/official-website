@@ -8,7 +8,7 @@
 - D1 database factory：`lib/db/src/d1.ts`
 - 初始 migration：`migrations/0001_initial.sql`
 - Wrangler 設定：`wrangler.toml`
-- Worker health endpoint：`artifacts/api-server/src/worker.ts`
+- Worker API：`artifacts/api-server/src/worker.ts`（`/api/healthz`、`/api/votes`）
 
 ### 建立 D1 database
 
@@ -34,4 +34,4 @@ D1 不支援 PostgreSQL array/timestamp 型別，因此：
 - boolean 欄位使用 SQLite `INTEGER`（Drizzle `mode: "boolean"`）
 - `ballots(vote_id, voter_id)` 有唯一索引，避免重複投票
 
-目前原有 Express/PostgreSQL API 仍保留在 Node runtime；Worker 入口先提供 D1 health check，方便先驗證 binding 與 migration。現有 API route 若要完全搬到 Cloudflare Workers，需將 Express handlers 改為 request/response-neutral 的 Worker handlers，並移除 Node-only 的 `argon2` 依賴。
+目前原有 Express/PostgreSQL API 仍保留在 Node runtime；Cloudflare Worker 已提供 D1 health check 與投票列表讀取 API。其餘投票寫入、登入與管理 API 若要完全搬到 Cloudflare Workers，需將 Express handlers 改為 request/response-neutral 的 Worker handlers，並移除 Node-only 的 `argon2` 依賴。
