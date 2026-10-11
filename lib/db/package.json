@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./d1": "./src/d1.ts",
+    "./d1-schema": "./src/d1-schema.ts"
   },
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
@@ -20,6 +22,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/pg": "^8.20.0",
+    "@cloudflare/workers-types": "^5.20261010.1",
     "drizzle-kit": "^0.31.10"
   }
 }
