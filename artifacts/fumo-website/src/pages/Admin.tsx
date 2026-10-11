@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Shield, Users, AlertTriangle, CheckCircle2, KeyRound, LogIn, Crown, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
+import { apiUrl } from "@/lib/api";
 interface Account {
   voterId: string;
   voterName: string;

@@ -12,6 +12,7 @@ import { Plus, Trash2, AlertTriangle, CheckCircle2, Shield } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
 
+import { apiUrl } from "@/lib/api";
 async function createVote(body: {
   name: string;
   description: string;
