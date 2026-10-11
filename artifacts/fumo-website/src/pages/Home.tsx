@@ -128,10 +128,10 @@ export default function Home() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto"
           >
             {[
-              { icon: Shield, title: isEnglish ? "Peace" : "維護和平", desc: "消弭威脅，防止衝突，維護微國家間的和諧。" },
-              { icon: Globe, title: isEnglish ? "Cooperation" : "促進合作", desc: "推動經濟、文化及社會領域的跨國合作。" },
-              { icon: Award, title: isEnglish ? "Sovereignty" : "尊重主權", desc: "保障各成員國的主權完整與平等地位。" },
-              { icon: Scale, title: isEnglish ? "Mediation" : "調解爭端", desc: "提供中立平台，以和平方式解決國際爭端。" }
+              { icon: Shield, title: isEnglish ? "Peace" : "維護和平", desc: isEnglish ? "Prevent threats and conflict while preserving harmony among micronations." : "消弭威脅，防止衝突，維護微國家間的和諧。" },
+              { icon: Globe, title: isEnglish ? "Cooperation" : "促進合作", desc: isEnglish ? "Advance international cooperation in economic, cultural and social affairs." : "推動經濟、文化及社會領域的跨國合作。" },
+              { icon: Award, title: isEnglish ? "Sovereignty" : "尊重主權", desc: isEnglish ? "Protect the sovereignty and equal standing of every member state." : "保障各成員國的主權完整與平等地位。" },
+              { icon: Scale, title: isEnglish ? "Mediation" : "調解爭端", desc: isEnglish ? "Provide a neutral platform for the peaceful resolution of international disputes." : "提供中立平台，以和平方式解決國際爭端。" }
             ].map((pillar, i) => (
               <motion.div key={i} variants={item}>
                 <Card className="h-full border-none shadow-md hover:shadow-lg transition-shadow bg-white text-center p-6">
@@ -155,7 +155,7 @@ export default function Home() {
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-primary mb-6">{isEnglish ? "Main organs" : "主要機構"}</h2>
             <div className="w-16 h-1 bg-secondary mx-auto mb-6" />
-            <p className="text-foreground/70 max-w-2xl mx-auto">依據《{isEnglish ? "Federation of United Micronations Organisation" : "聯合微國家組織"}憲章》，本組織設立三大常設機構以維持日常運作與決策。</p>
+            <p className="text-foreground/70 max-w-2xl mx-auto">{isEnglish ? "Under the FUMO Charter, three permanent organs support daily operations and decision-making." : "依據《聯合微國家組織憲章》，本組織設立三大常設機構以維持日常運作與決策。"}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
@@ -166,12 +166,12 @@ export default function Home() {
               </div>
               <CardContent className="p-6">
                 <p className="text-foreground/80 mb-4">
-                  組織的最高權力與議事機構。每個成員國可派遣代表參與，行使提案、表決與發言權，決定組織的重大方針與決議。
+                  {isEnglish ? "The organisation’s highest deliberative body. Each member state may appoint representatives to propose, vote and speak on major policies and resolutions." : "組織的最高權力與議事機構。每個成員國可派遣代表參與，行使提案、表決與發言權，決定組織的重大方針與決議。"}
                 </p>
                 <ul className="list-disc list-inside text-sm text-foreground/70 space-y-2 ml-4">
-                  <li>一國一票，公開唱名表決</li>
-                  <li>選舉及罷免秘書長</li>
-                  <li>處理成員國入聯與升格申請</li>
+                  <li>{isEnglish ? "One state, one vote by public roll call" : "一國一票，公開唱名表決"}</li>
+                  <li>{isEnglish ? "Elect and recall the Secretary-General" : "選舉及罷免秘書長"}</li>
+                  <li>{isEnglish ? "Process admission and membership applications" : "處理成員國入聯與升格申請"}</li>
                 </ul>
               </CardContent>
             </Card>
@@ -183,12 +183,12 @@ export default function Home() {
               </div>
               <CardContent className="p-6">
                 <p className="text-foreground/80 mb-4">
-                  組織的常設行政機構，由秘書長領導。負責對外代表組織，並維持{isEnglish ? "Deliberation Center" : "議事中心"}的日常運作與執行決議。
+                  {isEnglish ? "The permanent administrative organ led by the Secretary-General. It represents FUMO externally, supports the Deliberation Center and implements resolutions." : "組織的常設行政機構，由秘書長領導。負責對外代表組織，並維持議事中心的日常運作與執行決議。"}
                 </p>
                 <ul className="list-disc list-inside text-sm text-foreground/70 space-y-2 ml-4">
-                  <li>維持議事運作與檔案管理</li>
-                  <li>組織文化及交流活動</li>
-                  <li>維護組織秩序與憲章執行</li>
+                  <li>{isEnglish ? "Maintain deliberations and records" : "維持議事運作與檔案管理"}</li>
+                  <li>{isEnglish ? "Organise cultural and exchange activities" : "組織文化及交流活動"}</li>
+                  <li>{isEnglish ? "Maintain order and uphold the Charter" : "維護組織秩序與憲章執行"}</li>
                 </ul>
               </CardContent>
             </Card>
@@ -200,12 +200,12 @@ export default function Home() {
               </div>
               <CardContent className="p-6">
                 <p className="text-foreground/80 mb-4">
-                  負責維持{isEnglish ? "Deliberation Center" : "議事中心"}的秩序與流程。理事國負責主持會議，並在特殊情況下有權要求召開特別會議。
+                  {isEnglish ? "Maintains the order and procedures of the Deliberation Center. Council states chair meetings and may request special meetings when necessary." : "負責維持議事中心的秩序與流程。理事國負責主持會議，並在特殊情況下有權要求召開特別會議。"}
                 </p>
                 <ul className="list-disc list-inside text-sm text-foreground/70 space-y-2 ml-4">
-                  <li>指派{isEnglish ? "Deliberation Center" : "議事中心"}主席與副主席</li>
-                  <li>處理突發危機與緊急事務</li>
-                  <li>協助{isEnglish ? "Secretariat" : "秘書處"}執行決議</li>
+                  <li>{isEnglish ? "Appoint the chair and vice-chairs" : "指派議事中心主席與副主席"}</li>
+                  <li>{isEnglish ? "Handle crises and emergencies" : "處理突發危機與緊急事務"}</li>
+                  <li>{isEnglish ? "Assist the Secretariat in implementing resolutions" : "協助秘書處執行決議"}</li>
                 </ul>
               </CardContent>
             </Card>

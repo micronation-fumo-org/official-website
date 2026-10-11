@@ -19,9 +19,9 @@ export default function Regulations() {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "complete": return "已生效 Active";
-      case "pending": return "審議中 Pending";
-      case "draft": return "草案 Draft";
+      case "complete": return isEnglish ? "Active" : "已生效";
+      case "pending": return isEnglish ? "Pending" : "審議中";
+      case "draft": return isEnglish ? "Draft" : "草案";
       default: return status;
     }
   };
@@ -42,7 +42,7 @@ export default function Regulations() {
         <div className="mb-12 text-center max-w-3xl mx-auto">
           <h1 className="text-4xl font-bold text-primary mb-4">{isEnglish ? "Regulations and Documents" : "法規與文件"}</h1>
           <p className="text-foreground/70 mb-8">
-            聯合微國家組織的法律與規範體系。所有官方文件與法規均存放於 HackMD 以確保公開透明與版本控制。
+            {isEnglish ? "FUMO’s legal and regulatory framework. Official documents are hosted on HackMD for transparency and version control." : "聯合微國家組織的法律與規範體系。所有官方文件與法規均存放於 HackMD 以確保公開透明與版本控制。"}
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button asChild size="lg" className="bg-primary">
@@ -54,7 +54,7 @@ export default function Regulations() {
             </Button>
             <Button asChild size="lg" variant="outline" className="border-primary text-primary">
               <a href={charterUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                聯合微國家組織憲章 Charter
+                {isEnglish ? "FUMO Charter" : "聯合微國家組織憲章"}
                 <ExternalLink className="w-4 h-4 ml-1" />
               </a>
             </Button>
@@ -71,7 +71,7 @@ export default function Regulations() {
               transition={{ duration: 0.5 }}
             >
               <div className="flex items-center gap-3 mb-6 pb-2 border-b border-border/60">
-                <h2 className="text-2xl font-bold text-primary">{group.info.label}</h2>
+                <h2 className="text-2xl font-bold text-primary">{isEnglish ? group.info.labelEn : group.info.label}</h2>
                 <span className="text-muted-foreground text-sm font-medium px-2 py-1 bg-muted rounded-md">{group.info.labelEn}</span>
               </div>
               
@@ -93,11 +93,11 @@ export default function Regulations() {
                           {getStatusLabel(reg.status)}
                         </Badge>
                       </div>
-                      <CardTitle className="text-xl leading-tight text-primary">{reg.name}</CardTitle>
-                      {reg.nameEn && <CardDescription className="text-sm font-medium mt-1">{reg.nameEn}</CardDescription>}
+                      <CardTitle className="text-xl leading-tight text-primary">{isEnglish && reg.nameEn ? reg.nameEn : reg.name}</CardTitle>
+                      {!isEnglish && reg.nameEn && <CardDescription className="text-sm font-medium mt-1">{reg.nameEn}</CardDescription>}
                     </CardHeader>
                     <CardContent className="flex-grow">
-                      <p className="text-sm text-foreground/70">{reg.description || "暫無說明。"}</p>
+                      <p className="text-sm text-foreground/70">{isEnglish ? `Official document: ${reg.nameEn || reg.name}.` : (reg.description || "暫無說明。")}</p>
                     </CardContent>
                     <CardFooter className="pt-4 border-t border-border/40">
                       <Button asChild variant="ghost" className="w-full text-secondary hover:text-secondary hover:bg-secondary/10 justify-between">
