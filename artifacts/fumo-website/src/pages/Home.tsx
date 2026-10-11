@@ -218,6 +218,9 @@ export default function Home() {
           <p className="text-xl text-white/80 mb-10">
             無論是成熟的微國家還是新興的主權實體，FUMO 都歡迎您加入這個多元、包容的國際社群。
           </p>
+          <a href="https://discord.gg/MuSM3yXrQh" target="_blank" rel="noopener noreferrer" className="inline-block bg-secondary hover:bg-secondary/90 text-primary font-bold py-2 px-4 rounded-md transition-colors">
+            加入聯合微國家組織伺服器
+          </a>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link href="/regulations">
               <Button size="lg" className="bg-secondary hover:bg-secondary/90 text-primary font-bold min-w-[200px] h-14 text-lg">
