@@ -108,7 +108,7 @@ export default function Register() {
                   <option value="">請選擇會員國或觀察國</option>
                   {countries.map((country) => <option key={country} value={country}>{country}</option>)}
                 </select>
-                <p className="text-xs text-muted-foreground mt-1">只有名冊中的會員國與觀察國可以註冊。</p>
+                <p className="text-xs text-muted-foreground mt-1">只有名冊中的會員國與觀察國可以註冊。註冊名單與投票代表名單分開；註冊後不會自動取得投票資格。</p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">設定密碼 Set Password</label>
