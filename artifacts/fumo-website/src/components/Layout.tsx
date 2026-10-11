@@ -201,7 +201,10 @@ export function Layout({ children }: LayoutProps) {
         </div>
 
         <div className="container mx-auto px-4 mt-8 pt-8 border-t border-primary-foreground/10 text-center text-sm text-primary-foreground/60">
-          <p>© {new Date().getFullYear()} Federation of United Micronations Organisation. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} FUMO 與 蛋包咖哩飯 所有。All rights reserved.</p>
+          <a href="https://damcurryrice.com" target="_blank" rel="noopener noreferrer" className="inline-block mt-2 hover:text-secondary transition-colors">
+            蛋包咖哩飯網站：damcurryrice.com
+          </a>
         </div>
       </footer>
     </div>
