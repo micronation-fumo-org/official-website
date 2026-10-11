@@ -348,6 +348,18 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     await env.DB.prepare("UPDATE voter_accounts SET password_hash = COALESCE(?, password_hash), admin_level = COALESCE(?, admin_level), updated_at = ? WHERE voter_id = ?").bind(input.newPassword === undefined ? null : await hashPassword(String(input.newPassword)), input.adminLevel === undefined ? null : Number(input.adminLevel), now(), input.voterId).run();
     return json({ success: true, message: "Account updated" });
   }
+  if (parts[0] === "admin" && parts[1] === "votes" && parts.length === 3 && method === "DELETE") {
+    const targetVoteId = Number(parts[2]);
+    if (!Number.isInteger(targetVoteId) || targetVoteId <= 0) return error("Invalid vote ID", 400);
+    if (!await requireAdmin(env, adminId, ADMIN_LEVEL_SUPER)) return error("只有最高管理員才能刪除投票。", 403);
+    const vote = await env.DB.prepare("SELECT id FROM votes WHERE id = ?").bind(targetVoteId).first<Row>();
+    if (!vote) return error("Vote not found", 404);
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM ballots WHERE vote_id = ?").bind(targetVoteId),
+      env.DB.prepare("DELETE FROM votes WHERE id = ?").bind(targetVoteId),
+    ]);
+    return json({ success: true, message: "Vote deleted" });
+  }
   if (parts[0] === "admin" && parts[1] === "ballots" && method === "DELETE") {
     if (!await requireAdmin(env, adminId, ADMIN_LEVEL_TIER2)) return error("二階管理員以上才能刪除投票記錄。", 403);
     await env.DB.prepare("DELETE FROM ballots WHERE id = ?").bind(Number(parts[2])).run();

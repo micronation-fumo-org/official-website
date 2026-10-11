@@ -186,6 +186,7 @@ export default function Admin() {
                 <ul className={`text-xs mt-1 space-y-0.5 ${isSuperAdmin ? "text-red-700" : "text-muted-foreground"}`}>
                   <li>{isEnglish ? "Set administrator levels" : "設定用戶管理員級別"}</li>
                   <li>{isEnglish ? "Manage all accounts" : "管理所有帳戶"}</li>
+                  <li>{isEnglish ? "Delete entire votes" : "刪除整個投票"}</li>
                 </ul>
               </div>
             </div>

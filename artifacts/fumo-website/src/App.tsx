@@ -14,6 +14,8 @@ import CreateVote from "@/pages/CreateVote";
 import Admin from "@/pages/Admin";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import Privacy from "@/pages/Privacy";
+import Terms from "@/pages/Terms";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 
@@ -33,6 +35,8 @@ function Router() {
         <Route path="/admin" component={Admin} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
+        <Route path="/privacy" component={Privacy} />
+        <Route path="/terms" component={Terms} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
