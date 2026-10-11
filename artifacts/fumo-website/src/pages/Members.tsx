@@ -157,7 +157,7 @@ export default function Members() {
           </div>
           <div className="flex items-center justify-center gap-3">
             <a
-              href="https://docs.google.com/spreadsheets/d/1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0/edit"
+              href="https://docs.google.com/spreadsheets/d/1ebE_1cZa2nqcdPwrFq_60wmElO1GDNtoG8zFPciqHFo/edit"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-sm text-secondary hover:text-secondary/80 transition-colors underline-offset-2 hover:underline"
