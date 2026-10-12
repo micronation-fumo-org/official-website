@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -57,11 +58,11 @@ async function fetchResults(id: string): Promise<ResultsData> {
   return res.json();
 }
 
-async function castBallot(voteId: string, selectedOptions: string[]): Promise<any> {
+async function castBallot(voteId: string, selectedOptions: string[], password: string): Promise<any> {
   const res = await apiFetch(`/api/votes/${voteId}/ballot`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ selectedOptions }),
+    body: JSON.stringify({ selectedOptions, password }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "提交投票失敗。");
@@ -96,6 +97,7 @@ export default function VoteDetail() {
   const { user, isAdmin, isSuperAdmin } = useAuth();
 
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [votePassword, setVotePassword] = useState("");
   const [voteSuccess, setVoteSuccess] = useState<string | null>(null);
   const [voteError, setVoteError] = useState<string | null>(null);
 
@@ -113,7 +115,7 @@ export default function VoteDetail() {
   });
 
   const castMutation = useMutation({
-    mutationFn: (selectedOptions: string[]) => castBallot(voteId, selectedOptions),
+    mutationFn: (input: { selectedOptions: string[]; password: string }) => castBallot(voteId, input.selectedOptions, input.password),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vote", voteId] });
       queryClient.invalidateQueries({ queryKey: ["vote-results", voteId] });
@@ -121,6 +123,7 @@ export default function VoteDetail() {
       setVoteSuccess(isEnglish ? "Vote submitted successfully. Thank you for participating." : "投票成功！謝謝您的參與。");
       setVoteError(null);
       setSelectedOptions([]);
+      setVotePassword("");
     },
     onError: (err: Error) => {
       setVoteError(toChineseError(err));
@@ -172,9 +175,13 @@ export default function VoteDetail() {
       setVoteError("請選擇至少一個選項。");
       return;
     }
+    if (!votePassword.trim()) {
+      setVoteError(isEnglish ? "Please enter your account password to confirm your vote." : "請輸入帳戶密碼以確認投票。");
+      return;
+    }
     setVoteError(null);
     setVoteSuccess(null);
-    castMutation.mutate(selectedOptions);
+    castMutation.mutate({ selectedOptions, password: votePassword.trim() });
   };
 
   const formattedOutput = useMemo(() => {
@@ -318,6 +325,26 @@ export default function VoteDetail() {
                   <p className="text-xs text-muted-foreground mt-2">{isEnglish ? "Please sign in to select an option." : "請先登入才能選擇選項。"}</p>
                 )}
               </div>
+
+              {user && (
+                <div>
+                  <label htmlFor="vote-password" className="block text-sm font-medium mb-2">
+                    {isEnglish ? "Account password (confirmation)" : "帳戶密碼（投票確認）"}
+                  </label>
+                  <Input
+                    id="vote-password"
+                    type="password"
+                    value={votePassword}
+                    onChange={(e) => setVotePassword(e.target.value)}
+                    placeholder={isEnglish ? "Enter your account password" : "輸入您的帳戶密碼"}
+                    autoComplete="current-password"
+                    disabled={castMutation.isPending}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {isEnglish ? "Used only to verify this vote on the server; it is not stored in the browser." : "僅用於由後端驗證本次投票，不會儲存在瀏覽器中。"}
+                  </p>
+                </div>
+              )}
 
               {voteError && (
                 <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md">
