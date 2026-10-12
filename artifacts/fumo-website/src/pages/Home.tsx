@@ -35,7 +35,7 @@ export default function Home() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="mb-10"
           >
-            <div className="relative p-2 bg-white rounded-sm shadow-2xl border border-border/50">
+            <div className="relative p-2 rounded-sm shadow-2xl border border-border/50">
               <img 
                 src="/fumo-flag.png" 
                 alt="FUMO Flag" 

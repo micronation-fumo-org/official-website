@@ -46,8 +46,10 @@ export function Layout({ children }: LayoutProps) {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-90 shrink-0">
-            <img src="/fumo-flag.png" alt="FUMO Flag" className="h-10 w-10 object-contain shadow-sm border border-border/50 bg-white" />
-            <span className="text-lg font-bold leading-tight tracking-wide text-primary">FUMO</span>
+            <img src="/fumo-flag.png" alt="FUMO Flag" className="h-10 w-10 object-contain shadow-sm border border-border/50" />
+            <div className="flex flex-col">
+              <span className="text-lg font-bold leading-tight tracking-wide text-primary">聯微 FUMO</span>
+            </div>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-5 flex-1 justify-center" aria-label={isEnglish ? "Main navigation" : "主要導覽"}>
