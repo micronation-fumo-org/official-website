@@ -13,6 +13,9 @@ const errorTranslations: Array<[RegExp, string]> = [
   [/forbidden|permission|administrator/i, "您沒有執行此操作的權限。"],
   [/not found/i, "找不到要求的資料。"],
   [/already.*(vot|register|exist)/i, "資料已存在，請勿重複操作。"],
+  [/invalid voter id/i, "此帳戶不在有投票資格的代表名單中；請確認登入的是登記帳戶，或請管理員更新代表名冊。"],
+  [/invalid (selected )?options?|invalid option/i, "投票選項與伺服器資料不一致。請重新整理頁面後再選一次；若仍發生，請通知管理員檢查該投票選項。"],
+  [/^投票欄位驗證失敗：/i, "投票資料未符合伺服器欄位要求："],
   [/password/i, "密碼錯誤或不符合要求。"],
   [/required|missing|invalid/i, "輸入資料格式不正確，請檢查後再試。"],
 ];
@@ -20,6 +23,8 @@ const errorTranslations: Array<[RegExp, string]> = [
 export function toChineseError(error: unknown, fallback = "操作失敗，請稍後再試。") {
   const message = error instanceof Error ? error.message : String(error ?? "");
   if (!message || message === "undefined" || message === "null") return fallback;
+  const validationFailure = message.match(/^投票欄位驗證失敗：(.+)$/);
+  if (validationFailure) return `投票資料未符合伺服器欄位要求：${validationFailure[1]}`;
   for (const [pattern, translation] of errorTranslations) {
     if (pattern.test(message)) return translation;
   }

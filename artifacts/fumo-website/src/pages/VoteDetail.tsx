@@ -65,7 +65,18 @@ async function castBallot(voteId: string, voterId: string, selectedOptions: stri
     body: JSON.stringify({ voterId, selectedOptions, password }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "提交投票失敗。");
+  if (!res.ok) {
+    const validationIssues = Array.isArray(data.details)
+      ? data.details.map((issue: { path?: unknown[]; message?: string }) => {
+          const field = Array.isArray(issue.path) && issue.path.length ? issue.path.join(".") : "request";
+          return `${field}: ${issue.message || "invalid value"}`;
+        }).join("；")
+      : "";
+    const message = data.error === "Invalid input" && validationIssues
+      ? `投票欄位驗證失敗：${validationIssues}`
+      : data.error || "提交投票失敗。";
+    throw new Error(message);
+  }
   return data;
 }
 
