@@ -7,3 +7,7 @@ export const API_BASE_URL = (
 export function apiUrl(path: string): string {
   return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+export function apiFetch(path: string, init: RequestInit = {}) {
+  return fetch(apiUrl(path), { ...init, credentials: "include" });
+}

@@ -1,5 +1,5 @@
 import { toChineseError } from "@/lib/errorMessage";
-import { apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,7 @@ interface MembersApiResponse {
 }
 
 async function fetchMembers(): Promise<MembersApiResponse> {
-  const res = await fetch(apiUrl("/api/members"));
+  const res = await apiFetch("/api/members");
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`載入成員資料失敗（${res.status}）。`);

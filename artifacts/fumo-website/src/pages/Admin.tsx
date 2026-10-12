@@ -1,5 +1,5 @@
 import { toChineseError } from "@/lib/errorMessage";
-import { apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -20,8 +20,8 @@ interface Account {
   createdAt: string;
 }
 
-async function fetchAccounts(adminId: string): Promise<Account[]> {
-  const res = await fetch(apiUrl(`/api/admin/accounts?adminId=${encodeURIComponent(adminId)}`));
+async function fetchAccounts(): Promise<Account[]> {
+  const res = await apiFetch("/api/admin/accounts");
   if (!res.ok) {
     const data = await res.json();
     throw new Error(data.error || "載入帳戶資料失敗。");
@@ -29,8 +29,8 @@ async function fetchAccounts(adminId: string): Promise<Account[]> {
   return res.json();
 }
 
-async function updateAccount(adminId: string, voterId: string, updates: { newPassword?: string; adminLevel?: number }): Promise<any> {
-  const res = await fetch(apiUrl(`/api/admin/accounts?adminId=${encodeURIComponent(adminId)}`), {
+async function updateAccount(voterId: string, updates: { newPassword?: string; adminLevel?: number }): Promise<any> {
+  const res = await apiFetch("/api/admin/accounts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ voterId, ...updates }),
@@ -58,7 +58,7 @@ export default function Admin() {
 
   const { data: accounts, error: accountsError, refetch } = useQuery({
     queryKey: ["admin-accounts", user?.voterId],
-    queryFn: () => fetchAccounts(user!.voterId),
+    queryFn: () => fetchAccounts(),
     enabled: isAdmin && !!user?.voterId,
     staleTime: 10 * 1000,
   });
@@ -75,7 +75,7 @@ export default function Admin() {
       return;
     }
     try {
-      await updateAccount(user!.voterId, resetTarget.trim(), { newPassword: resetPassword.trim() });
+      await updateAccount(resetTarget.trim(), { newPassword: resetPassword.trim() });
       setMessage(null, isEnglish ? "Password reset successfully" : "密碼重設成功");
       setResetPassword("");
       setResetTarget("");
@@ -88,7 +88,7 @@ export default function Admin() {
   const handleSetTier = async (targetId: string, newLevel: number) => {
     setMessage(null, null);
     try {
-      await updateAccount(user!.voterId, targetId, { adminLevel: newLevel });
+      await updateAccount(targetId, { adminLevel: newLevel });
       const levelInfo = adminLevelLabel(newLevel, isEnglish);
       setMessage(null, isEnglish ? `${targetId} is now ${levelInfo.label}` : `已將 ${targetId} 設為${levelInfo.label}`);
       queryClient.invalidateQueries({ queryKey: ["admin-accounts"] });

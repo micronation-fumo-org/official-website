@@ -1,5 +1,5 @@
 import { toChineseError } from "@/lib/errorMessage";
-import { apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,7 @@ interface VoteItem {
 }
 
 async function fetchVotes(): Promise<VoteItem[]> {
-  const res = await fetch(apiUrl("/api/votes"));
+  const res = await apiFetch("/api/votes");
   if (!res.ok) throw new Error("載入投票列表失敗。");
   return res.json();
 }
