@@ -16,6 +16,7 @@ const errorTranslations: Array<[RegExp, string]> = [
   [/invalid voter id/i, "此帳戶不在有投票資格的代表名單中；請確認登入的是登記帳戶，或請管理員更新代表名冊。"],
   [/invalid (selected )?options?|invalid option/i, "投票選項與伺服器資料不一致。請重新整理頁面後再選一次；若仍發生，請通知管理員檢查該投票選項。"],
   [/^投票欄位驗證失敗：/i, "投票資料未符合伺服器欄位要求："],
+  [/^invalid input$/i, "伺服器判定必要欄位缺漏或格式不符。請重新登入後重選投票選項再試；若仍發生，請告知管理員投票編號。"],
   [/password/i, "密碼錯誤或不符合要求。"],
   [/required|missing|invalid/i, "輸入資料格式不正確，請檢查後再試。"],
 ];
