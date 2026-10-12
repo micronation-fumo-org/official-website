@@ -108,6 +108,15 @@ export default function Home() {
             <p className="text-lg text-foreground/80 leading-relaxed">
               {isEnglish ? "Today, the organisation brings together nearly one hundred member and observer states across diverse political systems and cultural backgrounds." : "目前，組織擁有近百個成員國與觀察國，涵蓋多種政治體制與文化背景，展現了微國家社群的多元與活力。"}
             </p>
+            <div className="mt-10 rounded-xl border border-secondary/30 bg-secondary/5 p-6 text-left">
+              <h3 className="text-xl font-bold text-primary mb-3">{isEnglish ? "Why FUMO was founded" : "組織創立初衷"}</h3>
+              <p className="text-foreground/80 leading-relaxed mb-4">
+                {isEnglish ? "FUMO was founded to give micronations a fair, peaceful and constructive space for dialogue. By recognising the equal dignity of each participating entity, the organisation seeks to reduce misunderstanding, mediate disputes and turn a diverse micronational community into a lasting network of cooperation." : "聯合微國家組織成立的初衷，是為微國家建立一個公平、和平且具建設性的對話平台。透過尊重每個參與實體的平等地位，組織希望減少誤解、調解爭端，並將多元的微國家社群連結成持久合作的網絡。"}
+              </p>
+              <a href="https://www.micropedia.site/wiki/聯合微國家組織" target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-sm font-semibold text-secondary hover:text-primary transition-colors">
+                {isEnglish ? "Read the organisation profile on Micropedia →" : "在 Micropedia 閱讀聯合微國家組織介紹 →"}
+              </a>
+            </div>
           </div>
         </div>
       </section>
