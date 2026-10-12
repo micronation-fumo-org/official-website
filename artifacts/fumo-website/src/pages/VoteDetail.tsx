@@ -58,11 +58,11 @@ async function fetchResults(id: string): Promise<ResultsData> {
   return res.json();
 }
 
-async function castBallot(voteId: string, selectedOptions: string[], password: string): Promise<any> {
+async function castBallot(voteId: string, voterId: string, selectedOptions: string[], password: string): Promise<any> {
   const res = await apiFetch(`/api/votes/${voteId}/ballot`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ selectedOptions, password }),
+    body: JSON.stringify({ voterId, selectedOptions, password }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "提交投票失敗。");
@@ -117,7 +117,7 @@ export default function VoteDetail() {
   });
 
   const castMutation = useMutation({
-    mutationFn: (input: { selectedOptions: string[]; password: string }) => castBallot(voteId, input.selectedOptions, input.password),
+    mutationFn: (input: { voterId: string; selectedOptions: string[]; password: string }) => castBallot(voteId, input.voterId, input.selectedOptions, input.password),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vote", voteId] });
       queryClient.invalidateQueries({ queryKey: ["vote-results", voteId] });
@@ -191,7 +191,7 @@ export default function VoteDetail() {
     }
     setVoteError(null);
     setVoteSuccess(null);
-    castMutation.mutate({ selectedOptions, password: votePassword.trim() });
+    castMutation.mutate({ voterId: user.voterId, selectedOptions, password: votePassword.trim() });
   };
 
   const formattedOutput = useMemo(() => {
