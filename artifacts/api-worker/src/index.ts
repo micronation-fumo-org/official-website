@@ -78,7 +78,7 @@ async function sheet(gid: string) { const r = await fetch(`https://docs.google.c
 interface Member { fullName: string; shortName: string; abbreviation?: string; headOfState?: string; primeMinister?: string; governmentType: string; status: "member" | "observer"; }
 interface Voter { countryName: string; reps: { name: string; id: string }[]; }
 interface RegistrationEntry { countryName: string; voterName: string; id: string; }
-interface StaffEntry { id: string; name: string; roles: string[]; }
+interface StaffEntry { id: string; name: string; roles: string[]; areas: string[]; organizations: string[]; }
 let membersCache: { value: { memberStates: Member[]; observerStates: Member[]; allStates: Member[] }; at: number } | null = null;
 let votersCache: { value: Voter[]; at: number } | null = null;
 let staffCache: { value: StaffEntry[]; at: number } | null = null;
@@ -102,14 +102,17 @@ async function staffAccounts() {
     fetch(`https://docs.google.com/spreadsheets/d/${STAFF_SHEET_ID}/export?format=csv&gid=${COUNCIL_GID}`).then(r => r.text()).then(csvRows),
   ]);
   const byId = new Map<string, StaffEntry>();
-  for (const rows of [secretariat, council]) {
+  for (const [rows, organization] of [[secretariat, "秘書處"], [council, "議事中心"]] as const) {
     const h = rows[0] ?? []; const idAt = h.indexOf("使用者ID"); const nameAt = h.indexOf("暱稱"); const roleAt = h.indexOf("職稱");
     if (idAt < 0 || nameAt < 0 || roleAt < 0) continue;
     for (const r of rows.slice(1)) {
       const id = (r[idAt] ?? "").trim(); const name = (r[nameAt] ?? "").trim(); const role = (r[roleAt] ?? "").trim();
       if (!id || !name) continue;
-      const entry = byId.get(id) ?? { id, name, roles: [] };
+      const area = (r[h.indexOf("負責區域")] ?? "").trim();
+      const entry = byId.get(id) ?? { id, name, roles: [], areas: [], organizations: [] };
       if (role && !entry.roles.includes(role)) entry.roles.push(role);
+      if (area && !entry.areas.includes(area)) entry.areas.push(area);
+      if (!entry.organizations.includes(organization)) entry.organizations.push(organization);
       byId.set(id, entry);
     }
   }
@@ -156,6 +159,7 @@ app.use("/*", async (c, next) => {
 app.get("/api/healthz", c => c.json({ status: "ok" }));
 app.get("/api/members", async c => { try { return c.json({ ...(await members()), cached: Boolean(membersCache), lastUpdated: membersCache ? new Date(membersCache.at).toISOString() : null }); } catch (e) { return c.json({ error: "Failed to fetch member states", message: String(e) }, 500); } });
 app.get("/api/voters", async c => { try { return c.json(await voters()); } catch (e) { return c.json({ error: "Failed to fetch voters", message: String(e) }, 500); } });
+app.get("/api/staff-report", async c => { try { const staff = await staffAccounts(); return c.json({ staff: staff.map(({ id: _id, ...entry }) => entry), lastUpdated: new Date().toISOString() }); } catch (e) { return c.json({ error: "Failed to fetch staff report", message: String(e) }, 500); } });
 
 app.get("/api/votes", async c => { const rows = await c.env.DB.prepare("SELECT v.*, COUNT(b.id) AS ballot_count FROM votes v LEFT JOIN ballots b ON b.vote_id = v.id GROUP BY v.id ORDER BY v.created_at ASC").all<VoteRow & { ballot_count: number }>(); return c.json((rows.results ?? []).map(v => asVote(v, v.ballot_count))); });
 app.post("/api/votes", async c => { const body = z.object({ name: z.string().min(1), description: z.string().optional(), deadline: z.string().datetime(), options: z.array(z.string().min(1)).min(2), allowMultiple: z.boolean().default(false) }).safeParse(await parseJson(c)); if (!body.success) return c.json({ error: "Invalid input", details: body.error.issues }, 400); const a = await currentAccount(c); if (!a || a.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。只有管理員才能建立投票。" }, 403); const r = await c.env.DB.prepare("INSERT INTO votes (name, description, deadline, options, allow_multiple) VALUES (?, ?, ?, ?, ?) RETURNING *").bind(body.data.name, body.data.description ?? "", body.data.deadline, JSON.stringify(body.data.options), body.data.allowMultiple ? 1 : 0).first<VoteRow>(); return c.json(r ? asVote(r) : { error: "Failed to create vote" }, 201); });

@@ -17,6 +17,7 @@ export function Layout({ children }: LayoutProps) {
     ? [
         { href: "/", label: "Home" },
         { href: "/members", label: "Member States" },
+        { href: "/staff", label: "Positions" },
         { href: "/votes", label: "Voting" },
         { href: "/regulations", label: "Regulations" },
         { href: "/charter", label: "Charter" },
@@ -24,6 +25,7 @@ export function Layout({ children }: LayoutProps) {
     : [
         { href: "/", label: "首頁" },
         { href: "/members", label: "會員國" },
+        { href: "/staff", label: "職位報告" },
         { href: "/votes", label: "投票" },
         { href: "/regulations", label: "法規" },
         { href: "/charter", label: "憲章" },
