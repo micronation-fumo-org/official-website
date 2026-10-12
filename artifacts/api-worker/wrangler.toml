@@ -9,7 +9,7 @@ database_id = "12d68b57-505d-40e9-8581-5024867dbb01"
 migrations_dir = "migrations"
 
 [vars]
-CORS_ORIGIN = "*"
+CORS_ORIGIN = "https://www.micronationfumo.org,https://official-website-6q7.pages.dev"
 
 [observability]
 enabled = true

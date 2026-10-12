@@ -1,5 +1,5 @@
 import { toChineseError } from "@/lib/errorMessage";
-import { apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,7 @@ interface MembersApiResponse {
 }
 
 async function fetchMembers(): Promise<MembersApiResponse> {
-  const res = await fetch(apiUrl("/api/members"));
+  const res = await apiFetch("/api/members");
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`載入成員資料失敗（${res.status}）。`);
@@ -219,7 +219,7 @@ export default function Members() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredMembers.map((member, index) => (
             <StateCard key={member.fullName} member={member} index={index} />
           ))}

@@ -16,6 +16,7 @@ import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
+import StaffReport from "@/pages/StaffReport";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 
@@ -27,6 +28,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/members" component={Members} />
+        <Route path="/staff" component={StaffReport} />
         <Route path="/regulations" component={Regulations} />
         <Route path="/charter" component={Charter} />
         <Route path="/votes" component={Votes} />

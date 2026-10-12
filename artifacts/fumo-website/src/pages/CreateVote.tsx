@@ -1,5 +1,5 @@
 import { toChineseError } from "@/lib/errorMessage";
-import { apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -20,9 +20,8 @@ async function createVote(body: {
   deadline: string;
   options: string[];
   allowMultiple: boolean;
-  adminId: string;
 }) {
-  const res = await fetch(apiUrl("/api/votes"), {
+  const res = await apiFetch("/api/votes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -85,7 +84,6 @@ export default function CreateVote() {
       deadline: new Date(deadline).toISOString(),
       options: validOptions,
       allowMultiple,
-      adminId: user.voterId,
     });
   };
 

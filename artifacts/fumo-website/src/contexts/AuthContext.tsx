@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { apiFetch } from "@/lib/api";
 
 export interface AuthUser {
   voterId: string;
@@ -9,8 +10,9 @@ export interface AuthUser {
 
 interface AuthContextValue {
   user: AuthUser | null;
+  loading: boolean;
   login: (user: AuthUser) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAdmin: boolean;
   isTier2Admin: boolean;
   isSuperAdmin: boolean;
@@ -18,44 +20,24 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const STORAGE_KEY = "fumo_auth_user";
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? (JSON.parse(stored) as AuthUser) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = (u: AuthUser) => {
-    setUser(u);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+  useEffect(() => {
+    apiFetch("/api/auth/me")
+      .then(async (res) => (res.ok ? setUser(await res.json()) : setUser(null)))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const login = (u: AuthUser) => setUser(u);
+  const logout = async () => {
+    try { await apiFetch("/api/auth/logout", { method: "POST" }); } finally { setUser(null); }
   };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
-  };
-
   const adminLevel = user?.adminLevel ?? 0;
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        logout,
-        isAdmin: adminLevel >= 1,
-        isTier2Admin: adminLevel >= 2,
-        isSuperAdmin: adminLevel >= 9,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ user, loading, login, logout, isAdmin: adminLevel >= 1, isTier2Admin: adminLevel >= 2, isSuperAdmin: adminLevel >= 9 }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

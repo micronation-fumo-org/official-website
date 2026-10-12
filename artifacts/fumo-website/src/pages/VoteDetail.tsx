@@ -1,10 +1,11 @@
 import { toChineseError } from "@/lib/errorMessage";
-import { apiUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -46,41 +47,40 @@ interface ResultsData {
 }
 
 async function fetchVoteDetail(id: string): Promise<VoteDetail> {
-  const res = await fetch(apiUrl(`/api/votes/${id}`));
+  const res = await apiFetch(`/api/votes/${id}`);
   if (!res.ok) throw new Error("載入投票資料失敗。");
   return res.json();
 }
 
 async function fetchResults(id: string): Promise<ResultsData> {
-  const res = await fetch(apiUrl(`/api/votes/${id}/results`));
+  const res = await apiFetch(`/api/votes/${id}/results`);
   if (!res.ok) throw new Error("載入投票結果失敗。");
   return res.json();
 }
 
-async function castBallot(voteId: string, voterId: string, password: string, selectedOptions: string[]): Promise<any> {
-  const res = await fetch(apiUrl(`/api/votes/${voteId}/ballot`), {
+async function castBallot(voteId: string, selectedOptions: string[], password: string): Promise<any> {
+  const res = await apiFetch(`/api/votes/${voteId}/ballot`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ voterId, password, selectedOptions }),
+    body: JSON.stringify({ selectedOptions, password }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "提交投票失敗。");
   return data;
 }
 
-async function closeVoteApi(voteId: string, adminId: string): Promise<any> {
-  const res = await fetch(apiUrl(`/api/votes/${voteId}/close`), {
+async function closeVoteApi(voteId: string): Promise<any> {
+  const res = await apiFetch(`/api/votes/${voteId}/close`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ adminId }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "關閉投票失敗。");
   return data;
 }
 
-async function deleteVoteApi(voteId: string, adminId: string): Promise<any> {
-  const res = await fetch(apiUrl(`/api/admin/votes/${voteId}?adminId=${encodeURIComponent(adminId)}`), {
+async function deleteVoteApi(voteId: string): Promise<any> {
+  const res = await apiFetch(`/api/admin/votes/${voteId}`, {
     method: "DELETE",
   });
   const data = await res.json();
@@ -96,8 +96,8 @@ export default function VoteDetail() {
   const queryClient = useQueryClient();
   const { user, isAdmin, isSuperAdmin } = useAuth();
 
-  const [password, setPassword] = useState("");
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [votePassword, setVotePassword] = useState("");
   const [voteSuccess, setVoteSuccess] = useState<string | null>(null);
   const [voteError, setVoteError] = useState<string | null>(null);
 
@@ -115,8 +115,7 @@ export default function VoteDetail() {
   });
 
   const castMutation = useMutation({
-    mutationFn: (opts: { voterId: string; password: string; selectedOptions: string[] }) =>
-      castBallot(voteId, opts.voterId, opts.password, opts.selectedOptions),
+    mutationFn: (input: { selectedOptions: string[]; password: string }) => castBallot(voteId, input.selectedOptions, input.password),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vote", voteId] });
       queryClient.invalidateQueries({ queryKey: ["vote-results", voteId] });
@@ -124,7 +123,7 @@ export default function VoteDetail() {
       setVoteSuccess(isEnglish ? "Vote submitted successfully. Thank you for participating." : "投票成功！謝謝您的參與。");
       setVoteError(null);
       setSelectedOptions([]);
-      setPassword("");
+      setVotePassword("");
     },
     onError: (err: Error) => {
       setVoteError(toChineseError(err));
@@ -133,7 +132,7 @@ export default function VoteDetail() {
   });
 
   const closeMutation = useMutation({
-    mutationFn: () => closeVoteApi(voteId, user?.voterId || ""),
+    mutationFn: () => closeVoteApi(voteId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vote", voteId] });
       queryClient.invalidateQueries({ queryKey: ["votes"] });
@@ -144,7 +143,7 @@ export default function VoteDetail() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteVoteApi(voteId, user?.voterId || ""),
+    mutationFn: () => deleteVoteApi(voteId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["votes"] });
       navigate("/votes");
@@ -172,17 +171,17 @@ export default function VoteDetail() {
       setVoteError("請先登入您的帳戶才能投票。");
       return;
     }
-    if (!password.trim()) {
-      setVoteError("請輸入您的密碼以確認身份。");
-      return;
-    }
     if (selectedOptions.length === 0) {
       setVoteError("請選擇至少一個選項。");
       return;
     }
+    if (!votePassword.trim()) {
+      setVoteError(isEnglish ? "Please enter your account password to confirm your vote." : "請輸入帳戶密碼以確認投票。");
+      return;
+    }
     setVoteError(null);
     setVoteSuccess(null);
-    castMutation.mutate({ voterId: user.voterId, password: password.trim(), selectedOptions });
+    castMutation.mutate({ selectedOptions, password: votePassword.trim() });
   };
 
   const formattedOutput = useMemo(() => {
@@ -301,21 +300,6 @@ export default function VoteDetail() {
                   </span>
                 </div>
               )}
-
-              {/* Password confirm */}
-              {user && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">{isEnglish ? "Confirm password" : "確認密碼"}</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={isEnglish ? "Enter your password to confirm your vote" : "輸入您的密碼以確認投票"}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  />
-                </div>
-              )}
-
               {/* Options */}
               <div>
                 <label className="block text-sm font-medium mb-3">{isEnglish ? "Choose your voting option" : "選擇您的投票選項"}</label>
@@ -341,6 +325,26 @@ export default function VoteDetail() {
                   <p className="text-xs text-muted-foreground mt-2">{isEnglish ? "Please sign in to select an option." : "請先登入才能選擇選項。"}</p>
                 )}
               </div>
+
+              {user && (
+                <div>
+                  <label htmlFor="vote-password" className="block text-sm font-medium mb-2">
+                    {isEnglish ? "Account password (confirmation)" : "帳戶密碼（投票確認）"}
+                  </label>
+                  <Input
+                    id="vote-password"
+                    type="password"
+                    value={votePassword}
+                    onChange={(e) => setVotePassword(e.target.value)}
+                    placeholder={isEnglish ? "Enter your account password" : "輸入您的帳戶密碼"}
+                    autoComplete="current-password"
+                    disabled={castMutation.isPending}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {isEnglish ? "Used only to verify this vote on the server; it is not stored in the browser." : "僅用於由後端驗證本次投票，不會儲存在瀏覽器中。"}
+                  </p>
+                </div>
+              )}
 
               {voteError && (
                 <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md">
