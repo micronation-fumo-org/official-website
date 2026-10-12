@@ -1,6 +1,6 @@
 import { toChineseError } from "@/lib/errorMessage";
 import { apiFetch } from "@/lib/api";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Link } from "wouter";
@@ -58,11 +58,11 @@ async function fetchResults(id: string): Promise<ResultsData> {
   return res.json();
 }
 
-async function castBallot(voteId: string, selectedOptions: string[], password: string): Promise<any> {
+async function castBallot(voteId: string, voterId: string, selectedOptions: string[], password: string): Promise<any> {
   const res = await apiFetch(`/api/votes/${voteId}/ballot`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ selectedOptions, password }),
+    body: JSON.stringify({ voterId, selectedOptions, password }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "提交投票失敗。");
@@ -104,18 +104,20 @@ export default function VoteDetail() {
   const { data: vote, isLoading } = useQuery({
     queryKey: ["vote", voteId],
     queryFn: () => fetchVoteDetail(voteId),
-    staleTime: 10 * 1000,
+    staleTime: 0,
+    refetchInterval: 10 * 1000,
   });
 
   const { data: results } = useQuery({
     queryKey: ["vote-results", voteId],
     queryFn: () => fetchResults(voteId),
-    staleTime: 10 * 1000,
-    enabled: !!(vote?.isClosed || vote?.isExpired),
+    staleTime: 0,
+    enabled: !!vote,
+    refetchInterval: vote && !vote.isClosed && !vote.isExpired ? 5 * 1000 : false,
   });
 
   const castMutation = useMutation({
-    mutationFn: (input: { selectedOptions: string[]; password: string }) => castBallot(voteId, input.selectedOptions, input.password),
+    mutationFn: (input: { voterId: string; selectedOptions: string[]; password: string }) => castBallot(voteId, input.voterId, input.selectedOptions, input.password),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vote", voteId] });
       queryClient.invalidateQueries({ queryKey: ["vote-results", voteId] });
@@ -135,6 +137,7 @@ export default function VoteDetail() {
     mutationFn: () => closeVoteApi(voteId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vote", voteId] });
+      queryClient.invalidateQueries({ queryKey: ["vote-results", voteId] });
       queryClient.invalidateQueries({ queryKey: ["votes"] });
     },
     onError: (err: Error) => {
@@ -154,6 +157,13 @@ export default function VoteDetail() {
   });
 
   const isVotingOpen = vote && !vote.isClosed && !vote.isExpired;
+  const isResultsFinal = !!vote && (vote.isClosed || vote.isExpired);
+
+  useEffect(() => {
+    if (isResultsFinal) {
+      queryClient.invalidateQueries({ queryKey: ["vote-results", voteId] });
+    }
+  }, [isResultsFinal, queryClient, voteId]);
 
   const handleOptionToggle = (opt: string) => {
     if (!vote) return;
@@ -181,14 +191,14 @@ export default function VoteDetail() {
     }
     setVoteError(null);
     setVoteSuccess(null);
-    castMutation.mutate({ selectedOptions, password: votePassword.trim() });
+    castMutation.mutate({ voterId: user.voterId, selectedOptions, password: votePassword.trim() });
   };
 
   const formattedOutput = useMemo(() => {
     if (!results) return "";
     const lines: string[] = [];
     lines.push(`"${results.voteName}"`);
-    lines.push(isEnglish ? `${results.totalVoters} countries voted` : `共 ${results.totalVoters} {isEnglish ? "countries voted" : "個國家投票"}`);
+    lines.push(isEnglish ? `${results.totalVoters} countries voted` : `共 ${results.totalVoters} 個國家投票`);
     for (const r of results.results) {
       const pct = parseFloat(r.percentage);
       const wpct = parseFloat(r.weightedPercentage);
@@ -405,13 +415,23 @@ export default function VoteDetail() {
         )}
 
         {/* Results Section */}
-        {(vote.isClosed || vote.isExpired) && results && (
+        {results && (
           <Card className="mb-8 border-border/60 bg-white">
             <CardHeader>
-              <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5" />
-                投票結果 Results
-              </CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5" />
+                  {isEnglish ? "Voting results" : "投票結果"}
+                </CardTitle>
+                {isResultsFinal ? (
+                  <Badge variant="secondary">{isEnglish ? "Final results" : "最終結果"}</Badge>
+                ) : (
+                  <Badge className="gap-1.5 bg-green-100 text-green-800 hover:bg-green-100">
+                    <span className="h-2 w-2 rounded-full bg-green-600 animate-pulse" />
+                    {isEnglish ? "Live · refreshes every 5 seconds" : "即時更新中・每 5 秒刷新"}
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
@@ -435,21 +455,25 @@ export default function VoteDetail() {
                         style={{ width: `${Math.min(parseFloat(r.percentage), 100)}%` }}
                       />
                     </div>
-                    {r.voters.length > 0 ? (
+                    {isResultsFinal && r.voters.length > 0 ? (
                       <p className="text-xs text-muted-foreground">{r.voters.join(", ")}</p>
-                    ) : (
+                    ) : isResultsFinal ? (
                       <p className="text-xs text-muted-foreground">{isEnglish ? "No votes for this option" : "沒有人投這個選項"}</p>
-                    )}
+                    ) : null}
                   </motion.div>
                 ))}
               </div>
 
               <div className="border-t border-border pt-4">
-                <p className="text-sm font-bold text-primary mb-2">共 {results.totalVoters} {isEnglish ? "countries voted" : "個國家投票"}</p>
-                <div className="bg-muted p-4 rounded-md">
-                  <p className="text-xs font-mono text-muted-foreground whitespace-pre-wrap">{formattedOutput}</p>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">{isEnglish ? "Copy the format above to upload it to the voting records." : "可複製上述文字格式用於上傳至投票紀錄。"}</p>
+                <p className="text-sm font-bold text-primary mb-2">{isEnglish ? `${results.totalVoters} countries voted` : `共 ${results.totalVoters} 個國家投票`}</p>
+                {isResultsFinal && (
+                  <>
+                    <div className="bg-muted p-4 rounded-md">
+                      <p className="text-xs font-mono text-muted-foreground whitespace-pre-wrap">{formattedOutput}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">{isEnglish ? "Copy the format above to upload it to the voting records." : "可複製上述文字格式用於上傳至投票紀錄。"}</p>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

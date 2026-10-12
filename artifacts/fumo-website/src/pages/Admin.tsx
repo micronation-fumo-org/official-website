@@ -148,9 +148,9 @@ export default function Admin() {
               <Shield className="w-6 h-6 shrink-0 mt-1" />
               <span className="break-words"><span className="block sm:inline">{isEnglish ? "Welcome back, " : "歡迎回來，"}</span><span className="block sm:inline">{user!.voterName}</span></span>
             </h1>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               <p className="text-muted-foreground">{isEnglish ? "Admin panel" : "管理面板"}</p>
-              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${levelInfo.color}`}>
+              <span className={`inline-flex max-w-full whitespace-normal break-words text-xs px-2 py-0.5 rounded-full border font-medium leading-tight ${levelInfo.color}`}>
                 {levelInfo.label}
               </span>
             </div>
@@ -273,12 +273,12 @@ export default function Admin() {
                   const isSelf = a.voterId === user!.voterId;
                   return (
                     <div key={a.voterId} className="rounded-lg border border-border/60 bg-muted/20 p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 flex-col items-start gap-2">
                         <div className="min-w-0">
                           <p className="font-medium break-words">{a.voterName}{isSelf && <span className="ml-1 text-xs text-muted-foreground">{isEnglish ? "(you)" : "(你)"}</span>}</p>
                           <p className="font-mono text-xs text-muted-foreground break-all mt-1">{a.voterId}</p>
                         </div>
-                        <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium ${info.color}`}>{info.label}</span>
+                        <span className={`inline-flex w-fit max-w-full whitespace-normal break-words text-left text-xs px-2 py-1 rounded-full border font-medium leading-tight ${info.color}`}>{info.label}</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div><p className="text-xs text-muted-foreground">{isEnglish ? "Country" : "國家"}</p><p className="break-words">{a.countryName}</p></div>

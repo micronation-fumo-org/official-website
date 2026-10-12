@@ -366,6 +366,8 @@ router.get("/votes/:id/results", async (req, res) => {
     }
     const ballots = await db.select().from(ballotsTable).where(eq(ballotsTable.voteId, id));
     const totalVoters = ballots.length;
+    const isExpired = new Date(vote[0].deadline) < new Date();
+    const canRevealVoters = vote[0].isClosed || isExpired;
 
     const optionCounts: Record<string, { count: number; voters: string[] }> = {};
     for (const opt of vote[0].options) {
@@ -390,7 +392,7 @@ router.get("/votes/:id/results", async (req, res) => {
         percentage: pct,
         weightedCount: count,
         weightedPercentage: pct,
-        voters: optionCounts[opt].voters,
+        voters: canRevealVoters ? optionCounts[opt].voters : [],
       };
     });
 
@@ -399,7 +401,7 @@ router.get("/votes/:id/results", async (req, res) => {
       voteName: vote[0].name,
       totalVoters,
       isClosed: vote[0].isClosed,
-      isExpired: new Date(vote[0].deadline) < new Date(),
+      isExpired,
       results,
     });
   } catch (err) {
