@@ -126,7 +126,7 @@ export default function Votes() {
         {!isLoading && !error && (
           <>
             <h2 className="text-xl font-bold text-primary mb-4">{isEnglish ? "Active votes" : "進行中的投票"} ({activeVotes.length})</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
               {activeVotes.length === 0 ? (
                 <p className="text-muted-foreground col-span-full">{isEnglish ? "No active votes" : "目前沒有進行中的投票"}</p>
               ) : (
@@ -135,7 +135,7 @@ export default function Votes() {
             </div>
 
             <h2 className="text-xl font-bold text-muted-foreground mb-4">{isEnglish ? "Past votes" : "已結束的投票"} ({pastVotes.length})</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {pastVotes.length === 0 ? (
                 <p className="text-muted-foreground col-span-full">{isEnglish ? "No past votes" : "目前沒有已結束的投票"}</p>
               ) : (

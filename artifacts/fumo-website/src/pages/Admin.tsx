@@ -166,7 +166,7 @@ export default function Admin() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
               <div className={`p-3 rounded-md border ${isAdmin ? "bg-green-50 border-green-200" : "bg-muted border-muted"}`}>
                 <p className="font-medium text-green-800">{isEnglish ? "Tier 1 Admin" : "一階管理員"}</p>
                 <ul className="text-xs text-green-700 mt-1 space-y-0.5">
@@ -224,7 +224,7 @@ export default function Admin() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">{isEnglish ? "Target Discord ID" : "目標 Discord ID"}</label>
                   <Input
@@ -267,7 +267,7 @@ export default function Admin() {
               </div>
             )}
             {accounts && accounts.length > 0 && (
-              <div className="md:hidden space-y-3">
+              <div className="lg:hidden space-y-3">
                 {accounts.map((a) => {
                   const info = adminLevelLabel(a.adminLevel, isEnglish);
                   const isSelf = a.voterId === user!.voterId;
@@ -300,7 +300,7 @@ export default function Admin() {
               <p className="text-muted-foreground text-sm py-4">{isEnglish ? "No accounts yet" : "尚無帳戶"}</p>
             )}
             {accounts && accounts.length > 0 && (
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden lg:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

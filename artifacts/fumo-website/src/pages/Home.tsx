@@ -167,7 +167,7 @@ export default function Home() {
             <p className="text-foreground/70 max-w-2xl mx-auto">{isEnglish ? "Under the FUMO Charter, three permanent organs support daily operations and decision-making." : "依據《聯合微國家組織憲章》，本組織設立三大常設機構以維持日常運作與決策。"}</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <Card className="overflow-hidden border-border/50 hover:border-secondary/50 transition-colors">
               <div className="bg-primary p-4 text-center">
                 <h3 className="text-xl font-bold text-primary-foreground">{isEnglish ? "Deliberation Center" : "議事中心"}</h3>
