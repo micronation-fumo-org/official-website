@@ -270,11 +270,19 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     const vote = await env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(voteId).first<Row>();
     if (!vote) return error("Vote not found", 404);
     const options = JSON.parse(String(vote.options)) as string[];
-    const ballots = await env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ?").bind(voteId).all<Row>();
+    const ballots = await env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ? ORDER BY created_at ASC").bind(voteId).all<Row>();
+    const allBallots = ballots.results ?? [];
+    const isExpired = new Date(String(vote.deadline)).getTime() < Date.now();
+    const countryVotes = allBallots.map((ballot) => ({
+      countryName: ballot.country_name,
+      selectedOptions: JSON.parse(String(ballot.selected_options)) as string[],
+      votedAt: ballot.created_at,
+    }));
     const counts: Record<string, { count: number; voters: string[] }> = Object.fromEntries(options.map((option) => [option, { count: 0, voters: [] }]));
-    for (const ballot of ballots.results ?? []) for (const option of JSON.parse(String(ballot.selected_options)) as string[]) if (counts[option]) { counts[option].count += 1; counts[option].voters.push(`@${ballot.voter_name}`); }
-    const total = (ballots.results ?? []).length;
-    return json({ voteId, voteName: vote.name, totalVoters: total, isClosed: Boolean(vote.is_closed), isExpired: new Date(String(vote.deadline)).getTime() < Date.now(), results: options.map((option) => ({ option, count: counts[option].count, percentage: total ? ((counts[option].count / total) * 100).toFixed(1) : "0.0", weightedCount: counts[option].count, weightedPercentage: total ? ((counts[option].count / total) * 100).toFixed(1) : "0.0", voters: counts[option].voters })) });
+    for (const ballot of allBallots) for (const option of JSON.parse(String(ballot.selected_options)) as string[]) if (counts[option]) { counts[option].count += 1; counts[option].voters.push(`@${ballot.voter_name}`); }
+    const total = allBallots.length;
+    const canRevealVoters = Boolean(vote.is_closed) || isExpired;
+    return json({ voteId, voteName: vote.name, totalVoters: total, isClosed: Boolean(vote.is_closed), isExpired, results: options.map((option) => ({ option, count: counts[option].count, percentage: total ? ((counts[option].count / total) * 100).toFixed(1) : "0.0", weightedCount: counts[option].count, weightedPercentage: total ? ((counts[option].count / total) * 100).toFixed(1) : "0.0", voters: canRevealVoters ? counts[option].voters : [] })), countryVotes });
   }
   if (parts[0] === "votes" && Number.isInteger(voteId) && parts[2] === "ballot" && method === "POST") {
     const input = await body(request);
@@ -290,8 +298,8 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     const account = await getAccount(env, String(input.voterId));
     if (!account) return error("Account not registered. Please register your password first.", 403);
     if (!await verifyPassword(String(account.password_hash), String(input.password))) return error("Incorrect password.", 403);
-    const duplicate = await env.DB.prepare("SELECT id FROM ballots WHERE vote_id = ? AND voter_id = ?").bind(voteId, String(input.voterId)).first();
-    if (duplicate) return error("You have already voted in this vote", 409);
+    const duplicate = await env.DB.prepare("SELECT id FROM ballots WHERE vote_id = ? AND country_name = ?").bind(voteId, voterInfo.countryName).first();
+    if (duplicate) return error("Your country has already voted in this vote. Each country may cast only one vote.", 409);
     const options = JSON.parse(String(vote.options)) as string[];
     if ((input.selectedOptions as unknown[]).some((option) => typeof option !== "string" || !options.includes(option))) return error("Invalid option", 400);
     if (!vote.allow_multiple && input.selectedOptions.length > 1) return error("This vote does not allow multiple selections", 400);

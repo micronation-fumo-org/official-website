@@ -100,11 +100,12 @@ Worker 會在記憶體中快取資料約 5 分鐘，減少對 Google Sheet 的�
 ```text
 瀏覽器
   → Pages 前端
-  → Worker GET /api/votes
+  → Worker GET /api/votes/:id/results
   → Worker 查詢 D1 votes + ballots
   → 回傳 JSON
   → 前端顯示
 ```
+投票進行中，結果回應會額外提供 `countryVotes`，包含國家名稱、所選選項及投票時間；前端每 5 秒重新查詢一次並顯示即時明細。進行中的投票不公開代表姓名，投票關閉或過期後才顯示正式結果中的代表名稱。
 
 ### 5.3 註冊帳戶
 

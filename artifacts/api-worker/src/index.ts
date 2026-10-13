@@ -170,10 +170,15 @@ app.get("/api/votes/:id/results", async c => {
   if (!Number.isInteger(id)) return c.json({ error: "Invalid vote ID" }, 400);
   const v = await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(id).first<VoteRow>();
   if (!v) return c.json({ error: "Vote not found" }, 404);
-  const ballots = await c.env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ?").bind(id).all<BallotRow>();
+  const ballots = await c.env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ? ORDER BY created_at ASC").bind(id).all<BallotRow>();
   const allBallots = ballots.results ?? [];
   const isExpired = new Date(v.deadline) < new Date();
   const canRevealVoters = Boolean(v.is_closed) || isExpired;
+  const countryVotes = allBallots.map(ballot => ({
+    countryName: ballot.country_name,
+    selectedOptions: jsonArray<string>(ballot.selected_options),
+    votedAt: ballot.created_at,
+  }));
   const rows = jsonArray<string>(v.options).map(option => {
     const matching = allBallots.filter(b => jsonArray<string>(b.selected_options).includes(option));
     const count = matching.length;
@@ -187,7 +192,7 @@ app.get("/api/votes/:id/results", async c => {
       voters: canRevealVoters ? matching.map(b => `@${b.voter_name}`) : [],
     };
   });
-  return c.json({ voteId: id, voteName: v.name, totalVoters: allBallots.length, isClosed: Boolean(v.is_closed), isExpired, results: rows });
+  return c.json({ voteId: id, voteName: v.name, totalVoters: allBallots.length, isClosed: Boolean(v.is_closed), isExpired, results: rows, countryVotes });
 });
 app.post("/api/votes/:id/close", async c => { const id = Number(c.req.param("id")); const a = await currentAccount(c); if (!a || a.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403); await c.env.DB.prepare("UPDATE votes SET is_closed = 1, updated_at = datetime('now') WHERE id = ?").bind(id).run(); return c.json({ success: true, message: "Vote closed" }); });
 

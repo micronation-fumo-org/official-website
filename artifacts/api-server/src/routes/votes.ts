@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { votesTable, ballotsTable, voterAccountsTable, type InsertVote, type InsertBallot } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { z } from "zod";
 import argon2 from "argon2";
@@ -310,9 +310,9 @@ router.post("/votes/:id/ballot", async (req, res) => {
     const existing = await db
       .select()
       .from(ballotsTable)
-      .where(and(eq(ballotsTable.voteId, id), eq(ballotsTable.voterId, parsed.voterId)));
+      .where(and(eq(ballotsTable.voteId, id), eq(ballotsTable.countryName, voterInfo.countryName)));
     if (existing.length > 0) {
-      res.status(409).json({ error: "You have already voted in this vote" });
+      res.status(409).json({ error: "Your country has already voted in this vote. Each country may cast only one vote." });
       return;
     }
 
@@ -364,10 +364,15 @@ router.get("/votes/:id/results", async (req, res) => {
       res.status(404).json({ error: "Vote not found" });
       return;
     }
-    const ballots = await db.select().from(ballotsTable).where(eq(ballotsTable.voteId, id));
+    const ballots = await db.select().from(ballotsTable).where(eq(ballotsTable.voteId, id)).orderBy(asc(ballotsTable.createdAt));
     const totalVoters = ballots.length;
     const isExpired = new Date(vote[0].deadline) < new Date();
     const canRevealVoters = vote[0].isClosed || isExpired;
+    const countryVotes = ballots.map((ballot) => ({
+      countryName: ballot.countryName,
+      selectedOptions: ballot.selectedOptions,
+      votedAt: new Date(ballot.createdAt).toISOString(),
+    }));
 
     const optionCounts: Record<string, { count: number; voters: string[] }> = {};
     for (const opt of vote[0].options) {
@@ -403,6 +408,7 @@ router.get("/votes/:id/results", async (req, res) => {
       isClosed: vote[0].isClosed,
       isExpired,
       results,
+      countryVotes,
     });
   } catch (err) {
     logger.error({ err }, "Error getting results");
