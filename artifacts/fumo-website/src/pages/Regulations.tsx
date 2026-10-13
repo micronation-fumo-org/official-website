@@ -1,4 +1,4 @@
-import { regulations, regulationCategories, regulationsDirectoryUrl, charterUrl } from "@/data/regulations";
+import { regulations, regulationCategories, regulationsDirectoryUrl, charterUrlZh, charterUrlEn } from "@/data/regulations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,7 @@ export default function Regulations() {
               </a>
             </Button>
             <Button asChild size="lg" variant="outline" className="border-primary text-primary">
-              <a href={charterUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+              <a href={isEnglish ? charterUrlEn : charterUrlZh} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                 {isEnglish ? "FUMO Charter" : "聯合微國家組織憲章"}
                 <ExternalLink className="w-4 h-4 ml-1" />
               </a>
@@ -101,7 +101,7 @@ export default function Regulations() {
                     </CardContent>
                     <CardFooter className="pt-4 border-t border-border/40">
                       <Button asChild variant="ghost" className="w-full text-secondary hover:text-secondary hover:bg-secondary/10 justify-between">
-                        <a href={`https://hackmd.io/${reg.hackmdPath}`} target="_blank" rel="noopener noreferrer">
+                        <a href={`https://hackmd.io/${isEnglish ? (reg.hackmdPathEn || reg.hackmdPath) : reg.hackmdPath}`} target="_blank" rel="noopener noreferrer">
                           {isEnglish ? "Read full text" : "閱讀全文"}
                           <ExternalLink className="w-4 h-4" />
                         </a>
