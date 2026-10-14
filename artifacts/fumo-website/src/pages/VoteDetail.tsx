@@ -14,6 +14,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { applySeoMetadata } from "@/lib/seo";
 
 interface VoteDetail {
   id: number;
@@ -125,6 +126,31 @@ export default function VoteDetail() {
     staleTime: 0,
     refetchInterval: 10 * 1000,
   });
+
+  useEffect(() => {
+    if (!vote && !isLoading) {
+      applySeoMetadata({
+        title: isEnglish ? "Vote not found｜FUMO" : "找不到投票｜聯合微國家組織 FUMO",
+        description: isEnglish ? "This public vote is unavailable." : "此投票不存在或目前無法載入。",
+        path: `/votes/${voteId}`,
+        language: isEnglish ? "en" : "zh-Hant",
+        robots: "noindex, nofollow",
+      });
+      return;
+    }
+    if (!vote) return;
+    const description = vote.description?.trim() || (isEnglish
+      ? "View the public proposal, options, deadline, and aggregate result."
+      : "查看 FUMO 公開投票議案、選項、期限與彙總結果。進行中的投票不公開個別選擇。");
+    applySeoMetadata({
+      title: isEnglish ? `${vote.name}｜FUMO Official Vote` : `${vote.name}｜FUMO 聯合微國家組織正式投票與議案資訊`,
+      description: description.slice(0, 160),
+      path: `/votes/${vote.id}`,
+      language: isEnglish ? "en" : "zh-Hant",
+      keywords: "FUMO投票,聯合微國家組織議案,公開投票,投票結果",
+      type: "article",
+    });
+  }, [vote, isLoading, voteId, isEnglish]);
 
   const { data: results } = useQuery({
     queryKey: ["vote-results", voteId],

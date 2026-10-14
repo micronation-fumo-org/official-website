@@ -132,6 +132,12 @@ function clearSessionCookie() { return `${SESSION_COOKIE}=; Max-Age=0; Path=/; H
 async function createSession(db: D1Database, voterId: string) { const raw = toB64(crypto.getRandomValues(new Uint8Array(32))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); const hash = await sessionHash(raw); const days = SESSION_TTL_DAYS; await db.prepare("DELETE FROM auth_sessions WHERE expires_at <= datetime('now') OR voter_id = ?").bind(voterId).run(); await db.prepare("INSERT INTO auth_sessions (token_hash, voter_id, expires_at) VALUES (?, ?, datetime('now', ?))").bind(hash, voterId, `+${days} days`).run(); return { raw, maxAge: days * 86400 }; }
 async function currentAccount(c: any): Promise<Account | null> { const token = cookieValue(c, SESSION_COOKIE); if (!token) return null; const row = await c.env.DB.prepare("SELECT a.* FROM auth_sessions s JOIN voter_accounts a ON a.voter_id = s.voter_id WHERE s.token_hash = ? AND s.expires_at > datetime('now')").bind(await sessionHash(token)).first() as Account | null; return row ?? null; }
 function publicUser(a: Account) { return { voterId: a.voter_id, voterName: a.voter_name, countryName: a.country_name, adminLevel: a.admin_level }; }
+interface AuditLogRow { id: number; actor_voter_id: string; actor_name: string; action: string; target_type: string; target_id: string; details_json: string; created_at: string; }
+function auditStatement(db: D1Database, actor: Account, action: string, targetType: string, targetId: string | number, details: Record<string, string | number | boolean>) {
+  return db.prepare("INSERT INTO admin_audit_logs (actor_voter_id, actor_name, action, target_type, target_id, details_json) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(actor.voter_id, actor.voter_name, action, targetType, String(targetId), JSON.stringify(details));
+}
+function parseAuditDetails(value: string) { try { return JSON.parse(value) as Record<string, unknown>; } catch { return {}; } }
 
 const app: App = new Hono();
 app.use("/*", async (c, next) => { const origin = c.req.header("Origin"); const allowed = (c.env.CORS_ORIGIN || "").split(",").map(v => v.trim()).filter(Boolean); return cors({ origin: origin && (allowed.length === 0 || allowed.includes(origin)) ? origin : (allowed[0] || "https://fumo-api.micronationfumo.workers.dev"), credentials: true, allowMethods: ["GET", "POST", "DELETE", "OPTIONS"], allowHeaders: ["Content-Type"] })(c, next); });
@@ -162,7 +168,19 @@ app.get("/api/voters", async c => { try { return c.json(await voters()); } catch
 app.get("/api/staff-report", async c => { try { const staff = await staffAccounts(); return c.json({ staff: staff.map(({ id: _id, ...entry }) => entry), lastUpdated: new Date().toISOString() }); } catch (e) { return c.json({ error: "Failed to fetch staff report", message: String(e) }, 500); } });
 
 app.get("/api/votes", async c => { const rows = await c.env.DB.prepare("SELECT v.*, COUNT(b.id) AS ballot_count FROM votes v LEFT JOIN ballots b ON b.vote_id = v.id GROUP BY v.id ORDER BY v.created_at ASC").all<VoteRow & { ballot_count: number }>(); return c.json((rows.results ?? []).map(v => asVote(v, v.ballot_count))); });
-app.post("/api/votes", async c => { const body = z.object({ name: z.string().min(1), description: z.string().optional(), deadline: z.string().datetime(), options: z.array(z.string().min(1)).min(2), allowMultiple: z.boolean().default(false) }).safeParse(await parseJson(c)); if (!body.success) return c.json({ error: "Invalid input", details: body.error.issues }, 400); const a = await currentAccount(c); if (!a || a.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。只有管理員才能建立投票。" }, 403); const r = await c.env.DB.prepare("INSERT INTO votes (name, description, deadline, options, allow_multiple) VALUES (?, ?, ?, ?, ?) RETURNING *").bind(body.data.name, body.data.description ?? "", body.data.deadline, JSON.stringify(body.data.options), body.data.allowMultiple ? 1 : 0).first<VoteRow>(); return c.json(r ? asVote(r) : { error: "Failed to create vote" }, 201); });
+app.post("/api/votes", async c => {
+  const body = z.object({ name: z.string().min(1), description: z.string().optional(), deadline: z.string().datetime(), options: z.array(z.string().min(1)).min(2), allowMultiple: z.boolean().default(false) }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "Invalid input", details: body.error.issues }, 400);
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。只有管理員才能建立投票。" }, 403);
+  const batch = await c.env.DB.batch([
+    c.env.DB.prepare("INSERT INTO votes (name, description, deadline, options, allow_multiple) VALUES (?, ?, ?, ?, ?)").bind(body.data.name, body.data.description ?? "", body.data.deadline, JSON.stringify(body.data.options), body.data.allowMultiple ? 1 : 0),
+    c.env.DB.prepare("INSERT INTO admin_audit_logs (actor_voter_id, actor_name, action, target_type, target_id, details_json) VALUES (?, ?, 'vote.create', 'vote', CAST(last_insert_rowid() AS TEXT), ?)").bind(actor.voter_id, actor.voter_name, JSON.stringify({ voteName: body.data.name })),
+  ]);
+  const id = Number(batch[0]?.meta?.last_row_id ?? 0);
+  const created = id > 0 ? await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(id).first<VoteRow>() : null;
+  return c.json(created ? asVote(created) : { error: "Failed to create vote" }, created ? 201 : 500);
+});
 app.get("/api/votes/:id", async c => { const id = Number(c.req.param("id")); if (!Number.isInteger(id)) return c.json({ error: "Invalid vote ID" }, 400); const v = await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(id).first<VoteRow>(); if (!v) return c.json({ error: "Vote not found" }, 404); const ballots = await c.env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ? ORDER BY created_at ASC").bind(id).all<BallotRow>(); return c.json({ ...asVote(v, ballots.results.length), ballots: v.is_closed || new Date(v.deadline) < new Date() ? ballots.results.map(b => ({ ...b, selectedOptions: jsonArray<string>(b.selected_options) })) : [] }); });
 app.post("/api/votes/:id/ballot", async c => { const id = Number(c.req.param("id")); const body = z.object({ selectedOptions: z.array(z.string().min(1)), password: z.string().min(1) }).safeParse(await parseJson(c)); if (!body.success || !Number.isInteger(id)) return c.json({ error: "Invalid input", details: body.success ? [{ path: ["id"], message: "Vote ID must be an integer" }] : body.error.issues }, 400); const v = await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(id).first<VoteRow>(); if (!v) return c.json({ error: "Vote not found" }, 404); if (v.is_closed) return c.json({ error: "This vote is closed" }, 403); if (new Date(v.deadline) < new Date()) return c.json({ error: "Voting deadline has passed" }, 403); const a = await currentAccount(c); if (!a) return c.json({ error: "請先登入。" }, 401); if (!(await verifyPassword(body.data.password, a.password_hash))) return c.json({ error: "Incorrect password." }, 403); const vi = findVoter(await voters(), a.voter_id); if (!vi) return c.json({ error: "Invalid voter ID. You are not registered as an eligible voter." }, 403); const ms = await members(); if (!ms.memberStates.some(m => m.fullName === vi.countryName)) return c.json({ error: `Your country "${vi.countryName}" is not a member state.` }, 403); if ((await c.env.DB.prepare("SELECT id FROM ballots WHERE vote_id = ? AND country_name = ?").bind(id, vi.countryName).first())) return c.json({ error: "Your country has already voted in this vote. Each country may cast only one vote." }, 409); const options = jsonArray<string>(v.options); if (!body.data.selectedOptions.length || body.data.selectedOptions.some(o => !options.includes(o))) return c.json({ error: "Invalid selected options" }, 400); if (!v.allow_multiple && body.data.selectedOptions.length > 1) return c.json({ error: "This vote does not allow multiple selections" }, 400); await c.env.DB.prepare("INSERT INTO ballots (vote_id, voter_id, voter_name, country_name, selected_options) VALUES (?, ?, ?, ?, ?)").bind(id, a.voter_id, vi.voterName, vi.countryName, JSON.stringify(body.data.selectedOptions)).run(); return c.json({ success: true, message: "Ballot cast successfully" }); });
 app.get("/api/votes/:id/results", async c => {
@@ -194,7 +212,19 @@ app.get("/api/votes/:id/results", async c => {
   });
   return c.json({ voteId: id, voteName: v.name, totalVoters: allBallots.length, isClosed: Boolean(v.is_closed), isExpired, results: rows, countryVotes });
 });
-app.post("/api/votes/:id/close", async c => { const id = Number(c.req.param("id")); const a = await currentAccount(c); if (!a || a.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403); await c.env.DB.prepare("UPDATE votes SET is_closed = 1, updated_at = datetime('now') WHERE id = ?").bind(id).run(); return c.json({ success: true, message: "Vote closed" }); });
+app.post("/api/votes/:id/close", async c => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid vote ID" }, 400);
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
+  const vote = await c.env.DB.prepare("SELECT id, name FROM votes WHERE id = ?").bind(id).first<{ id: number; name: string }>();
+  if (!vote) return c.json({ error: "Vote not found" }, 404);
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE votes SET is_closed = 1, updated_at = datetime('now') WHERE id = ?").bind(id),
+    auditStatement(c.env.DB, actor, "vote.close", "vote", id, { voteName: vote.name }),
+  ]);
+  return c.json({ success: true, message: "Vote closed" });
+});
 
 app.post("/api/auth/register", async c => { const body = z.object({ voterId: z.string().min(1), password: z.string().min(4) }).safeParse(await parseJson(c)); if (!body.success) return c.json({ error: "請填寫 Discord ID 與密碼。" }, 400); const registration = (await registrations()).find(r => r.id === body.data.voterId); const staff = registration ? null : (await staffAccounts()).find(r => r.id === body.data.voterId); const identity = registration ?? (staff ? { countryName: "FUMO", voterName: staff.name, id: staff.id } : null); if (!identity) return c.json({ error: "此 ID 不在註冊名單中，請先由管理員加入註冊名單。" }, 403); if (await account(c.env.DB, body.data.voterId)) return c.json({ error: "Account already exists. Please login instead." }, 409); await c.env.DB.prepare("INSERT INTO voter_accounts (voter_id, voter_name, country_name, password_hash) VALUES (?, ?, ?, ?)").bind(body.data.voterId, identity.voterName, identity.countryName, await hashPassword(body.data.password)).run(); return c.json({ success: true, voterId: body.data.voterId, voterName: identity.voterName }); });
 app.get("/api/auth/me", async c => { const a = await currentAccount(c); return a ? c.json(publicUser(a)) : c.json({ user: null }, 401); });
@@ -204,9 +234,73 @@ app.post("/api/auth/change-password", async c => { const body = z.object({ oldPa
 
 async function requireAdmin(db: D1Database, voterId: string, level: number) { const a = await account(db, voterId); return a && a.admin_level >= level ? a : null; }
  app.get("/api/admin/accounts", async c => { const a = await ((await currentAccount(c))?.admin_level ?? 0) >= ADMIN_TIER1 ? await currentAccount(c) : null; if (!a) return c.json({ error: "管理員權限不足。" }, 403); const rows = await c.env.DB.prepare("SELECT voter_id, voter_name, country_name, admin_level, created_at FROM voter_accounts ORDER BY created_at ASC").all(); return c.json((rows.results ?? []).map((row: any) => ({ voterId: row.voter_id, voterName: row.voter_name, countryName: row.country_name, adminLevel: row.admin_level, createdAt: row.created_at }))); });
-app.post("/api/admin/accounts", async c => { const admin = await ((await currentAccount(c))?.admin_level ?? 0) >= ADMIN_TIER1 ? await currentAccount(c) : null; if (!admin) return c.json({ error: "管理員權限不足。" }, 403); const body = z.object({ voterId: z.string().min(1), newPassword: z.string().min(4).optional(), adminLevel: z.number().int().min(0).max(9).optional() }).safeParse(await parseJson(c)); if (!body.success) return c.json({ error: "Invalid input" }, 400); const target = await account(c.env.DB, body.data.voterId); if (!target) return c.json({ error: "Account not found" }, 404); if (body.data.newPassword) { if (admin.admin_level < ADMIN_TIER2) return c.json({ error: "需要二階管理員權限。" }, 403); await c.env.DB.prepare("UPDATE voter_accounts SET password_hash = ?, updated_at = datetime('now') WHERE voter_id = ?").bind(await hashPassword(body.data.newPassword), body.data.voterId).run(); } if (body.data.adminLevel !== undefined) { if (admin.admin_level < ADMIN_SUPER || (body.data.adminLevel >= ADMIN_SUPER && body.data.voterId !== DEFAULT_ADMIN_ID)) return c.json({ error: "需要最高管理員權限，且不可任意設定最高管理員。" }, 403); await c.env.DB.prepare("UPDATE voter_accounts SET admin_level = ?, updated_at = datetime('now') WHERE voter_id = ?").bind(body.data.adminLevel, body.data.voterId).run(); } return c.json({ success: true }); });
-app.delete("/api/admin/votes/:voteId", async c => { const a = await currentAccount(c); if (!a || a.admin_level < ADMIN_SUPER) return c.json({ error: "只有最高管理員才能刪除投票。" }, 403); const voteId = Number(c.req.param("voteId")); if (!Number.isInteger(voteId) || voteId <= 0) return c.json({ error: "Invalid vote ID" }, 400); const vote = await c.env.DB.prepare("SELECT id FROM votes WHERE id = ?").bind(voteId).first(); if (!vote) return c.json({ error: "Vote not found" }, 404); await c.env.DB.batch([c.env.DB.prepare("DELETE FROM ballots WHERE vote_id = ?").bind(voteId), c.env.DB.prepare("DELETE FROM votes WHERE id = ?").bind(voteId)]); return c.json({ success: true, message: "Vote deleted" }); });
-app.delete("/api/admin/ballots/:ballotId", async c => { const a = await ((await currentAccount(c))?.admin_level ?? 0) >= ADMIN_TIER2 ? await currentAccount(c) : null; if (!a) return c.json({ error: "需要二階管理員權限。" }, 403); await c.env.DB.prepare("DELETE FROM ballots WHERE id = ?").bind(Number(c.req.param("ballotId"))).run(); return c.json({ success: true }); });
+app.post("/api/admin/accounts", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
+  const body = z.object({ voterId: z.string().min(1), newPassword: z.string().min(4).optional(), adminLevel: z.number().int().min(0).max(9).optional() }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "Invalid input", details: body.error.issues }, 400);
+  const target = await account(c.env.DB, body.data.voterId);
+  if (!target) return c.json({ error: "Account not found" }, 404);
+  if (body.data.newPassword && actor.admin_level < ADMIN_TIER2) return c.json({ error: "需要二階管理員權限。" }, 403);
+  if (body.data.adminLevel !== undefined && (actor.admin_level < ADMIN_SUPER || (body.data.adminLevel >= ADMIN_SUPER && body.data.voterId !== DEFAULT_ADMIN_ID))) return c.json({ error: "需要最高管理員權限，且不可任意設定最高管理員。" }, 403);
+  if (!body.data.newPassword && body.data.adminLevel === undefined) return c.json({ error: "No updates specified" }, 400);
+  const statements: D1PreparedStatement[] = [];
+  if (body.data.newPassword) {
+    statements.push(c.env.DB.prepare("UPDATE voter_accounts SET password_hash = ?, updated_at = datetime('now') WHERE voter_id = ?").bind(await hashPassword(body.data.newPassword), body.data.voterId));
+    statements.push(auditStatement(c.env.DB, actor, "account.password_reset", "account", body.data.voterId, { targetName: target.voter_name }));
+  }
+  if (body.data.adminLevel !== undefined) {
+    statements.push(c.env.DB.prepare("UPDATE voter_accounts SET admin_level = ?, updated_at = datetime('now') WHERE voter_id = ?").bind(body.data.adminLevel, body.data.voterId));
+    statements.push(auditStatement(c.env.DB, actor, "account.admin_level_changed", "account", body.data.voterId, { targetName: target.voter_name, previousAdminLevel: target.admin_level, newAdminLevel: body.data.adminLevel }));
+  }
+  await c.env.DB.batch(statements);
+  return c.json({ success: true });
+});
+app.delete("/api/admin/votes/:voteId", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_SUPER) return c.json({ error: "只有最高管理員才能刪除投票。" }, 403);
+  const voteId = Number(c.req.param("voteId"));
+  if (!Number.isInteger(voteId) || voteId <= 0) return c.json({ error: "Invalid vote ID" }, 400);
+  const vote = await c.env.DB.prepare("SELECT id, name FROM votes WHERE id = ?").bind(voteId).first<{ id: number; name: string }>();
+  if (!vote) return c.json({ error: "Vote not found" }, 404);
+  const count = await c.env.DB.prepare("SELECT COUNT(*) AS count FROM ballots WHERE vote_id = ?").bind(voteId).first<{ count: number }>();
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM ballots WHERE vote_id = ?").bind(voteId),
+    c.env.DB.prepare("DELETE FROM votes WHERE id = ?").bind(voteId),
+    auditStatement(c.env.DB, actor, "vote.delete", "vote", voteId, { voteName: vote.name, deletedBallots: Number(count?.count ?? 0) }),
+  ]);
+  return c.json({ success: true, message: "Vote deleted" });
+});
+app.delete("/api/admin/ballots/:ballotId", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER2) return c.json({ error: "需要二階管理員權限。" }, 403);
+  const ballotId = Number(c.req.param("ballotId"));
+  if (!Number.isInteger(ballotId) || ballotId <= 0) return c.json({ error: "Invalid ballot ID" }, 400);
+  const ballot = await c.env.DB.prepare("SELECT id, vote_id FROM ballots WHERE id = ?").bind(ballotId).first<{ id: number; vote_id: number }>();
+  if (!ballot) return c.json({ error: "Ballot not found" }, 404);
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM ballots WHERE id = ?").bind(ballotId),
+    auditStatement(c.env.DB, actor, "ballot.delete", "ballot", ballotId, { voteId: ballot.vote_id }),
+  ]);
+  return c.json({ success: true });
+});
+app.get("/api/admin/audit-logs", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_SUPER) return c.json({ error: "只有最高管理員才能查看管理操作紀錄。" }, 403);
+  const rawLimit = Number(c.req.query("limit") ?? 25);
+  const rawOffset = Number(c.req.query("offset") ?? 0);
+  const limit = Number.isInteger(rawLimit) ? Math.min(100, Math.max(1, rawLimit)) : 25;
+  const offset = Number.isInteger(rawOffset) ? Math.min(1000000, Math.max(0, rawOffset)) : 0;
+  const query = (c.req.query("q") ?? "").trim().slice(0, 100);
+  const where = query ? " WHERE instr(lower(actor_voter_id || ' ' || actor_name || ' ' || action || ' ' || target_type || ' ' || target_id || ' ' || details_json), lower(?)) > 0" : "";
+  const params = query ? [query] : [];
+  const rows = await c.env.DB.prepare(`SELECT id, actor_voter_id, actor_name, action, target_type, target_id, details_json, created_at FROM admin_audit_logs${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`)
+    .bind(...params, limit, offset).all<AuditLogRow>();
+  const total = await c.env.DB.prepare(`SELECT COUNT(*) AS count FROM admin_audit_logs${where}`).bind(...params).first<{ count: number }>();
+  const items = (rows.results ?? []).map(row => ({ id: row.id, actorVoterId: row.actor_voter_id, actorName: row.actor_name, action: row.action, targetType: row.target_type, targetId: row.target_id, details: parseAuditDetails(row.details_json), createdAt: row.created_at }));
+  return c.json({ items, total: Number(total?.count ?? 0), limit, offset }, 200, { "Cache-Control": "no-store" });
+});
+
 app.get("/api/admin/votes/:voteId/ballots", async c => { const a = await ((await currentAccount(c))?.admin_level ?? 0) >= ADMIN_TIER1 ? await currentAccount(c) : null; if (!a) return c.json({ error: "管理員權限不足。" }, 403); const rows = await c.env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ? ORDER BY created_at ASC").bind(Number(c.req.param("voteId"))).all<BallotRow>(); return c.json((rows.results ?? []).map(b => ({ ...b, selectedOptions: jsonArray<string>(b.selected_options) }))); });
 
 app.notFound(c => c.json({ error: "Not found" }, 404));

@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { useEffect } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,12 +20,27 @@ import Terms from "@/pages/Terms";
 import StaffReport from "@/pages/StaffReport";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { applySeoMetadata, getRouteSeo } from "@/lib/seo";
 
 const queryClient = new QueryClient();
+
+function SeoHead() {
+  const [location] = useLocation();
+  const { isEnglish } = useLanguage();
+
+  useEffect(() => {
+    applySeoMetadata(getRouteSeo(location, isEnglish));
+    document.getElementById("seo-fallback")?.remove();
+  }, [location, isEnglish]);
+
+  return null;
+}
 
 function Router() {
   return (
     <Layout>
+      <SeoHead />
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/members" component={Members} />
