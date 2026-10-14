@@ -79,9 +79,20 @@ function markdownToHtml(source) {
   let list = [];
   const flushParagraph = () => { if (paragraph.length) blocks.push(`<p>${paragraph.map(inlineMarkdown).join(" ")}</p>`); paragraph = []; };
   const flushList = () => { if (list.length) blocks.push(`<ol>${list.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ol>`); list = []; };
-  for (const raw of lines) {
-    const line = raw.trim();
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index].trim();
     if (!line) { flushParagraph(); flushList(); continue; }
+    if (/^>/.test(line)) {
+      flushParagraph(); flushList();
+      const quoteLines = [];
+      while (index < lines.length && /^>/.test(lines[index].trim())) {
+        quoteLines.push(lines[index].trim().replace(/^>\s?/, "").replace(/^#{1,6}\s+/, ""));
+        index++;
+      }
+      index--;
+      blocks.push(`<blockquote>${quoteLines.map(inlineMarkdown).join("<br />")}</blockquote>`);
+      continue;
+    }
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
       flushParagraph(); flushList();

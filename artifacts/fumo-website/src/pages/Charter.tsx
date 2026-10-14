@@ -91,7 +91,8 @@ function markdownToHtml(source: string): string {
     if (/^>/.test(trimmed)) {
       const quoteLines: string[] = [];
       while (index < lines.length && /^>/.test(lines[index].trim())) {
-        quoteLines.push(lines[index].trim().replace(/^>\s?/, ""));
+        const quoteLine = lines[index].trim().replace(/^>\s?/, "");
+        quoteLines.push(quoteLine.replace(/^#{1,6}\s+/, ""));
         index += 1;
       }
       blocks.push(`<blockquote>${inlineMarkdown(quoteLines.join("\n")).replace(/\n/g, "<br />")}</blockquote>`);
@@ -140,7 +141,7 @@ export default function Charter() {
         </div>
 
         <article
-          className="bg-white rounded-lg shadow-sm border border-border/60 overflow-hidden prose prose-slate max-w-none prose-headings:text-primary prose-h1:text-center prose-h1:text-3xl prose-h2:border-l-4 prose-h2:border-secondary prose-h2:pl-4 prose-h2:py-1 prose-h2:mt-12 prose-h3:text-xl prose-h3:mt-8 prose-p:leading-8 prose-blockquote:border-secondary prose-blockquote:bg-muted/40 prose-blockquote:rounded-r-md prose-table:text-sm"
+          className="bg-white rounded-lg shadow-sm border border-border/60 overflow-hidden p-5 sm:p-8 lg:p-12 prose prose-slate max-w-none prose-headings:text-primary prose-h1:text-center prose-h1:text-3xl prose-h2:border-l-4 prose-h2:border-secondary prose-h2:pl-4 prose-h2:py-1 prose-h2:mt-12 prose-h3:text-xl prose-h3:mt-8 prose-p:leading-8 prose-blockquote:border-secondary prose-blockquote:bg-muted/40 prose-blockquote:rounded-r-md prose-table:text-sm"
           dangerouslySetInnerHTML={{ __html: markdownToHtml(document) }}
         />
       </div>
