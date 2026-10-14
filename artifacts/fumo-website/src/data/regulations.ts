@@ -2,20 +2,24 @@ export interface Regulation {
   name: string;
   nameEn?: string;
   hackmdPath: string;
+  hackmdPathEn?: string;
   status: "complete" | "pending" | "draft";
   category: "charter" | "membership" | "governance" | "procedures" | "order";
   description?: string;
 }
 
-export const charterUrl = "https://hackmd.io/hXuHNG-nSMKFX-9Psp1uug";
+export const charterUrlZh = "https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/rJfgOxo5KGx";
+export const charterUrlEn = "https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/ryHGtgtiGg";
+export const charterUrl = charterUrlZh;
 export const regulationsDirectoryUrl = "https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/HJeBOxjctGl";
 
 export const regulations: Regulation[] = [
   {
-    name: "聯合微國家組織憲章草案",
-    nameEn: "FUMO Charter (Draft)",
-    hackmdPath: "hXuHNG-nSMKFX-9Psp1uug",
-    status: "draft",
+    name: "聯合微國家組織憲章（第七版）",
+    nameEn: "FUMO Charter (Version 7)",
+    hackmdPath: "@C_MoBbG-Q1CbFG1gDVFrcg/rJfgOxo5KGx",
+    hackmdPathEn: "@C_MoBbG-Q1CbFG1gDVFrcg/ryHGtgtiGg",
+    status: "complete",
     category: "charter",
     description: "本組織之最高規範，規定組織宗旨、架構及成員國之基本權利義務。",
   },

@@ -1,2 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /votes/create
+
+Sitemap: https://www.micronationfumo.org/sitemap.xml

@@ -1,0 +1,8 @@
+name = "fumo-status"
+main = "src/index.ts"
+compatibility_date = "2026-10-14"
+workers_dev = true
+preview_urls = false
+
+[observability]
+enabled = true

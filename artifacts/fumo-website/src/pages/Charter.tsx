@@ -1,38 +1,149 @@
-import { charterUrl } from "@/data/regulations";
+import charterEn from "@/data/charter.en.md?raw";
+import charterZh from "@/data/charter.zh.md?raw";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, BookOpen } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { charterUrlEn, charterUrlZh } from "@/data/regulations";
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function inlineMarkdown(value: string): string {
+  const normalized = value.replace(/\\([\\`*_{}[\]()#+.!-])/g, "$1");
+  return escapeHtml(normalized)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+}
+
+function tableCells(line: string): string[] {
+  return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+}
+
+function isTableSeparator(line: string): boolean {
+  return /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(line.trim());
+}
+
+function isStandaloneIdentifier(line: string): boolean {
+  return /^`[^`]+`(?:\s+`[^`]+`)*$/.test(line.trim());
+}
+
+function markdownToHtml(source: string): string {
+  const rawLines = source.replace(/\r/g, "").split("\n");
+  const lines: string[] = [];
+  let inFrontMatter = false;
+  let frontMatterStarted = false;
+
+  for (const line of rawLines) {
+    const trimmed = line.trim();
+    if (!frontMatterStarted && trimmed === "---") {
+      frontMatterStarted = true;
+      inFrontMatter = true;
+      continue;
+    }
+    if (inFrontMatter) {
+      if (trimmed === "---") inFrontMatter = false;
+      continue;
+    }
+    if (isStandaloneIdentifier(line)) continue;
+    lines.push(line);
+  }
+
+  const blocks: string[] = [];
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    const trimmed = line.trim();
+    if (!trimmed) {
+      index += 1;
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      const level = Math.min(heading[1].length + 1, 6);
+      blocks.push(`<h${level}>${inlineMarkdown(heading[2])}</h${level}>`);
+      index += 1;
+      continue;
+    }
+
+    if (line.includes("|") && index + 1 < lines.length && isTableSeparator(lines[index + 1])) {
+      const header = tableCells(line);
+      index += 2;
+      const rows: string[][] = [];
+      while (index < lines.length && lines[index].trim().includes("|")) {
+        rows.push(tableCells(lines[index]));
+        index += 1;
+      }
+      blocks.push(
+        `<div class="overflow-x-auto"><table><thead><tr>${header.map((cell) => `<th>${inlineMarkdown(cell)}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${inlineMarkdown(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`,
+      );
+      continue;
+    }
+
+    if (/^>/.test(trimmed)) {
+      const quoteLines: string[] = [];
+      while (index < lines.length && /^>/.test(lines[index].trim())) {
+        const quoteLine = lines[index].trim().replace(/^>\s?/, "");
+        quoteLines.push(quoteLine.replace(/^#{1,6}\s+/, ""));
+        index += 1;
+      }
+      blocks.push(`<blockquote>${inlineMarkdown(quoteLines.join("\n")).replace(/\n/g, "<br />")}</blockquote>`);
+      continue;
+    }
+
+    const paragraphLines: string[] = [];
+    while (index < lines.length) {
+      const current = lines[index];
+      const currentTrimmed = current.trim();
+      if (!currentTrimmed || /^(#{1,6})\s+/.test(currentTrimmed) || /^>/.test(currentTrimmed)) break;
+      if (current.includes("|") && index + 1 < lines.length && isTableSeparator(lines[index + 1])) break;
+      paragraphLines.push(currentTrimmed);
+      index += 1;
+    }
+    blocks.push(`<p>${inlineMarkdown(paragraphLines.join("\n")).replace(/\n/g, "<br />")}</p>`);
+  }
+
+  return blocks.join("\n");
+}
 
 export default function Charter() {
   const { isEnglish } = useLanguage();
-  const section = (zh: string, en: string) => isEnglish ? en : zh;
+  const document = isEnglish ? charterEn : charterZh;
+  const sourceUrl = isEnglish ? charterUrlEn : charterUrlZh;
+
   return (
     <div className="min-h-screen bg-muted/10 py-12">
-      <div className="container mx-auto px-4 max-w-4xl">
+      <div className="container mx-auto px-4 max-w-5xl">
         <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold text-primary mb-4">{section("組織憲章", "Organisation Charter")}</h1>
-          <p className="text-foreground/70 mb-6 max-w-2xl mx-auto">{section("《聯合微國家組織憲章》為本組織之最高規範，確立了組織的宗旨、原則及運作架構。以下為憲章核心條文節錄。", "The FUMO Charter is the organisation's highest governing instrument. It establishes our purpose, principles and institutional framework. The following is a summary of its core provisions.")}</p>
-          <Button asChild className="bg-primary hover:bg-primary/90"><a href={charterUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2"><BookOpen className="w-4 h-4" />{section("在 HackMD 閱讀完整憲章", "Read the full charter on HackMD")}<ExternalLink className="w-4 h-4 ml-1" /></a></Button>
+          <h1 className="text-4xl font-bold text-primary mb-4">
+            {isEnglish ? "Charter of the Federation of United Micronations Organisation" : "聯合微國家組織憲章"}
+          </h1>
+          <p className="text-foreground/70 mb-6 max-w-3xl mx-auto">
+            {isEnglish
+              ? "The complete Version VII Charter, including the articles, amendment history and supplementary provisions adopted at the 37th Regular Conference."
+              : "第七版《聯合微國家組織憲章》完整內容，包含正式條文、憲章修改歷史及第三十七次組織例會通過的附章。"}
+          </p>
+          <Button asChild className="bg-primary hover:bg-primary/90">
+            <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4" />
+              {isEnglish ? "Open the original HackMD document" : "在 HackMD 閱讀原始憲章"}
+              <ExternalLink className="w-4 h-4 ml-1" />
+            </a>
+          </Button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-border/60 overflow-hidden prose prose-slate max-w-none">
-          <div className="p-8 md:p-12">
-            <div className="text-center mb-12 border-b border-border pb-8"><h2 className="text-3xl font-bold text-primary mt-0 mb-2">{section("聯合微國家組織憲章", "Charter of the Federation of United Micronations Organisation")}</h2><p className="text-xl text-secondary font-medium m-0">F.U.M.O.</p></div>
-            <div className="space-y-12">
-              <section><h3 className="text-2xl font-bold text-primary border-l-4 border-secondary pl-4 py-1 mb-6">{section("第一章：宗旨與原則", "Chapter 1 — Purpose & Principles")}</h3><div className="space-y-6">
-                <div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第一條（全名）", "Article 1 — Official name")}</h4><p className="text-foreground/80 m-0">{section("本組織全名為「聯合微國家組織」，英文全名為 Federation of United Micronations Organisation（FUMO）。", "The official name of this organisation is the Federation of United Micronations Organisation (FUMO).")}</p></div>
-                <div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第二條（宗旨）", "Article 2 — Purpose")}</h4><p className="text-foreground/80 m-0">{section("本組織之宗旨為維持國際和平與安全、消除對和平之威脅、制止任何歧視行為，並以和平方式調解微國家間之爭端，以促進各國之繁榮、和諧與穩定。", "FUMO exists to maintain international peace and security, remove threats to peace, prevent discrimination, and peacefully mediate disputes among micronations in order to promote prosperity, harmony and stability.")}</p></div>
-                <div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第三條（主權尊重）", "Article 3 — Respect for sovereignty")}</h4><p className="text-foreground/80 m-0">{section("各成員國應互相尊重彼此之主權與領土完整，並善意履行本憲章所規定之義務。", "Member states shall respect one another's sovereignty and territorial integrity and fulfil their obligations under this Charter in good faith.")}</p></div>
-                <div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第四條（最高規範）", "Article 4 — Supreme instrument")}</h4><p className="text-foreground/80 m-0">{section("本憲章為組織之最高規範，具有絕對之效力。任何與本憲章相牴觸之附屬法規或決議皆為無效。", "This Charter is the supreme instrument of the organisation. Any subordinate regulation or resolution that conflicts with it is invalid.")}</p></div>
-                <div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第五條（組織架構）", "Article 5 — Institutional framework")}</h4><p className="text-foreground/80 m-0">{section("本組織設有下列主要常設機構：議事中心、秘書處、理事會。並設有下列非常設機構：加成委員會、託管委員會。", "The principal permanent organs are the Deliberation Center, Secretariat and Council. Non-permanent organs include the Accession Committee and Trusteeship Committee.")}</p></div>
-                <div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第六條（決議門檻）", "Article 6 — Voting thresholds")}</h4><p className="text-foreground/80 m-0"><strong>{section("一般決議：", "Ordinary resolutions: ")}</strong>{section("需有三分之一以上未凍結席位之成員國參與投票，且同意票多於反對票。", "at least one third of unfrozen member seats must participate, with more votes in favour than against.")}<br/><strong>{section("特別決議：", "Special resolutions: ")}</strong>{section("需有五分之二以上未凍結席位之成員國參與投票，且同意票達參與投票國之二分之一以上。", "at least two fifths of unfrozen member seats must participate, with support from at least half of participating states.")}</p></div>
-              </div></section>
-              <section><h3 className="text-2xl font-bold text-primary border-l-4 border-secondary pl-4 py-1 mb-6">{section("第二章：成員國與觀察國", "Chapter 2 — Member & Observer States")}</h3><div className="space-y-6"><div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第七條至第九條（地位與權利）", "Articles 7–9 — Status and rights")}</h4><p className="text-foreground/80 m-0">{section("加入本組織之國家即成為成員國或觀察國，享有席位。正式成員國必須具備完整的主權。所有成員國皆享有本憲章賦予之權利，並應履行相應之義務。", "States admitted to FUMO become member or observer states and receive a seat. Full members must possess complete sovereignty. All members enjoy the rights granted by this Charter and must fulfil their corresponding obligations.")}</p></div><div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第十條至第十二條（加入與變更）", "Articles 10–12 — Admission and changes")}</h4><p className="text-foreground/80 m-0">{section("申請加入本組織者須依程序先成為觀察國，後可依程序申請升格為正式成員國。如遇國家合併、內戰或分裂等情況，其席位變更須經內部協商並由議事中心處理。", "Applicants must first become observers through the prescribed process before applying for full membership. Seat changes caused by mergers, civil war or division are handled by internal consultation and the Deliberation Center.")}</p></div></div></section>
-              <section><h3 className="text-2xl font-bold text-primary border-l-4 border-secondary pl-4 py-1 mb-6">{section("第三章：議事中心", "Chapter 3 — Deliberation Center")}</h3><div className="space-y-6"><div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第十三條至第十五條（組成與職權）", "Articles 13–15 — Composition and powers")}</h4><p className="text-foreground/80 m-0">{section("議事中心為本組織最高權力與議事機構。每個國家可派 1 至 3 名代表參與。日常運作由理事國管理，設主席一人、副主席一至二人。正式成員國享有提案、表決與發言權；觀察國僅享有發言權。", "The Deliberation Center is FUMO's highest deliberative body. Each state may appoint one to three representatives. Council states manage daily operations, with one chair and one or two vice-chairs. Full members may propose, vote and speak; observers may speak only.")}</p></div><div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第十七條至第十九條（表決與會議）", "Articles 17–19 — Voting and meetings")}</h4><p className="text-foreground/80 m-0">{section("議事中心採一國一票制，以公開唱名方式表決。若有緊急狀況，經二分之一以上理事國連署，且距下次常規會議尚有五日以上時，得召開特別會議。", "The Deliberation Center follows one state, one vote and votes by public roll call. In an emergency, a special meeting may be called when more than half of Council states sign a request and at least five days remain before the next regular meeting.")}</p></div></div></section>
-              <section><h3 className="text-2xl font-bold text-primary border-l-4 border-secondary pl-4 py-1 mb-6">{section("第四章：秘書處", "Chapter 4 — Secretariat")}</h3><div className="space-y-6"><div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第二十三條至第二十四條（職責）", "Articles 23–24 — Responsibilities")}</h4><p className="text-foreground/80 m-0">{section("秘書長為組織之最高行政首長，對外代表組織，並享有提案權。秘書處之職責包括：維持議事運作、管理組織資產、籌辦文化交流活動、監督憲章之執行及落實各項決議。", "The Secretary-General is FUMO's chief administrative officer, represents the organisation externally and may submit proposals. The Secretariat maintains deliberations, manages organisational assets, organises cultural exchange, oversees the Charter and implements resolutions.")}</p></div><div className="pl-4"><h4 className="text-lg font-bold mb-2">{section("第二十五條至第二十六條（任期與選舉）", "Articles 25–26 — Term and election")}</h4><p className="text-foreground/80 m-0">{section("秘書長任期為六個月，連選得連任。秘書長由議事中心選舉產生，亦由議事中心依規定程序予以罷免。", "The Secretary-General serves a six-month term and may be re-elected. The Deliberation Center elects and may recall the Secretary-General according to the prescribed procedure.")}</p></div></div></section>
-            </div>
-          </div>
-        </div>
+        <article
+          className="bg-white rounded-lg shadow-sm border border-border/60 overflow-hidden p-5 sm:p-8 lg:p-12 prose prose-slate max-w-none prose-headings:text-primary prose-h1:text-center prose-h1:text-3xl prose-h2:border-l-4 prose-h2:border-secondary prose-h2:pl-4 prose-h2:py-1 prose-h2:mt-12 prose-h3:text-xl prose-h3:mt-8 prose-p:leading-8 prose-blockquote:border-secondary prose-blockquote:bg-muted/40 prose-blockquote:rounded-r-md prose-table:text-sm"
+          dangerouslySetInnerHTML={{ __html: markdownToHtml(document) }}
+        />
       </div>
     </div>
   );
