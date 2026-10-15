@@ -15,6 +15,9 @@ interface VoteItem {
   customId: string | null;
   publicId: string;
   regularMeetingNumber: number | null;
+  startsAt: string | null;
+  isPublished: boolean;
+  isUpcoming: boolean;
   name: string;
   description: string;
   deadline: string;
@@ -36,13 +39,15 @@ export default function Votes() {
   const { isEnglish } = useLanguage();
   const { isAdmin } = useAuth();
   const { data, isLoading, error } = useQuery({
-    queryKey: ["votes"],
+    queryKey: ["votes", isAdmin],
     queryFn: fetchVotes,
     staleTime: 30 * 1000,
   });
 
-  const activeVotes = data?.filter((v) => !v.isClosed && !v.isExpired) || [];
-  const pastVotes = data?.filter((v) => v.isClosed || v.isExpired) || [];
+  const draftVotes = isAdmin ? (data?.filter((v) => v.isPublished === false) || []) : [];
+  const upcomingVotes = data?.filter((v) => v.isPublished !== false && v.isUpcoming && !v.isClosed && !v.isExpired) || [];
+  const activeVotes = data?.filter((v) => v.isPublished !== false && !v.isUpcoming && !v.isClosed && !v.isExpired) || [];
+  const pastVotes = data?.filter((v) => v.isPublished !== false && (v.isClosed || v.isExpired)) || [];
   const groups = new Map<string, VoteItem[]>();
   pastVotes.forEach((vote) => {
     const key = typeof vote.regularMeetingNumber === "number" ? String(vote.regularMeetingNumber) : "unassigned";
@@ -56,7 +61,7 @@ export default function Votes() {
 
   const VoteCard = ({ vote }: { vote: VoteItem }) => {
     const deadline = new Date(vote.deadline);
-    const isActive = !vote.isClosed && !vote.isExpired;
+    const isActive = vote.isPublished !== false && !vote.isUpcoming && !vote.isClosed && !vote.isExpired;
     return (
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -74,7 +79,11 @@ export default function Votes() {
                   variant={isActive ? "default" : "secondary"}
                   className={isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}
                 >
-                  {vote.isClosed ? (
+                  {vote.isPublished === false ? (
+                    <><Clock className="w-3 h-3 mr-1" />{isEnglish ? "Draft" : "草稿"}</>
+                  ) : vote.isUpcoming ? (
+                    <><Clock className="w-3 h-3 mr-1" />{isEnglish ? "Upcoming" : "即將開始"}</>
+                  ) : vote.isClosed ? (
                     <><XCircle className="w-3 h-3 mr-1" />已關閉 Closed</>
                   ) : vote.isExpired ? (
                     <><Clock className="w-3 h-3 mr-1" />已過期 Expired</>
@@ -96,6 +105,12 @@ export default function Votes() {
                 )}
                 {vote.customId && <Badge variant="outline">ID: {vote.customId}</Badge>}
               </div>
+              {vote.startsAt && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <span>{isEnglish ? "Starts" : "開始時間"}: {new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock className="w-4 h-4" />
                 <span>截止日期 Deadline: {deadline.toLocaleString("zh-TW")}</span>
@@ -146,6 +161,24 @@ export default function Votes() {
 
         {!isLoading && !error && (
           <>
+            {isAdmin && draftVotes.length > 0 && (
+              <section className="mb-12" aria-labelledby="draft-votes">
+                <h2 id="draft-votes" className="text-xl font-bold text-muted-foreground mb-4">{isEnglish ? "Drafts (administrators only)" : "草稿（僅管理員可見）"} ({draftVotes.length})</h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {draftVotes.map((vote) => <VoteCard key={vote.id} vote={vote} />)}
+                </div>
+              </section>
+            )}
+
+            <h2 className="text-xl font-bold text-primary mb-4">{isEnglish ? "Upcoming votes" : "即將開始的投票"} ({upcomingVotes.length})</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
+              {upcomingVotes.length === 0 ? (
+                <p className="text-muted-foreground col-span-full">{isEnglish ? "No upcoming votes" : "目前沒有預約開始的投票"}</p>
+              ) : (
+                upcomingVotes.map((vote) => <VoteCard key={vote.id} vote={vote} />)
+              )}
+            </div>
+
             <h2 className="text-xl font-bold text-primary mb-4">{isEnglish ? "Active votes" : "進行中的投票"} ({activeVotes.length})</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
               {activeVotes.length === 0 ? (

@@ -13,15 +13,16 @@ const text = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
 async function fetchJson(route, fallback) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 4500);
+  const headers = { accept: "application/json", "user-agent": "FUMO-SEO-Prerender/1.0 (+https://www.micronationfumo.org)" };
   try {
-    const response = await fetch(`${API_BASE}${route}`, { signal: controller.signal, headers: { accept: "application/json" } });
+    const response = await fetch(`${API_BASE}${route}`, { signal: controller.signal, headers });
     if (response.ok) return await response.json();
   } catch {
   } finally {
     clearTimeout(timer);
   }
   try {
-    const raw = execFileSync("curl", ["--fail", "--silent", "--show-error", "--connect-timeout", "3", "--max-time", "6", "-H", "accept: application/json", `${API_BASE}${route}`], { encoding: "utf8", timeout: 7000, maxBuffer: 8 * 1024 * 1024 });
+    const raw = execFileSync("curl", ["--fail", "--silent", "--show-error", "--connect-timeout", "3", "--max-time", "6", "-A", "FUMO-SEO-Prerender/1.0 (+https://www.micronationfumo.org)", "-H", "accept: application/json", `${API_BASE}${route}`], { encoding: "utf8", timeout: 7000, maxBuffer: 8 * 1024 * 1024 });
     return JSON.parse(raw);
   } catch {
     return fallback;
@@ -177,9 +178,10 @@ addPage({
 const votes = Array.isArray(votesData) ? votesData : [];
 const publicVoteId = (vote) => String(vote.publicId || vote.customId || vote.id);
 const voteDetails = await Promise.all(votes.map(async (vote) => ({ vote, results: await fetchJson(`/api/votes/${encodeURIComponent(publicVoteId(vote))}/results`, null) })));
-const voteStatus = (vote) => vote.isClosed ? "已關閉" : vote.isExpired ? "已截止" : "進行中";
-const voteListItem = (vote) => `<li>${asLink(`/votes/${encodeURIComponent(publicVoteId(vote))}`, text(vote.name) || `投票 ${publicVoteId(vote)}`)} — ${voteStatus(vote)}；${typeof vote.regularMeetingNumber === "number" ? `第 ${vote.regularMeetingNumber} 次例行大會` : "未指定例行大會"}；投票 ID：${escapeHtml(text(vote.customId || publicVoteId(vote)))}；截止：${escapeHtml(text(vote.deadline))}；已投票 ${Number(vote.ballotCount) || 0} 國${vote.description ? `；${escapeHtml(text(vote.description))}` : ""}</li>`;
-const activeVotes = votes.filter((vote) => !vote.isClosed && !vote.isExpired);
+const voteStatus = (vote) => vote.isClosed ? "已關閉" : vote.isExpired ? "已截止" : vote.isUpcoming ? "即將開始" : "進行中";
+const voteListItem = (vote) => `<li>${asLink(`/votes/${encodeURIComponent(publicVoteId(vote))}`, text(vote.name) || `投票 ${publicVoteId(vote)}`)} — ${voteStatus(vote)}；${typeof vote.regularMeetingNumber === "number" ? `第 ${vote.regularMeetingNumber} 次例行大會` : "未指定例行大會"}；投票 ID：${escapeHtml(text(vote.customId || publicVoteId(vote)))}；${vote.startsAt ? `開始：${escapeHtml(text(vote.startsAt))}；` : ""}截止：${escapeHtml(text(vote.deadline))}；已投票 ${Number(vote.ballotCount) || 0} 國${vote.description ? `；${escapeHtml(text(vote.description))}` : ""}</li>`;
+const upcomingVotes = votes.filter((vote) => vote.isUpcoming && !vote.isClosed && !vote.isExpired);
+const activeVotes = votes.filter((vote) => !vote.isUpcoming && !vote.isClosed && !vote.isExpired);
 const pastVotes = votes.filter((vote) => vote.isClosed || vote.isExpired);
 const pastMeetingGroups = new Map();
 for (const vote of pastVotes) {
@@ -196,7 +198,7 @@ addPage({
   description: "瀏覽聯合微國家組織 FUMO 公開投票、議案狀態、投票期限與彙總結果。進行中的投票不公開個別投票者選擇。",
   keywords: "FUMO投票,組織決議,微國家投票,公開議案,投票結果",
   type: "CollectionPage",
-  body: `<h1>公開投票與決議</h1><p>此處列出公開投票的議案說明、選項、截止時間與彙總結果。進行中的投票只顯示彙總票數，不顯示個別投票者或其選擇；已結束的投票依例行大會分區。</p>${votes.length ? `<section><h2>進行中的投票</h2>${activeVotes.length ? `<ul>${activeVotes.map(voteListItem).join("")}</ul>` : `<p>目前沒有進行中的投票。</p>`}</section><section><h2>已結束的投票</h2>${pastVotesHtml || `<p>目前沒有已結束的投票。</p>`}</section>` : `<p>目前沒有公開投票，或本次建置未能取得最新投票資料。若有投票，將於互動頁面顯示。</p>`}`,
+  body: `<h1>公開投票與決議</h1><p>此處列出公開投票的議案說明、選項、截止時間與彙總結果。預約投票會標示開始時間，在指定時間前不可投票；進行中的投票只顯示彙總票數，不顯示個別投票者或其選擇；已結束的投票依例行大會分區。</p>${votes.length ? `<section><h2>即將開始的投票</h2>${upcomingVotes.length ? `<ul>${upcomingVotes.map(voteListItem).join("")}</ul>` : `<p>目前沒有預約開始的投票。</p>`}</section><section><h2>進行中的投票</h2>${activeVotes.length ? `<ul>${activeVotes.map(voteListItem).join("")}</ul>` : `<p>目前沒有進行中的投票。</p>`}</section><section><h2>已結束的投票</h2>${pastVotesHtml || `<p>目前沒有已結束的投票。</p>`}</section>` : `<p>目前沒有公開投票，或本次建置未能取得最新投票資料。若有投票，將於互動頁面顯示。</p>`}`,
 });
 
 for (const { vote, results } of voteDetails) {

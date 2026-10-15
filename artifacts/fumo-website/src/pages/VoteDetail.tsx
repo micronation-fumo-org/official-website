@@ -21,6 +21,7 @@ interface VoteDetail {
   customId: string | null;
   publicId: string;
   regularMeetingNumber: number | null;
+  startsAt: string | null;
   name: string;
   description: string;
   deadline: string;
@@ -28,6 +29,8 @@ interface VoteDetail {
   allowMultiple: boolean;
   isClosed: boolean;
   isExpired: boolean;
+  isPublished: boolean;
+  isUpcoming: boolean;
   ballotCount: number;
   ballots: any[];
 }
@@ -101,6 +104,16 @@ async function closeVoteApi(voteId: string): Promise<any> {
   return data;
 }
 
+async function publishVoteApi(voteId: string): Promise<any> {
+  const res = await apiFetch(`/api/admin/votes/${voteId}/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "發布草稿失敗。");
+  return data;
+}
+
 async function deleteVoteApi(voteId: string): Promise<any> {
   const res = await apiFetch(`/api/admin/votes/${voteId}`, {
     method: "DELETE",
@@ -152,6 +165,7 @@ export default function VoteDetail() {
       language: isEnglish ? "en" : "zh-Hant",
       keywords: "FUMO投票,聯合微國家組織議案,公開投票,投票結果",
       type: "article",
+      robots: vote.isPublished ? "index, follow" : "noindex, nofollow",
     });
   }, [vote, isLoading, voteId, isEnglish]);
 
@@ -159,8 +173,8 @@ export default function VoteDetail() {
     queryKey: ["vote-results", voteId],
     queryFn: () => fetchResults(voteId),
     staleTime: 0,
-    enabled: !!vote,
-    refetchInterval: vote && !vote.isClosed && !vote.isExpired ? 5 * 1000 : false,
+    enabled: !!vote && vote.isPublished,
+    refetchInterval: vote && vote.isPublished && !vote.isUpcoming && !vote.isClosed && !vote.isExpired ? 5 * 1000 : false,
   });
 
   const castMutation = useMutation({
@@ -192,6 +206,17 @@ export default function VoteDetail() {
     },
   });
 
+  const publishMutation = useMutation({
+    mutationFn: () => publishVoteApi(voteId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vote", voteId] });
+      queryClient.invalidateQueries({ queryKey: ["vote-results", voteId] });
+      queryClient.invalidateQueries({ queryKey: ["votes"] });
+      setVoteError(null);
+    },
+    onError: (err: Error) => setVoteError(toChineseError(err)),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => deleteVoteApi(voteId),
     onSuccess: () => {
@@ -203,7 +228,7 @@ export default function VoteDetail() {
     },
   });
 
-  const isVotingOpen = vote && !vote.isClosed && !vote.isExpired;
+  const isVotingOpen = vote && vote.isPublished && !vote.isUpcoming && !vote.isClosed && !vote.isExpired;
   const isResultsFinal = !!vote && (vote.isClosed || vote.isExpired);
   const countryVotes = results?.countryVotes ?? [];
 
@@ -288,7 +313,11 @@ export default function VoteDetail() {
                 variant={isVotingOpen ? "default" : "secondary"}
                 className={isVotingOpen ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}
               >
-                {vote.isClosed ? (
+                {!vote.isPublished ? (
+                  <><Clock className="w-3 h-3 mr-1" />{isEnglish ? "Draft" : "草稿"}</>
+                ) : vote.isUpcoming ? (
+                  <><Clock className="w-3 h-3 mr-1" />{isEnglish ? "Upcoming" : "即將開始"}</>
+                ) : vote.isClosed ? (
                   <><XCircle className="w-3 h-3 mr-1" />{isEnglish ? "Closed" : "已關閉"}</>
                 ) : vote.isExpired ? (
                   <><Clock className="w-3 h-3 mr-1" />{isEnglish ? "Expired" : "已過期"}</>
@@ -319,6 +348,7 @@ export default function VoteDetail() {
               <span>{isEnglish ? `Regular meeting ${vote.regularMeetingNumber}` : `第 ${vote.regularMeetingNumber} 次例行大會`}</span>
             )}
             {vote.customId && <span>{isEnglish ? "Vote ID" : "投票 ID"}：{vote.customId}</span>}
+            {vote.startsAt && <span>{isEnglish ? "Starts" : "開始時間"}：{new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</span>}
             <span className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
               {new Date(vote.deadline).toLocaleString("zh-TW")}
@@ -330,6 +360,29 @@ export default function VoteDetail() {
             <span>{vote.allowMultiple ? "可複選" : "單選"}</span>
           </div>
         </div>
+
+        {!vote.isPublished && (
+          <Card className="mb-8 border-amber-200 bg-amber-50">
+            <CardContent className="space-y-3 pt-6">
+              <p className="font-medium text-amber-900">{isEnglish ? "This vote is an unpublished draft." : "此投票目前是未發布草稿，只有管理員可見。"}</p>
+              {voteError && <p className="text-sm text-red-700">{voteError}</p>}
+              {isAdmin && (
+                <Button onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
+                  {publishMutation.isPending ? (isEnglish ? "Publishing..." : "發布中...") : (isEnglish ? "Publish draft" : "發布草稿")}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+        {vote.isPublished && vote.isUpcoming && (
+          <Card className="mb-8 border-primary/20 bg-primary/5">
+            <CardContent className="space-y-2 pt-6">
+              <p className="font-medium text-primary">{isEnglish ? "This vote is scheduled and is not open yet." : "此投票已預約，尚未開放投票。"}</p>
+              {vote.startsAt && <p className="text-sm text-muted-foreground">{isEnglish ? "Voting opens" : "開放時間"}：{new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</p>}
+              <p className="text-sm text-muted-foreground">{isEnglish ? "Voting will open automatically at the scheduled time." : "到達預約時間後，系統會自動開放投票，無需管理員再次操作。"}</p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Voting Section */}
         {isVotingOpen && (
@@ -467,7 +520,7 @@ export default function VoteDetail() {
         )}
 
         {/* Results Section */}
-        {results && (
+        {results && !vote.isUpcoming && (
           <Card className="mb-8 border-border/60 bg-white">
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-2">

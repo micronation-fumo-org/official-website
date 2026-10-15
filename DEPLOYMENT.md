@@ -36,7 +36,9 @@ pnpm exec wrangler d1 migrations apply fumo-production --local
 pnpm exec wrangler d1 migrations apply fumo-production --remote
 ```
 
-包含管理操作紀錄功能的 Worker 版本，必須先成功套用 `0004_admin_audit_logs.sql` 再部署 Worker。新增自訂投票 ID 與例行大會分區時，先套用 `0005_vote_ids_and_regular_meetings.sql`；它只為既有投票新增欄位與索引，不修改帳戶、投票或選票資料。既有投票會保留原有數字 ID，並歸入「未指定例行大會」分區。部署前可先執行 `pnpm exec wrangler d1 migrations list fumo-production --remote` 檢查套用狀態。
+包含管理操作紀錄功能的 Worker 版本，必須先成功套用 `0004_admin_audit_logs.sql` 再部署 Worker。新增自訂投票 ID 與例行大會分區時，先套用 `0005_vote_ids_and_regular_meetings.sql`；新增草稿與預約開始功能時，先套用 `0006_vote_drafts_and_scheduling.sql`。這些 migration 只新增欄位與索引，不修改帳戶、投票或選票內容；舊投票會維持公開且不設定預約開始時間。部署前可先執行 `pnpm exec wrangler d1 migrations list fumo-production --remote` 檢查套用狀態。
+
+管理員建立投票時可選擇立即公開、儲存為僅管理員可見的草稿，或設定未來開始時間。預約投票會公開顯示為「即將開始」，到開始時間後由 API 自動允許投票；投票時間由 API 即時判斷，不依賴排程服務。草稿可由管理員在投票詳情頁手動發布，發布操作會寫入管理操作紀錄。
 
 ## 4. 部署 API
 

@@ -13,6 +13,9 @@ import { Plus, Trash2, AlertTriangle, CheckCircle2, Shield } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+type PublishMode = "immediate" | "draft" | "scheduled";
 
 async function createVote(body: {
   name: string;
@@ -22,6 +25,8 @@ async function createVote(body: {
   allowMultiple: boolean;
   customId: string | null;
   regularMeetingNumber: number;
+  publishMode: PublishMode;
+  startsAt: string | null;
 }) {
   const res = await apiFetch("/api/votes", {
     method: "POST",
@@ -45,6 +50,8 @@ export default function CreateVote() {
   const [allowMultiple, setAllowMultiple] = useState(false);
   const [customId, setCustomId] = useState("");
   const [regularMeetingNumber, setRegularMeetingNumber] = useState("");
+  const [publishMode, setPublishMode] = useState<PublishMode>("immediate");
+  const [startsAt, setStartsAt] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
@@ -87,6 +94,28 @@ export default function CreateVote() {
       setError("請設定截止日期。");
       return;
     }
+    const deadlineTime = new Date(deadline).getTime();
+    if (!Number.isFinite(deadlineTime) || deadlineTime <= Date.now()) {
+      setError(isEnglish ? "The deadline must be in the future." : "截止時間必須晚於目前時間。");
+      return;
+    }
+    let startsAtIso: string | null = null;
+    if (publishMode === "scheduled") {
+      if (!startsAt) {
+        setError(isEnglish ? "Choose a start time for the scheduled vote." : "請設定預約投票的開始時間。");
+        return;
+      }
+      const startsAtTime = new Date(startsAt).getTime();
+      if (!Number.isFinite(startsAtTime) || startsAtTime <= Date.now()) {
+        setError(isEnglish ? "The start time must be in the future." : "預約開始時間必須晚於目前時間。");
+        return;
+      }
+      if (deadlineTime <= startsAtTime) {
+        setError(isEnglish ? "The deadline must be later than the start time." : "截止時間必須晚於開始時間。");
+        return;
+      }
+      startsAtIso = new Date(startsAtTime).toISOString();
+    }
     if (validOptions.length < 2) {
       setError("至少需要兩個選項。");
       return;
@@ -99,6 +128,8 @@ export default function CreateVote() {
       allowMultiple,
       customId: normalizedCustomId || null,
       regularMeetingNumber: Number(regularMeetingNumber),
+      publishMode,
+      startsAt: startsAtIso,
     });
   };
 
@@ -173,6 +204,50 @@ export default function CreateVote() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {isEnglish ? "Closed votes will be grouped under this meeting on the voting page." : "投票結束後，會在投票列表歸入該次例行大會的獨立分區。"}
               </p>
+            </div>
+
+            <div>
+              <Label>{isEnglish ? "Publishing mode" : "發佈方式"}</Label>
+              <RadioGroup
+                value={publishMode}
+                onValueChange={(value) => setPublishMode(value as PublishMode)}
+                className="mt-2 gap-3"
+              >
+                <div className="flex items-start gap-3 rounded-md border border-border p-3">
+                  <RadioGroupItem id="publish-immediate" value="immediate" className="mt-1" />
+                  <div>
+                    <Label htmlFor="publish-immediate" className="cursor-pointer">{isEnglish ? "Publish now" : "立即公開"}</Label>
+                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "The vote becomes visible and opens immediately." : "建立後立即公開並開放投票。"}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-md border border-border p-3">
+                  <RadioGroupItem id="publish-draft" value="draft" className="mt-1" />
+                  <div>
+                    <Label htmlFor="publish-draft" className="cursor-pointer">{isEnglish ? "Save as draft" : "儲存為草稿"}</Label>
+                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Only administrators can see it until you publish it." : "草稿僅管理員可見；準備好後可從投票詳情手動發布。"}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-md border border-border p-3">
+                  <RadioGroupItem id="publish-scheduled" value="scheduled" className="mt-1" />
+                  <div>
+                    <Label htmlFor="publish-scheduled" className="cursor-pointer">{isEnglish ? "Schedule a start" : "預約開始時間"}</Label>
+                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "It is publicly listed as upcoming, then voting opens automatically at the chosen time." : "開始前會公開顯示為「即將開始」，到指定時間自動開放投票。"}</p>
+                  </div>
+                </div>
+              </RadioGroup>
+              {publishMode === "scheduled" && (
+                <div className="mt-4">
+                  <Label htmlFor="startsAt">{isEnglish ? "Start time" : "開始時間"}</Label>
+                  <Input
+                    id="startsAt"
+                    type="datetime-local"
+                    value={startsAt}
+                    onChange={(e) => setStartsAt(e.target.value)}
+                    className="mt-1"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Uses your device's local time." : "依照此裝置的本地時間設定。"}</p>
+                </div>
+              )}
             </div>
 
             <div>
@@ -257,7 +332,13 @@ export default function CreateVote() {
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 <CheckCircle2 className="w-4 h-4 mr-1" />
-                {mutation.isPending ? (isEnglish ? "Creating..." : "創建中...") : (isEnglish ? "Create vote" : "創建投票")}
+                {mutation.isPending
+                  ? (isEnglish ? "Creating..." : "建立中...")
+                  : publishMode === "draft"
+                    ? (isEnglish ? "Save draft" : "儲存草稿")
+                    : publishMode === "scheduled"
+                      ? (isEnglish ? "Schedule vote" : "建立預約投票")
+                      : (isEnglish ? "Publish vote" : "立即發布投票")}
               </Button>
               <Button variant="outline" onClick={() => setLocation("/votes")}>
                 {isEnglish ? "Cancel" : "取消"}
