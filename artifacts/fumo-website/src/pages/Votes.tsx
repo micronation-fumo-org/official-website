@@ -12,6 +12,9 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 interface VoteItem {
   id: number;
+  customId: string | null;
+  publicId: string;
+  regularMeetingNumber: number | null;
   name: string;
   description: string;
   deadline: string;
@@ -40,6 +43,16 @@ export default function Votes() {
 
   const activeVotes = data?.filter((v) => !v.isClosed && !v.isExpired) || [];
   const pastVotes = data?.filter((v) => v.isClosed || v.isExpired) || [];
+  const groups = new Map<string, VoteItem[]>();
+  pastVotes.forEach((vote) => {
+    const key = typeof vote.regularMeetingNumber === "number" ? String(vote.regularMeetingNumber) : "unassigned";
+    groups.set(key, [...(groups.get(key) || []), vote]);
+  });
+  const pastVoteGroups = [...groups.entries()].sort(([a], [b]) => {
+    if (a === "unassigned") return 1;
+    if (b === "unassigned") return -1;
+    return Number(b) - Number(a);
+  });
 
   const VoteCard = ({ vote }: { vote: VoteItem }) => {
     const deadline = new Date(vote.deadline);
@@ -50,7 +63,7 @@ export default function Votes() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <Link href={`/votes/${vote.id}`}>
+        <Link href={`/votes/${encodeURIComponent(vote.publicId || String(vote.id))}`}>
           <Card className="hover:shadow-md transition-shadow cursor-pointer border-border/60 bg-white h-full">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-2">
@@ -75,6 +88,14 @@ export default function Votes() {
               )}
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {typeof vote.regularMeetingNumber === "number" && (
+                  <Badge variant="outline">
+                    {isEnglish ? `Regular meeting ${vote.regularMeetingNumber}` : `第 ${vote.regularMeetingNumber} 次例行大會`}
+                  </Badge>
+                )}
+                {vote.customId && <Badge variant="outline">ID: {vote.customId}</Badge>}
+              </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock className="w-4 h-4" />
                 <span>截止日期 Deadline: {deadline.toLocaleString("zh-TW")}</span>
@@ -134,14 +155,28 @@ export default function Votes() {
               )}
             </div>
 
-            <h2 className="text-xl font-bold text-muted-foreground mb-4">{isEnglish ? "Past votes" : "已結束的投票"} ({pastVotes.length})</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {pastVotes.length === 0 ? (
-                <p className="text-muted-foreground col-span-full">{isEnglish ? "No past votes" : "目前沒有已結束的投票"}</p>
-              ) : (
-                pastVotes.map((vote) => <VoteCard key={vote.id} vote={vote} />)
-              )}
-            </div>
+            <h2 className="text-xl font-bold text-muted-foreground mb-6">{isEnglish ? "Past votes" : "已結束的投票"} ({pastVotes.length})</h2>
+            {pastVoteGroups.length === 0 ? (
+              <p className="text-muted-foreground">{isEnglish ? "No past votes" : "目前沒有已結束的投票"}</p>
+            ) : (
+              pastVoteGroups.map(([meeting, meetingVotes]) => (
+                <section key={meeting} className="mb-10" aria-labelledby={`meeting-${meeting}`}>
+                  <div className="mb-5 flex flex-wrap items-center gap-3 border-b border-border/60 pb-3">
+                    <h3 id={`meeting-${meeting}`} className="text-lg font-bold text-primary">
+                      {meeting === "unassigned"
+                        ? (isEnglish ? "Unassigned regular meeting" : "未指定例行大會")
+                        : (isEnglish ? `Regular meeting ${meeting}` : `第 ${meeting} 次例行大會`)}
+                    </h3>
+                    <span className="text-sm text-muted-foreground">
+                      {isEnglish ? `${meetingVotes.length} vote${meetingVotes.length === 1 ? "" : "s"}` : `${meetingVotes.length} 項投票`}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {meetingVotes.map((vote) => <VoteCard key={vote.id} vote={vote} />)}
+                  </div>
+                </section>
+              ))
+            )}
           </>
         )}
       </div>

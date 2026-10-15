@@ -20,6 +20,8 @@ async function createVote(body: {
   deadline: string;
   options: string[];
   allowMultiple: boolean;
+  customId: string | null;
+  regularMeetingNumber: number;
 }) {
   const res = await apiFetch("/api/votes", {
     method: "POST",
@@ -41,13 +43,15 @@ export default function CreateVote() {
   const [deadline, setDeadline] = useState("");
   const [options, setOptions] = useState<string[]>(["同意", "反對", "棄權"]);
   const [allowMultiple, setAllowMultiple] = useState(false);
+  const [customId, setCustomId] = useState("");
+  const [regularMeetingNumber, setRegularMeetingNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: createVote,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["votes"] });
-      setLocation(`/votes/${data.id}`);
+      setLocation(`/votes/${encodeURIComponent(data.publicId || data.id)}`);
     },
     onError: (err: Error) => {
       setError(toChineseError(err));
@@ -70,6 +74,15 @@ export default function CreateVote() {
       setError("請輸入投票名稱。");
       return;
     }
+    if (!/^\d+$/.test(regularMeetingNumber) || Number(regularMeetingNumber) < 1) {
+      setError(isEnglish ? "Enter a valid regular meeting number (1 or greater)." : "請輸入有效的例行大會次數（至少為 1）。");
+      return;
+    }
+    const normalizedCustomId = customId.trim();
+    if (normalizedCustomId && (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$/.test(normalizedCustomId) || /^\d+$/.test(normalizedCustomId) || /^create$/i.test(normalizedCustomId))) {
+      setError(isEnglish ? "Custom ID must be 1–48 letters, numbers, hyphens or underscores; digits only and the reserved word 'create' are not allowed." : "自訂投票 ID 限 1–48 個英文字母、數字、連字號或底線；不可為純數字或保留字 create。");
+      return;
+    }
     if (!deadline) {
       setError("請設定截止日期。");
       return;
@@ -84,6 +97,8 @@ export default function CreateVote() {
       deadline: new Date(deadline).toISOString(),
       options: validOptions,
       allowMultiple,
+      customId: normalizedCustomId || null,
+      regularMeetingNumber: Number(regularMeetingNumber),
     });
   };
 
@@ -124,6 +139,40 @@ export default function CreateVote() {
                 placeholder={isEnglish ? "e.g. Resolution on a new bill" : "例如: 新法案決議案"}
                 className="mt-1"
               />
+            </div>
+
+            <div>
+              <Label htmlFor="customId">{isEnglish ? "Custom vote ID (optional)" : "自訂投票 ID（選填）"}</Label>
+              <Input
+                id="customId"
+                value={customId}
+                onChange={(e) => setCustomId(e.target.value)}
+                placeholder="例如：FUMO-AG-2026-01"
+                maxLength={48}
+                className="mt-1"
+                autoCapitalize="none"
+                autoCorrect="off"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {isEnglish ? "Leave blank to use the system ID. Use letters, numbers, - or _; digits only and the reserved word 'create' are not allowed." : "留空會使用系統編號；可用英文字母、數字、- 或 _，純數字及保留字 create 不可使用。"}
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="regularMeetingNumber">{isEnglish ? "Regular meeting number" : "第幾次例行大會"}</Label>
+              <Input
+                id="regularMeetingNumber"
+                type="number"
+                min={1}
+                step={1}
+                value={regularMeetingNumber}
+                onChange={(e) => setRegularMeetingNumber(e.target.value)}
+                placeholder={isEnglish ? "e.g. 12" : "例如：12"}
+                className="mt-1"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {isEnglish ? "Closed votes will be grouped under this meeting on the voting page." : "投票結束後，會在投票列表歸入該次例行大會的獨立分區。"}
+              </p>
             </div>
 
             <div>

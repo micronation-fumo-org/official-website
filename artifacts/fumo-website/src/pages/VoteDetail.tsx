@@ -18,6 +18,9 @@ import { applySeoMetadata } from "@/lib/seo";
 
 interface VoteDetail {
   id: number;
+  customId: string | null;
+  publicId: string;
+  regularMeetingNumber: number | null;
   name: string;
   description: string;
   deadline: string;
@@ -145,7 +148,7 @@ export default function VoteDetail() {
     applySeoMetadata({
       title: isEnglish ? `${vote.name}｜FUMO Official Vote` : `${vote.name}｜FUMO 聯合微國家組織正式投票與議案資訊`,
       description: description.slice(0, 160),
-      path: `/votes/${vote.id}`,
+      path: `/votes/${encodeURIComponent(vote.publicId || String(vote.id))}`,
       language: isEnglish ? "en" : "zh-Hant",
       keywords: "FUMO投票,聯合微國家組織議案,公開投票,投票結果",
       type: "article",
@@ -312,6 +315,10 @@ export default function VoteDetail() {
           </div>
           {vote.description && <p className="text-muted-foreground">{vote.description}</p>}
           <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground flex-wrap">
+            {typeof vote.regularMeetingNumber === "number" && (
+              <span>{isEnglish ? `Regular meeting ${vote.regularMeetingNumber}` : `第 ${vote.regularMeetingNumber} 次例行大會`}</span>
+            )}
+            {vote.customId && <span>{isEnglish ? "Vote ID" : "投票 ID"}：{vote.customId}</span>}
             <span className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
               {new Date(vote.deadline).toLocaleString("zh-TW")}

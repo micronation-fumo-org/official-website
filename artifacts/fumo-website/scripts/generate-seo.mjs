@@ -175,20 +175,34 @@ addPage({
 });
 
 const votes = Array.isArray(votesData) ? votesData : [];
-const voteDetails = await Promise.all(votes.map(async (vote) => ({ vote, results: await fetchJson(`/api/votes/${encodeURIComponent(vote.id)}/results`, null) })));
+const publicVoteId = (vote) => String(vote.publicId || vote.customId || vote.id);
+const voteDetails = await Promise.all(votes.map(async (vote) => ({ vote, results: await fetchJson(`/api/votes/${encodeURIComponent(publicVoteId(vote))}/results`, null) })));
 const voteStatus = (vote) => vote.isClosed ? "已關閉" : vote.isExpired ? "已截止" : "進行中";
+const voteListItem = (vote) => `<li>${asLink(`/votes/${encodeURIComponent(publicVoteId(vote))}`, text(vote.name) || `投票 ${publicVoteId(vote)}`)} — ${voteStatus(vote)}；${typeof vote.regularMeetingNumber === "number" ? `第 ${vote.regularMeetingNumber} 次例行大會` : "未指定例行大會"}；投票 ID：${escapeHtml(text(vote.customId || publicVoteId(vote)))}；截止：${escapeHtml(text(vote.deadline))}；已投票 ${Number(vote.ballotCount) || 0} 國${vote.description ? `；${escapeHtml(text(vote.description))}` : ""}</li>`;
+const activeVotes = votes.filter((vote) => !vote.isClosed && !vote.isExpired);
+const pastVotes = votes.filter((vote) => vote.isClosed || vote.isExpired);
+const pastMeetingGroups = new Map();
+for (const vote of pastVotes) {
+  const key = vote.regularMeetingNumber == null ? "unassigned" : String(vote.regularMeetingNumber);
+  pastMeetingGroups.set(key, [...(pastMeetingGroups.get(key) || []), vote]);
+}
+const pastVotesHtml = [...pastMeetingGroups.entries()]
+  .sort(([a], [b]) => a === "unassigned" ? 1 : b === "unassigned" ? -1 : Number(b) - Number(a))
+  .map(([meeting, meetingVotes]) => `<section><h2>${meeting === "unassigned" ? "未指定例行大會" : `第 ${Number(meeting)} 次例行大會`}</h2><ul>${meetingVotes.map(voteListItem).join("")}</ul></section>`)
+  .join("");
 addPage({
   path: "/votes",
   title: "FUMO 組織正式投票與決議｜聯合微國家組織投票公告",
   description: "瀏覽聯合微國家組織 FUMO 公開投票、議案狀態、投票期限與彙總結果。進行中的投票不公開個別投票者選擇。",
   keywords: "FUMO投票,組織決議,微國家投票,公開議案,投票結果",
   type: "CollectionPage",
-  body: `<h1>公開投票與決議</h1><p>此處列出公開投票的議案說明、選項、截止時間與彙總結果。進行中的投票只顯示彙總票數，不顯示個別投票者或其選擇。</p>${votes.length ? `<ul>${votes.map((vote) => `<li>${asLink(`/votes/${encodeURIComponent(vote.id)}`, text(vote.name) || `投票 ${vote.id}`)} — ${voteStatus(vote)}；截止：${escapeHtml(text(vote.deadline))}；已投票 ${Number(vote.ballotCount) || 0} 國${vote.description ? `；${escapeHtml(text(vote.description))}` : ""}</li>`).join("")}</ul>` : `<p>目前沒有公開投票，或本次建置未能取得最新投票資料。若有投票，將於互動頁面顯示。</p>`}`,
+  body: `<h1>公開投票與決議</h1><p>此處列出公開投票的議案說明、選項、截止時間與彙總結果。進行中的投票只顯示彙總票數，不顯示個別投票者或其選擇；已結束的投票依例行大會分區。</p>${votes.length ? `<section><h2>進行中的投票</h2>${activeVotes.length ? `<ul>${activeVotes.map(voteListItem).join("")}</ul>` : `<p>目前沒有進行中的投票。</p>`}</section><section><h2>已結束的投票</h2>${pastVotesHtml || `<p>目前沒有已結束的投票。</p>`}</section>` : `<p>目前沒有公開投票，或本次建置未能取得最新投票資料。若有投票，將於互動頁面顯示。</p>`}`,
 });
 
 for (const { vote, results } of voteDetails) {
-  const pagePath = `/votes/${encodeURIComponent(vote.id)}`;
-  const safeName = text(vote.name) || `投票 ${vote.id}`;
+  const voteId = publicVoteId(vote);
+  const pagePath = `/votes/${encodeURIComponent(voteId)}`;
+  const safeName = text(vote.name) || `投票 ${voteId}`;
   const options = Array.isArray(vote.options) ? vote.options : [];
   const aggregateResults = Array.isArray(results?.results) ? results.results : [];
   const resultByOption = new Map(aggregateResults.map((result) => [result.option, result]));
@@ -202,7 +216,7 @@ for (const { vote, results } of voteDetails) {
     keywords: "FUMO投票,聯合微國家組織議案,公開投票,投票結果",
     type: "WebPage",
     extraSchema: { "@type": "WebPage" },
-    body: `<h1>${escapeHtml(safeName)}</h1><p>${escapeHtml(text(vote.description) || "本次投票為聯合微國家組織的公開議案。")}</p><p>狀態：${voteStatus(vote)}；截止時間：${escapeHtml(text(vote.deadline))}；${vote.allowMultiple ? "可複選" : "單選"}。</p><h2>投票選項</h2><ul>${options.map((option) => `<li>${escapeHtml(text(option))}${resultByOption.has(option) ? ` — ${Number(resultByOption.get(option).count) || 0} 票（${escapeHtml(text(resultByOption.get(option).percentage))}%）` : ""}</li>`).join("")}</ul>${resultsHtml}<p>投票、登入與互動詳情請前往${asLink(pagePath, "投票互動頁面")}。公開頁不包含個人帳戶 ID、投票者名單或私人選項。</p>`,
+    body: `<h1>${escapeHtml(safeName)}</h1><p>${escapeHtml(text(vote.description) || "本次投票為聯合微國家組織的公開議案。")}</p><p>狀態：${voteStatus(vote)}；例行大會：${typeof vote.regularMeetingNumber === "number" ? `第 ${vote.regularMeetingNumber} 次` : "未指定"}；投票 ID：${escapeHtml(text(vote.customId || voteId))}；截止時間：${escapeHtml(text(vote.deadline))}；${vote.allowMultiple ? "可複選" : "單選"}。</p><h2>投票選項</h2><ul>${options.map((option) => `<li>${escapeHtml(text(option))}${resultByOption.has(option) ? ` — ${Number(resultByOption.get(option).count) || 0} 票（${escapeHtml(text(resultByOption.get(option).percentage))}%）` : ""}</li>`).join("")}</ul>${resultsHtml}<p>投票、登入與互動詳情請前往${asLink(pagePath, "投票互動頁面")}。公開頁不包含個人帳戶 ID、投票者名單或私人選項。</p>`,
   });
 }
 

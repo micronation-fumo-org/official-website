@@ -36,7 +36,7 @@ pnpm exec wrangler d1 migrations apply fumo-production --local
 pnpm exec wrangler d1 migrations apply fumo-production --remote
 ```
 
-包含管理操作紀錄功能的 Worker 版本，必須先成功套用 `0004_admin_audit_logs.sql` 再部署 Worker；此 migration 只新增稽核紀錄表與索引，不修改既有帳戶、投票或選票資料。部署前可先執行 `pnpm exec wrangler d1 migrations list fumo-production --remote` 檢查套用狀態。
+包含管理操作紀錄功能的 Worker 版本，必須先成功套用 `0004_admin_audit_logs.sql` 再部署 Worker。新增自訂投票 ID 與例行大會分區時，先套用 `0005_vote_ids_and_regular_meetings.sql`；它只為既有投票新增欄位與索引，不修改帳戶、投票或選票資料。既有投票會保留原有數字 ID，並歸入「未指定例行大會」分區。部署前可先執行 `pnpm exec wrangler d1 migrations list fumo-production --remote` 檢查套用狀態。
 
 ## 4. 部署 API
 

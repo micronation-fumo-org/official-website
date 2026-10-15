@@ -29,6 +29,8 @@ interface VoteRow {
   is_closed: number;
   created_at: string;
   updated_at: string;
+  custom_id: string | null;
+  regular_meeting_number: number | null;
 }
 interface BallotRow {
   id: number;
@@ -61,7 +63,12 @@ const json = (value: unknown, status = 200, headers: HeadersInit = {}) => new Re
 const parseJson = async (c: any) => { try { return await c.req.json(); } catch { return null; } };
 const account = async (db: D1Database, voterId: string) => (await db.prepare("SELECT * FROM voter_accounts WHERE voter_id = ?").bind(voterId).first<Account>()) ?? null;
 const jsonArray = <T>(value: string): T[] => { try { return JSON.parse(value) as T[]; } catch { return []; } };
-const asVote = (v: VoteRow, ballotCount = 0) => ({ id: v.id, name: v.name, description: v.description, deadline: v.deadline, options: jsonArray<string>(v.options), allowMultiple: Boolean(v.allow_multiple), isClosed: Boolean(v.is_closed), isExpired: new Date(v.deadline) < new Date(), ballotCount, createdAt: v.created_at, updatedAt: v.updated_at });
+const asVote = (v: VoteRow, ballotCount = 0) => ({ id: v.id, customId: v.custom_id, publicId: v.custom_id || String(v.id), regularMeetingNumber: v.regular_meeting_number, name: v.name, description: v.description, deadline: v.deadline, options: jsonArray<string>(v.options), allowMultiple: Boolean(v.allow_multiple), isClosed: Boolean(v.is_closed), isExpired: new Date(v.deadline) < new Date(), ballotCount, createdAt: v.created_at, updatedAt: v.updated_at });
+async function voteByPublicId(db: D1Database, value: string): Promise<VoteRow | null> {
+  if (/^\d+$/.test(value)) return await db.prepare("SELECT * FROM votes WHERE id = ?").bind(Number(value)).first<VoteRow>() ?? null;
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,47}$/.test(value)) return null;
+  return await db.prepare("SELECT * FROM votes WHERE custom_id = ?").bind(value).first<VoteRow>() ?? null;
+}
 
 function csvRows(text: string): string[][] {
   const rows: string[][] = []; let row: string[] = []; let cell = ""; let quoted = false;
@@ -169,25 +176,33 @@ app.get("/api/staff-report", async c => { try { const staff = await staffAccount
 
 app.get("/api/votes", async c => { const rows = await c.env.DB.prepare("SELECT v.*, COUNT(b.id) AS ballot_count FROM votes v LEFT JOIN ballots b ON b.vote_id = v.id GROUP BY v.id ORDER BY v.created_at ASC").all<VoteRow & { ballot_count: number }>(); return c.json((rows.results ?? []).map(v => asVote(v, v.ballot_count))); });
 app.post("/api/votes", async c => {
-  const body = z.object({ name: z.string().min(1), description: z.string().optional(), deadline: z.string().datetime(), options: z.array(z.string().min(1)).min(2), allowMultiple: z.boolean().default(false) }).safeParse(await parseJson(c));
+  const body = z.object({ name: z.string().min(1), description: z.string().optional(), deadline: z.string().datetime(), options: z.array(z.string().min(1)).min(2), allowMultiple: z.boolean().default(false), customId: z.string().trim().min(1).max(48).regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/).refine(value => !/^\d+$/.test(value), "自訂投票 ID 不可為純數字，以免與既有數字 ID 衝突。").refine(value => !/^create$/i.test(value), "自訂投票 ID 不可使用保留字 create。").optional().nullable(), regularMeetingNumber: z.number().int().positive().optional().nullable() }).safeParse(await parseJson(c));
   if (!body.success) return c.json({ error: "Invalid input", details: body.error.issues }, 400);
   const actor = await currentAccount(c);
   if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。只有管理員才能建立投票。" }, 403);
-  const batch = await c.env.DB.batch([
-    c.env.DB.prepare("INSERT INTO votes (name, description, deadline, options, allow_multiple) VALUES (?, ?, ?, ?, ?)").bind(body.data.name, body.data.description ?? "", body.data.deadline, JSON.stringify(body.data.options), body.data.allowMultiple ? 1 : 0),
-    c.env.DB.prepare("INSERT INTO admin_audit_logs (actor_voter_id, actor_name, action, target_type, target_id, details_json) VALUES (?, ?, 'vote.create', 'vote', CAST(last_insert_rowid() AS TEXT), ?)").bind(actor.voter_id, actor.voter_name, JSON.stringify({ voteName: body.data.name })),
-  ]);
+  const customId = body.data.customId || null;
+  const regularMeetingNumber = body.data.regularMeetingNumber ?? null;
+  if (customId && await c.env.DB.prepare("SELECT id FROM votes WHERE custom_id = ?").bind(customId).first()) return c.json({ error: "此自訂投票 ID 已被使用，請更換其他 ID。" }, 409);
+  let batch;
+  try {
+    batch = await c.env.DB.batch([
+      c.env.DB.prepare("INSERT INTO votes (name, description, deadline, options, allow_multiple, custom_id, regular_meeting_number) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(body.data.name, body.data.description ?? "", body.data.deadline, JSON.stringify(body.data.options), body.data.allowMultiple ? 1 : 0, customId, regularMeetingNumber),
+      c.env.DB.prepare("INSERT INTO admin_audit_logs (actor_voter_id, actor_name, action, target_type, target_id, details_json) VALUES (?, ?, 'vote.create', 'vote', CAST(last_insert_rowid() AS TEXT), ?)").bind(actor.voter_id, actor.voter_name, JSON.stringify({ voteName: body.data.name, customId: customId ?? "", regularMeetingNumber: regularMeetingNumber ?? 0 })),
+    ]);
+  } catch (error) {
+    if (customId && /UNIQUE constraint failed:\s*votes\.custom_id/i.test(String(error))) return c.json({ error: "此自訂投票 ID 已被使用，請更換其他 ID。" }, 409);
+    throw error;
+  }
   const id = Number(batch[0]?.meta?.last_row_id ?? 0);
   const created = id > 0 ? await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(id).first<VoteRow>() : null;
   return c.json(created ? asVote(created) : { error: "Failed to create vote" }, created ? 201 : 500);
 });
-app.get("/api/votes/:id", async c => { const id = Number(c.req.param("id")); if (!Number.isInteger(id)) return c.json({ error: "Invalid vote ID" }, 400); const v = await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(id).first<VoteRow>(); if (!v) return c.json({ error: "Vote not found" }, 404); const ballots = await c.env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ? ORDER BY created_at ASC").bind(id).all<BallotRow>(); return c.json({ ...asVote(v, ballots.results.length), ballots: v.is_closed || new Date(v.deadline) < new Date() ? ballots.results.map(b => ({ ...b, selectedOptions: jsonArray<string>(b.selected_options) })) : [] }); });
-app.post("/api/votes/:id/ballot", async c => { const id = Number(c.req.param("id")); const body = z.object({ selectedOptions: z.array(z.string().min(1)), password: z.string().min(1) }).safeParse(await parseJson(c)); if (!body.success || !Number.isInteger(id)) return c.json({ error: "Invalid input", details: body.success ? [{ path: ["id"], message: "Vote ID must be an integer" }] : body.error.issues }, 400); const v = await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(id).first<VoteRow>(); if (!v) return c.json({ error: "Vote not found" }, 404); if (v.is_closed) return c.json({ error: "This vote is closed" }, 403); if (new Date(v.deadline) < new Date()) return c.json({ error: "Voting deadline has passed" }, 403); const a = await currentAccount(c); if (!a) return c.json({ error: "請先登入。" }, 401); if (!(await verifyPassword(body.data.password, a.password_hash))) return c.json({ error: "Incorrect password." }, 403); const vi = findVoter(await voters(), a.voter_id); if (!vi) return c.json({ error: "Invalid voter ID. You are not registered as an eligible voter." }, 403); const ms = await members(); if (!ms.memberStates.some(m => m.fullName === vi.countryName)) return c.json({ error: `Your country "${vi.countryName}" is not a member state.` }, 403); if ((await c.env.DB.prepare("SELECT id FROM ballots WHERE vote_id = ? AND country_name = ?").bind(id, vi.countryName).first())) return c.json({ error: "Your country has already voted in this vote. Each country may cast only one vote." }, 409); const options = jsonArray<string>(v.options); if (!body.data.selectedOptions.length || body.data.selectedOptions.some(o => !options.includes(o))) return c.json({ error: "Invalid selected options" }, 400); if (!v.allow_multiple && body.data.selectedOptions.length > 1) return c.json({ error: "This vote does not allow multiple selections" }, 400); await c.env.DB.prepare("INSERT INTO ballots (vote_id, voter_id, voter_name, country_name, selected_options) VALUES (?, ?, ?, ?, ?)").bind(id, a.voter_id, vi.voterName, vi.countryName, JSON.stringify(body.data.selectedOptions)).run(); return c.json({ success: true, message: "Ballot cast successfully" }); });
+app.get("/api/votes/:id", async c => { const v = await voteByPublicId(c.env.DB, c.req.param("id")); if (!v) return c.json({ error: "Vote not found" }, 404); const ballots = await c.env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ? ORDER BY created_at ASC").bind(v.id).all<BallotRow>(); return c.json({ ...asVote(v, ballots.results.length), ballots: v.is_closed || new Date(v.deadline) < new Date() ? ballots.results.map(b => ({ ...b, selectedOptions: jsonArray<string>(b.selected_options) })) : [] }); });
+app.post("/api/votes/:id/ballot", async c => { const body = z.object({ selectedOptions: z.array(z.string().min(1)), password: z.string().min(1) }).safeParse(await parseJson(c)); if (!body.success) return c.json({ error: "Invalid input", details: body.error.issues }, 400); const v = await voteByPublicId(c.env.DB, c.req.param("id")); if (!v) return c.json({ error: "Vote not found" }, 404); const id = v.id; if (v.is_closed) return c.json({ error: "This vote is closed" }, 403); if (new Date(v.deadline) < new Date()) return c.json({ error: "Voting deadline has passed" }, 403); const a = await currentAccount(c); if (!a) return c.json({ error: "請先登入。" }, 401); if (!(await verifyPassword(body.data.password, a.password_hash))) return c.json({ error: "Incorrect password." }, 403); const vi = findVoter(await voters(), a.voter_id); if (!vi) return c.json({ error: "Invalid voter ID. You are not registered as an eligible voter." }, 403); const ms = await members(); if (!ms.memberStates.some(m => m.fullName === vi.countryName)) return c.json({ error: `Your country "${vi.countryName}" is not a member state.` }, 403); if ((await c.env.DB.prepare("SELECT id FROM ballots WHERE vote_id = ? AND country_name = ?").bind(id, vi.countryName).first())) return c.json({ error: "Your country has already voted in this vote. Each country may cast only one vote." }, 409); const options = jsonArray<string>(v.options); if (!body.data.selectedOptions.length || body.data.selectedOptions.some(o => !options.includes(o))) return c.json({ error: "Invalid selected options" }, 400); if (!v.allow_multiple && body.data.selectedOptions.length > 1) return c.json({ error: "This vote does not allow multiple selections" }, 400); await c.env.DB.prepare("INSERT INTO ballots (vote_id, voter_id, voter_name, country_name, selected_options) VALUES (?, ?, ?, ?, ?)").bind(id, a.voter_id, vi.voterName, vi.countryName, JSON.stringify(body.data.selectedOptions)).run(); return c.json({ success: true, message: "Ballot cast successfully" }); });
 app.get("/api/votes/:id/results", async c => {
-  const id = Number(c.req.param("id"));
-  if (!Number.isInteger(id)) return c.json({ error: "Invalid vote ID" }, 400);
-  const v = await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(id).first<VoteRow>();
+  const v = await voteByPublicId(c.env.DB, c.req.param("id"));
   if (!v) return c.json({ error: "Vote not found" }, 404);
+  const id = v.id;
   const ballots = await c.env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ? ORDER BY created_at ASC").bind(id).all<BallotRow>();
   const allBallots = ballots.results ?? [];
   const isExpired = new Date(v.deadline) < new Date();
@@ -213,12 +228,11 @@ app.get("/api/votes/:id/results", async c => {
   return c.json({ voteId: id, voteName: v.name, totalVoters: allBallots.length, isClosed: Boolean(v.is_closed), isExpired, results: rows, countryVotes });
 });
 app.post("/api/votes/:id/close", async c => {
-  const id = Number(c.req.param("id"));
-  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid vote ID" }, 400);
   const actor = await currentAccount(c);
   if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
-  const vote = await c.env.DB.prepare("SELECT id, name FROM votes WHERE id = ?").bind(id).first<{ id: number; name: string }>();
+  const vote = await voteByPublicId(c.env.DB, c.req.param("id")).then(v => v ? { id: v.id, name: v.name } : null);
   if (!vote) return c.json({ error: "Vote not found" }, 404);
+  const id = vote.id;
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE votes SET is_closed = 1, updated_at = datetime('now') WHERE id = ?").bind(id),
     auditStatement(c.env.DB, actor, "vote.close", "vote", id, { voteName: vote.name }),
@@ -259,10 +273,9 @@ app.post("/api/admin/accounts", async c => {
 app.delete("/api/admin/votes/:voteId", async c => {
   const actor = await currentAccount(c);
   if (!actor || actor.admin_level < ADMIN_SUPER) return c.json({ error: "只有最高管理員才能刪除投票。" }, 403);
-  const voteId = Number(c.req.param("voteId"));
-  if (!Number.isInteger(voteId) || voteId <= 0) return c.json({ error: "Invalid vote ID" }, 400);
-  const vote = await c.env.DB.prepare("SELECT id, name FROM votes WHERE id = ?").bind(voteId).first<{ id: number; name: string }>();
+  const vote = await voteByPublicId(c.env.DB, c.req.param("voteId"));
   if (!vote) return c.json({ error: "Vote not found" }, 404);
+  const voteId = vote.id;
   const count = await c.env.DB.prepare("SELECT COUNT(*) AS count FROM ballots WHERE vote_id = ?").bind(voteId).first<{ count: number }>();
   await c.env.DB.batch([
     c.env.DB.prepare("DELETE FROM ballots WHERE vote_id = ?").bind(voteId),
