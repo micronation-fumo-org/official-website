@@ -149,18 +149,18 @@ export default function CreateVote() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 py-12">
-      <div className="container mx-auto px-4 max-w-2xl">
-        <h1 className="text-3xl font-bold text-primary mb-2">{isEnglish ? "Create vote" : "創建投票 Create Vote"}</h1>
-        <p className="text-muted-foreground mb-8">
+    <div className="min-h-screen bg-muted/20 py-6 sm:py-12">
+      <div className="container mx-auto px-3 sm:px-4 max-w-2xl">
+        <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">{isEnglish ? "Create vote" : "創建投票 Create Vote"}</h1>
+        <p className="text-muted-foreground mb-5 sm:mb-8">
           {isEnglish ? "Set up a new vote for member-state representatives." : "設定一個新的投票，讓成員國代表進行投票。"}
         </p>
 
         <Card className="border-border/60 bg-white">
-          <CardHeader>
+          <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
             <CardTitle className="text-lg font-bold text-primary">{isEnglish ? "Vote configuration" : "投票設定 Vote Configuration"}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-5 p-4 sm:space-y-6 sm:p-6">
             <div>
               <Label htmlFor="name">{isEnglish ? "Vote name" : "投票名稱 Vote Name"}</Label>
               <Input
@@ -213,37 +213,37 @@ export default function CreateVote() {
                 onValueChange={(value) => setPublishMode(value as PublishMode)}
                 className="mt-2 gap-3"
               >
-                <div className="flex items-start gap-3 rounded-md border border-border p-3">
-                  <RadioGroupItem id="publish-immediate" value="immediate" className="mt-1" />
-                  <div>
-                    <Label htmlFor="publish-immediate" className="cursor-pointer">{isEnglish ? "Publish now" : "立即公開"}</Label>
+                <div onClick={() => setPublishMode("immediate")} className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors focus-within:ring-2 focus-within:ring-primary/30 sm:p-4 ${publishMode === "immediate" ? "border-primary bg-primary/5" : "border-border"}`}>
+                  <RadioGroupItem id="publish-immediate" value="immediate" className="mt-1 h-5 w-5" />
+                  <div className="min-w-0 flex-1">
+                    <Label htmlFor="publish-immediate" className="cursor-pointer break-words">{isEnglish ? "Publish now" : "立即公開"}</Label>
                     <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "The vote becomes visible and opens immediately." : "建立後立即公開並開放投票。"}</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 rounded-md border border-border p-3">
-                  <RadioGroupItem id="publish-draft" value="draft" className="mt-1" />
-                  <div>
-                    <Label htmlFor="publish-draft" className="cursor-pointer">{isEnglish ? "Save as draft" : "儲存為草稿"}</Label>
+                <div onClick={() => setPublishMode("draft")} className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors focus-within:ring-2 focus-within:ring-primary/30 sm:p-4 ${publishMode === "draft" ? "border-primary bg-primary/5" : "border-border"}`}>
+                  <RadioGroupItem id="publish-draft" value="draft" className="mt-1 h-5 w-5" />
+                  <div className="min-w-0 flex-1">
+                    <Label htmlFor="publish-draft" className="cursor-pointer break-words">{isEnglish ? "Save as draft" : "儲存為草稿"}</Label>
                     <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Only administrators can see it until you publish it." : "草稿僅管理員可見；準備好後可從投票詳情手動發布。"}</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 rounded-md border border-border p-3">
-                  <RadioGroupItem id="publish-scheduled" value="scheduled" className="mt-1" />
-                  <div>
-                    <Label htmlFor="publish-scheduled" className="cursor-pointer">{isEnglish ? "Schedule a start" : "預約開始時間"}</Label>
+                <div onClick={() => setPublishMode("scheduled")} className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors focus-within:ring-2 focus-within:ring-primary/30 sm:p-4 ${publishMode === "scheduled" ? "border-primary bg-primary/5" : "border-border"}`}>
+                  <RadioGroupItem id="publish-scheduled" value="scheduled" className="mt-1 h-5 w-5" />
+                  <div className="min-w-0 flex-1">
+                    <Label htmlFor="publish-scheduled" className="cursor-pointer break-words">{isEnglish ? "Schedule a start" : "預約開始時間"}</Label>
                     <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "It is publicly listed as upcoming, then voting opens automatically at the chosen time." : "開始前會公開顯示為「即將開始」，到指定時間自動開放投票。"}</p>
                   </div>
                 </div>
               </RadioGroup>
               {publishMode === "scheduled" && (
-                <div className="mt-4">
+                <div className="mt-4 min-w-0">
                   <Label htmlFor="startsAt">{isEnglish ? "Start time" : "開始時間"}</Label>
                   <Input
                     id="startsAt"
                     type="datetime-local"
                     value={startsAt}
                     onChange={(e) => setStartsAt(e.target.value)}
-                    className="mt-1"
+                    className="mt-1 w-full min-w-0"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Uses your device's local time." : "依照此裝置的本地時間設定。"}</p>
                 </div>
@@ -277,18 +277,19 @@ export default function CreateVote() {
               <Label>{isEnglish ? "Voting options" : "投票選項 Options"}</Label>
               <div className="space-y-2 mt-1">
                 {options.map((opt, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
+                  <div key={idx} className="flex min-w-0 items-center gap-2">
                     <Input
                       value={opt}
                       onChange={(e) => updateOption(idx, e.target.value)}
                       placeholder={isEnglish ? `Option ${idx + 1}` : `選項 ${idx + 1}`}
+                      className="min-w-0 flex-1"
                     />
                     {options.length > 2 && (
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => removeOption(idx)}
-                        className="text-red-500 hover:text-red-700"
+                        className="shrink-0 text-red-500 hover:text-red-700"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -307,29 +308,30 @@ export default function CreateVote() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex min-h-11 items-center gap-3">
               <Checkbox
                 id="allowMultiple"
                 checked={allowMultiple}
                 onCheckedChange={(checked) => setAllowMultiple(checked as boolean)}
+                className="h-5 w-5"
               />
-              <Label htmlFor="allowMultiple" className="cursor-pointer">
+              <Label htmlFor="allowMultiple" className="flex min-h-11 cursor-pointer items-center">
                 {isEnglish ? "Allow multiple selections" : "允許複選"}
               </Label>
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md">
-                <AlertTriangle className="w-4 h-4" />
-                <span className="text-sm">{error}</span>
+              <div className="flex items-start gap-2 text-red-600 bg-red-50 p-3 rounded-md">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span className="min-w-0 break-words text-sm">{error}</span>
               </div>
             )}
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex flex-col-reverse items-stretch gap-2 pt-2 sm:flex-row sm:items-center sm:gap-3">
               <Button
                 onClick={handleSubmit}
                 disabled={mutation.isPending}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
               >
                 <CheckCircle2 className="w-4 h-4 mr-1" />
                 {mutation.isPending
@@ -340,7 +342,7 @@ export default function CreateVote() {
                       ? (isEnglish ? "Schedule vote" : "建立預約投票")
                       : (isEnglish ? "Publish vote" : "立即發布投票")}
               </Button>
-              <Button variant="outline" onClick={() => setLocation("/votes")}>
+              <Button variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => setLocation("/votes")}>
                 {isEnglish ? "Cancel" : "取消"}
               </Button>
             </div>

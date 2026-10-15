@@ -70,14 +70,14 @@ export default function Votes() {
       >
         <Link href={`/votes/${encodeURIComponent(vote.publicId || String(vote.id))}`}>
           <Card className="hover:shadow-md transition-shadow cursor-pointer border-border/60 bg-white h-full">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-2">
-                <CardTitle className="text-lg font-bold text-primary leading-tight">
+            <CardHeader className="p-4 pb-3 sm:p-6 sm:pb-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <CardTitle className="min-w-0 flex-1 break-words text-lg font-bold leading-tight text-primary">
                   {vote.name}
                 </CardTitle>
                 <Badge
                   variant={isActive ? "default" : "secondary"}
-                  className={isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}
+                  className={`${isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"} shrink-0 whitespace-nowrap`}
                 >
                   {vote.isPublished === false ? (
                     <><Clock className="w-3 h-3 mr-1" />{isEnglish ? "Draft" : "草稿"}</>
@@ -93,31 +93,31 @@ export default function Votes() {
                 </Badge>
               </div>
               {vote.description && (
-                <p className="text-sm text-muted-foreground mt-1">{vote.description}</p>
+                <p className="mt-1 break-words text-sm text-muted-foreground">{vote.description}</p>
               )}
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 px-4 pb-4 sm:px-6 sm:pb-6">
               <div className="flex flex-wrap gap-2">
                 {typeof vote.regularMeetingNumber === "number" && (
                   <Badge variant="outline">
                     {isEnglish ? `Regular meeting ${vote.regularMeetingNumber}` : `第 ${vote.regularMeetingNumber} 次例行大會`}
                   </Badge>
                 )}
-                {vote.customId && <Badge variant="outline">ID: {vote.customId}</Badge>}
+                {vote.customId && <Badge variant="outline" className="max-w-full break-all">ID: {vote.customId}</Badge>}
               </div>
               {vote.startsAt && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  <span>{isEnglish ? "Starts" : "開始時間"}: {new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</span>
+                <div className="flex min-w-0 items-start gap-2 text-sm text-muted-foreground">
+                  <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span className="min-w-0 break-words">{isEnglish ? "Starts" : "開始時間"}: {new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</span>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                <span>截止日期 Deadline: {deadline.toLocaleString("zh-TW")}</span>
+              <div className="flex min-w-0 items-start gap-2 text-sm text-muted-foreground">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+                <span className="min-w-0 break-words">截止日期 Deadline: {deadline.toLocaleString("zh-TW")}</span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Vote className="w-4 h-4" />
-                <span>選項 Options: {vote.options.join(" / ")}</span>
+              <div className="flex min-w-0 items-start gap-2 text-sm text-muted-foreground">
+                <Vote className="mt-0.5 h-4 w-4 shrink-0" />
+                <span className="min-w-0 break-words">選項 Options: {vote.options.join(" / ")}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-primary">已投票 {vote.ballotCount} 國</span>
@@ -131,16 +131,16 @@ export default function Votes() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/20 py-12">
-      <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-muted/20 py-6 sm:py-12">
+      <div className="container mx-auto px-3 sm:px-4">
         <div className="mb-10 text-center">
-          <h1 className="text-4xl font-bold text-primary mb-4">{isEnglish ? "Voting" : "投票"}</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-4">{isEnglish ? "Voting" : "投票"}</h1>
           <p className="text-foreground/70 max-w-2xl mx-auto mb-6">
             聯合微國家組織的正式投票。每個國家最多三位代表可以註冊，但每個投票每國只能投一票。只有成員國代表才能投票。
           </p>
           {isAdmin && (
-            <Link href="/votes/create">
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Link href="/votes/create" className="block sm:inline-block">
+              <Button className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto">
                 <Plus className="w-4 h-4 mr-1" />
                 {isEnglish ? "Create vote" : "創建投票"}
               </Button>
@@ -149,12 +149,12 @@ export default function Votes() {
         </div>
 
         {isLoading && (
-          <div className="text-center py-20">
+          <div className="text-center py-12 sm:py-20">
             <p className="text-muted-foreground">載入中 Loading...</p>
           </div>
         )}
         {error && (
-          <div className="text-center py-20">
+          <div className="text-center py-12 sm:py-20">
             <p className="text-red-600">載入失敗：{toChineseError(error, "載入資料失敗，請稍後再試。")}</p>
           </div>
         )}
@@ -163,15 +163,15 @@ export default function Votes() {
           <>
             {isAdmin && draftVotes.length > 0 && (
               <section className="mb-12" aria-labelledby="draft-votes">
-                <h2 id="draft-votes" className="text-xl font-bold text-muted-foreground mb-4">{isEnglish ? "Drafts (administrators only)" : "草稿（僅管理員可見）"} ({draftVotes.length})</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                <h2 id="draft-votes" className="mb-4 text-lg font-bold text-muted-foreground sm:text-xl">{isEnglish ? "Drafts (administrators only)" : "草稿（僅管理員可見）"} ({draftVotes.length})</h2>
+                <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
                   {draftVotes.map((vote) => <VoteCard key={vote.id} vote={vote} />)}
                 </div>
               </section>
             )}
 
-            <h2 className="text-xl font-bold text-primary mb-4">{isEnglish ? "Upcoming votes" : "即將開始的投票"} ({upcomingVotes.length})</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
+            <h2 className="mb-4 text-lg font-bold text-primary sm:text-xl">{isEnglish ? "Upcoming votes" : "即將開始的投票"} ({upcomingVotes.length})</h2>
+            <div className="mb-8 grid grid-cols-1 gap-4 sm:mb-12 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
               {upcomingVotes.length === 0 ? (
                 <p className="text-muted-foreground col-span-full">{isEnglish ? "No upcoming votes" : "目前沒有預約開始的投票"}</p>
               ) : (
@@ -179,8 +179,8 @@ export default function Votes() {
               )}
             </div>
 
-            <h2 className="text-xl font-bold text-primary mb-4">{isEnglish ? "Active votes" : "進行中的投票"} ({activeVotes.length})</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
+            <h2 className="mb-4 text-lg font-bold text-primary sm:text-xl">{isEnglish ? "Active votes" : "進行中的投票"} ({activeVotes.length})</h2>
+            <div className="mb-8 grid grid-cols-1 gap-4 sm:mb-12 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
               {activeVotes.length === 0 ? (
                 <p className="text-muted-foreground col-span-full">{isEnglish ? "No active votes" : "目前沒有進行中的投票"}</p>
               ) : (
@@ -188,7 +188,7 @@ export default function Votes() {
               )}
             </div>
 
-            <h2 className="text-xl font-bold text-muted-foreground mb-6">{isEnglish ? "Past votes" : "已結束的投票"} ({pastVotes.length})</h2>
+            <h2 className="mb-5 text-lg font-bold text-muted-foreground sm:mb-6 sm:text-xl">{isEnglish ? "Past votes" : "已結束的投票"} ({pastVotes.length})</h2>
             {pastVoteGroups.length === 0 ? (
               <p className="text-muted-foreground">{isEnglish ? "No past votes" : "目前沒有已結束的投票"}</p>
             ) : (
@@ -204,7 +204,7 @@ export default function Votes() {
                       {isEnglish ? `${meetingVotes.length} vote${meetingVotes.length === 1 ? "" : "s"}` : `${meetingVotes.length} 項投票`}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
                     {meetingVotes.map((vote) => <VoteCard key={vote.id} vote={vote} />)}
                   </div>
                 </section>

@@ -303,12 +303,12 @@ export default function VoteDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 py-12">
-      <div className="container mx-auto px-4 max-w-3xl">
+    <div className="min-h-screen bg-muted/20 py-6 sm:py-12">
+      <div className="container mx-auto max-w-3xl px-3 sm:px-4">
         <div className="mb-8">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-3xl font-bold text-primary">{vote.name}</h1>
+          <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <h1 className="min-w-0 break-words text-2xl font-bold text-primary sm:text-3xl">{vote.name}</h1>
               <Badge
                 variant={isVotingOpen ? "default" : "secondary"}
                 className={isVotingOpen ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}
@@ -335,27 +335,29 @@ export default function VoteDetail() {
                   }
                 }}
                 disabled={deleteMutation.isPending}
-                className="shrink-0 border-red-300 text-red-600 hover:bg-red-50"
+                className="min-h-11 w-full shrink-0 justify-center border-red-300 text-red-600 hover:bg-red-50 sm:w-auto"
               >
                 <Trash2 className="w-4 h-4 mr-1" />
                 {deleteMutation.isPending ? (isEnglish ? "Deleting..." : "刪除中...") : (isEnglish ? "Delete vote" : "刪除投票")}
               </Button>
             )}
           </div>
-          {vote.description && <p className="text-muted-foreground">{vote.description}</p>}
-          <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground flex-wrap">
+          {vote.description && <p className="break-words text-muted-foreground">{vote.description}</p>}
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground sm:gap-4 sm:text-sm">
             {typeof vote.regularMeetingNumber === "number" && (
               <span>{isEnglish ? `Regular meeting ${vote.regularMeetingNumber}` : `第 ${vote.regularMeetingNumber} 次例行大會`}</span>
             )}
-            {vote.customId && <span>{isEnglish ? "Vote ID" : "投票 ID"}：{vote.customId}</span>}
-            {vote.startsAt && <span>{isEnglish ? "Starts" : "開始時間"}：{new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</span>}
+            {vote.customId && <span className="break-all">{isEnglish ? "Vote ID" : "投票 ID"}：{vote.customId}</span>}
+            {vote.startsAt && (
+              <span className="min-w-0 break-words">{isEnglish ? "Starts" : "開始時間"}：{new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</span>
+            )}
             <span className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              {new Date(vote.deadline).toLocaleString("zh-TW")}
+              <Clock className="h-4 w-4 shrink-0" />
+              <span>{new Date(vote.deadline).toLocaleString("zh-TW")}</span>
             </span>
             <span className="flex items-center gap-1">
-              <Users className="w-4 h-4" />
-              {vote.ballotCount} {isEnglish ? "votes" : "票"}
+              <Users className="h-4 w-4 shrink-0" />
+              <span>{vote.ballotCount} {isEnglish ? "votes" : "票"}</span>
             </span>
             <span>{vote.allowMultiple ? "可複選" : "單選"}</span>
           </div>
@@ -363,11 +365,11 @@ export default function VoteDetail() {
 
         {!vote.isPublished && (
           <Card className="mb-8 border-amber-200 bg-amber-50">
-            <CardContent className="space-y-3 pt-6">
+            <CardContent className="space-y-3 px-4 pb-4 pt-4 sm:px-6 sm:pb-6 sm:pt-6">
               <p className="font-medium text-amber-900">{isEnglish ? "This vote is an unpublished draft." : "此投票目前是未發布草稿，只有管理員可見。"}</p>
               {voteError && <p className="text-sm text-red-700">{voteError}</p>}
               {isAdmin && (
-                <Button onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
+                <Button className="min-h-11 w-full sm:w-auto" onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
                   {publishMutation.isPending ? (isEnglish ? "Publishing..." : "發布中...") : (isEnglish ? "Publish draft" : "發布草稿")}
                 </Button>
               )}
@@ -376,7 +378,7 @@ export default function VoteDetail() {
         )}
         {vote.isPublished && vote.isUpcoming && (
           <Card className="mb-8 border-primary/20 bg-primary/5">
-            <CardContent className="space-y-2 pt-6">
+            <CardContent className="space-y-2 px-4 pb-4 pt-4 sm:px-6 sm:pb-6 sm:pt-6">
               <p className="font-medium text-primary">{isEnglish ? "This vote is scheduled and is not open yet." : "此投票已預約，尚未開放投票。"}</p>
               {vote.startsAt && <p className="text-sm text-muted-foreground">{isEnglish ? "Voting opens" : "開放時間"}：{new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</p>}
               <p className="text-sm text-muted-foreground">{isEnglish ? "Voting will open automatically at the scheduled time." : "到達預約時間後，系統會自動開放投票，無需管理員再次操作。"}</p>
@@ -387,18 +389,18 @@ export default function VoteDetail() {
         {/* Voting Section */}
         {isVotingOpen && (
           <Card className="mb-8 border-border/60 bg-white">
-            <CardHeader>
+            <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
               <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
                 <Vote className="w-5 h-5" />
                 投票 Vote
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-5 p-4 sm:space-y-6 sm:p-6">
               {/* Auth status */}
               {!user ? (
-                <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 p-4 rounded-md">
+                <div className="flex min-w-0 items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 sm:p-4">
                   <LogIn className="w-5 h-5 text-amber-600 shrink-0" />
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-amber-800">{isEnglish ? "Please sign in before voting" : "請先登入才能投票"}</p>
                     <p className="text-xs text-amber-600 mt-0.5">
                       <Link href="/login" className="underline font-medium">{isEnglish ? "Sign in" : "登入"}</Link>
@@ -408,9 +410,9 @@ export default function VoteDetail() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 bg-primary/5 p-3 rounded-md border border-primary/20">
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  <span className="text-sm font-medium text-primary">
+                <div className="flex min-w-0 items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-3">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+                  <span className="min-w-0 break-words text-sm font-medium text-primary">
                     已登入：{user.voterName}（{user.countryName}）
                   </span>
                 </div>
@@ -420,16 +422,17 @@ export default function VoteDetail() {
                 <label className="block text-sm font-medium mb-3">{isEnglish ? "Choose your voting option" : "選擇您的投票選項"}</label>
                 <div className="space-y-3">
                   {vote.options.map((opt) => (
-                    <div key={opt} className="flex items-center gap-3">
+                    <div key={opt} className="flex min-h-11 items-start gap-3 rounded-md border border-border/70 p-3">
                       <Checkbox
                         id={`opt-${opt}`}
                         checked={selectedOptions.includes(opt)}
                         onCheckedChange={() => handleOptionToggle(opt)}
                         disabled={!user}
+                        className="mt-0.5 h-5 w-5 shrink-0"
                       />
                       <label
                         htmlFor={`opt-${opt}`}
-                        className={`text-sm font-medium ${!user ? "text-muted-foreground cursor-not-allowed" : "cursor-pointer"}`}
+                        className={`min-w-0 flex-1 break-words text-sm font-medium ${!user ? "text-muted-foreground cursor-not-allowed" : "cursor-pointer"}`}
                       >
                         {opt}
                       </label>
@@ -454,6 +457,7 @@ export default function VoteDetail() {
                     placeholder={isEnglish ? "Enter your account password" : "輸入您的帳戶密碼"}
                     autoComplete="current-password"
                     disabled={castMutation.isPending}
+                    className="min-h-11"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     {isEnglish ? "Used only to verify this vote on the server; it is not stored in the browser." : "僅用於由後端驗證本次投票，不會儲存在瀏覽器中。"}
@@ -462,23 +466,23 @@ export default function VoteDetail() {
               )}
 
               {voteError && (
-                <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span className="text-sm">{voteError}</span>
+                <div className="flex items-start gap-2 rounded-md bg-red-50 p-3 text-red-600">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span className="min-w-0 break-words text-sm">{voteError}</span>
                 </div>
               )}
               {voteSuccess && (
-                <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-md">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span className="text-sm">{voteSuccess}</span>
+                <div className="flex items-start gap-2 rounded-md bg-green-50 p-3 text-green-600">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span className="min-w-0 break-words text-sm">{voteSuccess}</span>
                 </div>
               )}
 
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
                 <Button
                   onClick={handleCast}
                   disabled={castMutation.isPending || !user}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
                 >
                   {castMutation.isPending ? (isEnglish ? "Submitting..." : "提交中...") : (isEnglish ? "Submit vote" : "提交投票")}
                 </Button>
@@ -491,7 +495,7 @@ export default function VoteDetail() {
                       }
                     }}
                     disabled={closeMutation.isPending}
-                    className="border-red-300 text-red-600 hover:bg-red-50"
+                    className="min-h-11 w-full border-red-300 text-red-600 hover:bg-red-50 sm:w-auto"
                   >
                     {closeMutation.isPending ? (isEnglish ? "Closing..." : "關閉中...") : (isEnglish ? "Close vote" : "關閉投票")}
                   </Button>
@@ -512,7 +516,7 @@ export default function VoteDetail() {
                 }
               }}
               disabled={closeMutation.isPending}
-              className="border-red-300 text-red-600 hover:bg-red-50"
+              className="min-h-11 w-full border-red-300 text-red-600 hover:bg-red-50 sm:w-auto"
             >
               {closeMutation.isPending ? (isEnglish ? "Closing..." : "關閉中...") : (isEnglish ? "Close vote" : "正式關閉此投票")}
             </Button>
@@ -522,7 +526,7 @@ export default function VoteDetail() {
         {/* Results Section */}
         {results && !vote.isUpcoming && (
           <Card className="mb-8 border-border/60 bg-white">
-            <CardHeader>
+            <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5" />
@@ -538,7 +542,7 @@ export default function VoteDetail() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-5 p-4 sm:space-y-6 sm:p-6">
               <div className="space-y-4">
                 {results.results.map((r, idx) => (
                   <motion.div
@@ -548,9 +552,9 @@ export default function VoteDetail() {
                     transition={{ delay: idx * 0.1 }}
                     className="space-y-2"
                   >
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-primary">{r.option}</span>
-                      <span className="text-sm text-muted-foreground">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="min-w-0 flex-1 break-words font-bold text-primary">{r.option}</span>
+                      <span className="shrink-0 whitespace-nowrap text-sm text-muted-foreground">
                         {r.count} 票 / {r.percentage}%
                       </span>
                     </div>
@@ -561,7 +565,7 @@ export default function VoteDetail() {
                       />
                     </div>
                     {isResultsFinal && r.voters.length > 0 ? (
-                      <p className="text-xs text-muted-foreground">{r.voters.join(", ")}</p>
+                      <p className="break-words text-xs text-muted-foreground">{r.voters.join(", ")}</p>
                     ) : isResultsFinal ? (
                       <p className="text-xs text-muted-foreground">{isEnglish ? "No votes for this option" : "沒有人投這個選項"}</p>
                     ) : null}
@@ -571,8 +575,8 @@ export default function VoteDetail() {
 
               <div className="border-t border-border pt-4">
                 <p className="text-sm font-bold text-primary mb-2">{isEnglish ? `${results.totalVoters} countries voted` : `共 ${results.totalVoters} 個國家投票`}</p>
-                <div className="rounded-md border border-primary/15 bg-primary/5 p-4" aria-live="polite">
-                  <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="rounded-md border border-primary/15 bg-primary/5 p-3 sm:p-4" aria-live="polite">
+                  <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                     <p className="text-sm font-bold text-primary flex items-center gap-2">
                       <Globe2 className="w-4 h-4" />
                       {isEnglish ? "Live country votes" : "即時投票明細"}
@@ -588,8 +592,8 @@ export default function VoteDetail() {
                           key={`${countryVote.countryName}-${countryVote.votedAt}`}
                           className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md bg-white px-3 py-2 text-sm"
                         >
-                          <span className="font-semibold text-primary">{countryVote.countryName}</span>
-                          <span className="flex-1 text-foreground">
+                          <span className="min-w-0 break-words font-semibold text-primary">{countryVote.countryName}</span>
+                          <span className="min-w-0 flex-1 break-words text-foreground">
                             {countryVote.selectedOptions.join("、")}
                           </span>
                           <time className="text-xs text-muted-foreground" dateTime={countryVote.votedAt}>
@@ -612,8 +616,8 @@ export default function VoteDetail() {
                 </div>
                 {isResultsFinal && (
                   <>
-                    <div className="bg-muted p-4 rounded-md">
-                      <p className="text-xs font-mono text-muted-foreground whitespace-pre-wrap">{formattedOutput}</p>
+                    <div className="rounded-md bg-muted p-3 sm:p-4">
+                      <p className="break-all whitespace-pre-wrap text-xs font-mono text-muted-foreground">{formattedOutput}</p>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">{isEnglish ? "Copy the format above to upload it to the voting records." : "可複製上述文字格式用於上傳至投票紀錄。"}</p>
                   </>
