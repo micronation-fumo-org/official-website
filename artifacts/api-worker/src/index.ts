@@ -1,11 +1,15 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
+import { buildGoogleAuthorizationUrl, createPkceChallenge, fetchGoogleIdentity, randomToken } from "./googleOAuth";
 
 interface Env {
   DB: D1Database;
   CORS_ORIGIN?: string;
   SESSION_TTL_DAYS?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  GOOGLE_REDIRECT_URI?: string;
 }
 type Variables = { account: Account | null };
 type App = Hono<{ Bindings: Env; Variables: Variables }>;
@@ -60,6 +64,8 @@ const ADMIN_SUPER = 9;
 const PBKDF2_ITERATIONS = 100000;
 const SESSION_COOKIE = "fumo_session";
 const SESSION_TTL_DAYS = 7;
+const GOOGLE_STATE_COOKIE = "fumo_google_oauth_state";
+const DEFAULT_GOOGLE_REDIRECT_URI = "https://www.micronationfumo.org/api/auth/google/callback";
 
 const json = (value: unknown, status = 200, headers: HeadersInit = {}) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json", ...headers } });
 const parseJson = async (c: any) => { try { return await c.req.json(); } catch { return null; } };
@@ -154,6 +160,25 @@ function auditStatement(db: D1Database, actor: Account, action: string, targetTy
     .bind(actor.voter_id, actor.voter_name, action, targetType, String(targetId), JSON.stringify(details));
 }
 function parseAuditDetails(value: string) { try { return JSON.parse(value) as Record<string, unknown>; } catch { return {}; } }
+function googleRedirectUri(env: Env) {
+  const candidate = env.GOOGLE_REDIRECT_URI?.trim() || DEFAULT_GOOGLE_REDIRECT_URI;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "https:" || parsed.hostname !== "www.micronationfumo.org" || parsed.pathname !== "/api/auth/google/callback" || parsed.search || parsed.hash) return DEFAULT_GOOGLE_REDIRECT_URI;
+    return parsed.toString();
+  } catch {
+    return DEFAULT_GOOGLE_REDIRECT_URI;
+  }
+}
+function googleStateCookie(state: string) { return `${GOOGLE_STATE_COOKIE}=${encodeURIComponent(state)}; Max-Age=600; Path=/api/auth/google/callback; HttpOnly; Secure; SameSite=Lax`; }
+function clearGoogleStateCookie() { return `${GOOGLE_STATE_COOKIE}=; Max-Age=0; Path=/api/auth/google/callback; HttpOnly; Secure; SameSite=Lax`; }
+function googleResultResponse(path: string, result: string, redirectUri: string, cookies: string[] = []) {
+  const destination = new URL(path, new URL(redirectUri).origin);
+  destination.searchParams.set("google", result);
+  const headers = new Headers({ Location: destination.toString(), "Cache-Control": "no-store", Pragma: "no-cache" });
+  for (const cookie of cookies) headers.append("Set-Cookie", cookie);
+  return new Response(null, { status: 302, headers });
+}
 
 const app: App = new Hono();
 app.use("/*", async (c, next) => { const origin = c.req.header("Origin"); const allowed = (c.env.CORS_ORIGIN || "").split(",").map(v => v.trim()).filter(Boolean); return cors({ origin: origin && (allowed.length === 0 || allowed.includes(origin)) ? origin : (allowed[0] || "https://fumo-api.micronationfumo.workers.dev"), credentials: true, allowMethods: ["GET", "POST", "DELETE", "OPTIONS"], allowHeaders: ["Content-Type"] })(c, next); });
@@ -179,6 +204,88 @@ app.use("/*", async (c, next) => {
   return next();
 });
 app.get("/api/healthz", c => c.json({ status: "ok" }));
+app.get("/api/auth/google/start", async c => {
+  const clientId = c.env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = c.env.GOOGLE_CLIENT_SECRET?.trim();
+  const redirectUri = googleRedirectUri(c.env);
+  if (!clientId || !clientSecret) return googleResultResponse("/login", "not_configured", redirectUri, [clearGoogleStateCookie()]);
+
+  const flow = c.req.query("mode") ?? "login";
+  if (flow !== "login" && flow !== "link") return googleResultResponse("/login", "failed", redirectUri, [clearGoogleStateCookie()]);
+  const actor = flow === "link" ? await currentAccount(c) : null;
+  if (flow === "link" && !actor) return googleResultResponse("/login", "sign_in_first", redirectUri, [clearGoogleStateCookie()]);
+
+  const state = randomToken();
+  const verifier = randomToken();
+  const stateHash = await sessionHash(state);
+  const returnTo = flow === "link" ? "/login" : "/votes";
+  await c.env.DB.prepare("DELETE FROM google_oauth_states WHERE expires_at <= datetime('now')").run();
+  await c.env.DB.prepare("INSERT INTO google_oauth_states (state_hash, flow, voter_id, return_to, code_verifier, expires_at) VALUES (?, ?, ?, ?, ?, datetime('now', '+10 minutes'))")
+    .bind(stateHash, flow, actor?.voter_id ?? null, returnTo, verifier).run();
+
+  const challenge = await createPkceChallenge(verifier);
+  const authorizationUrl = buildGoogleAuthorizationUrl(clientId, redirectUri, state, challenge);
+  return new Response(null, { status: 302, headers: { Location: authorizationUrl, "Set-Cookie": googleStateCookie(state), "Cache-Control": "no-store", Pragma: "no-cache" } });
+});
+
+app.get("/api/auth/google/callback", async c => {
+  const redirectUri = googleRedirectUri(c.env);
+  const state = c.req.query("state");
+  const stateCookie = cookieValue(c, GOOGLE_STATE_COOKIE);
+  const clearCookie = clearGoogleStateCookie();
+  if (!state || !stateCookie || state !== stateCookie) return googleResultResponse("/login", "invalid_state", redirectUri, [clearCookie]);
+
+  const stateHash = await sessionHash(state);
+  const oauthState = await c.env.DB.prepare("SELECT flow, voter_id, return_to, code_verifier FROM google_oauth_states WHERE state_hash = ? AND expires_at > datetime('now')")
+    .bind(stateHash).first<{ flow: "login" | "link"; voter_id: string | null; return_to: string; code_verifier: string }>();
+  if (!oauthState) return googleResultResponse("/login", "invalid_state", redirectUri, [clearCookie]);
+  await c.env.DB.prepare("DELETE FROM google_oauth_states WHERE state_hash = ?").bind(stateHash).run();
+
+  const returnTo = oauthState.return_to === "/votes" ? "/votes" : "/login";
+  const googleError = c.req.query("error");
+  if (googleError) return googleResultResponse("/login", googleError === "access_denied" ? "denied" : "failed", redirectUri, [clearCookie]);
+
+  const clientId = c.env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = c.env.GOOGLE_CLIENT_SECRET?.trim();
+  const code = c.req.query("code");
+  if (!clientId || !clientSecret) return googleResultResponse("/login", "not_configured", redirectUri, [clearCookie]);
+  if (!code || code.length > 2048) return googleResultResponse("/login", "failed", redirectUri, [clearCookie]);
+
+  if (oauthState.flow === "link") {
+    const actor = await currentAccount(c);
+    if (!actor || actor.voter_id !== oauthState.voter_id) return googleResultResponse("/login", "session_changed", redirectUri, [clearCookie]);
+  }
+
+  const identity = await fetchGoogleIdentity(code, oauthState.code_verifier, clientId, clientSecret, redirectUri);
+  if (!identity) return googleResultResponse("/login", "failed", redirectUri, [clearCookie]);
+
+  if (oauthState.flow === "link") {
+    const voterId = oauthState.voter_id;
+    if (!voterId || !(await account(c.env.DB, voterId))) return googleResultResponse("/login", "session_changed", redirectUri, [clearCookie]);
+    const owner = await c.env.DB.prepare("SELECT voter_id FROM google_account_links WHERE google_sub = ?").bind(identity.subject).first<{ voter_id: string }>();
+    if (owner && owner.voter_id !== voterId) return googleResultResponse("/login", "google_already_linked", redirectUri, [clearCookie]);
+    const currentLink = await c.env.DB.prepare("SELECT google_sub FROM google_account_links WHERE voter_id = ?").bind(voterId).first<{ google_sub: string }>();
+    if (currentLink && currentLink.google_sub !== identity.subject) return googleResultResponse("/login", "account_already_linked", redirectUri, [clearCookie]);
+    if (currentLink) {
+      await c.env.DB.prepare("UPDATE google_account_links SET google_email = ?, updated_at = datetime('now') WHERE voter_id = ?").bind(identity.email, voterId).run();
+    } else {
+      try {
+        await c.env.DB.prepare("INSERT INTO google_account_links (voter_id, google_sub, google_email) VALUES (?, ?, ?)").bind(voterId, identity.subject, identity.email).run();
+      } catch {
+        return googleResultResponse("/login", "google_already_linked", redirectUri, [clearCookie]);
+      }
+    }
+    return googleResultResponse(returnTo, "connected", redirectUri, [clearCookie]);
+  }
+
+  const link = await c.env.DB.prepare("SELECT voter_id FROM google_account_links WHERE google_sub = ?").bind(identity.subject).first<{ voter_id: string }>();
+  if (!link) return googleResultResponse("/login", "unlinked", redirectUri, [clearCookie]);
+  const voterAccount = await account(c.env.DB, link.voter_id);
+  if (!voterAccount) return googleResultResponse("/login", "unlinked", redirectUri, [clearCookie]);
+  const session = await createSession(c.env.DB, voterAccount.voter_id);
+  return googleResultResponse(returnTo, "login", redirectUri, [sessionCookie(session.raw, session.maxAge), clearCookie]);
+});
+
 app.get("/api/members", async c => { try { return c.json({ ...(await members()), cached: Boolean(membersCache), lastUpdated: membersCache ? new Date(membersCache.at).toISOString() : null }); } catch (e) { return c.json({ error: "Failed to fetch member states", message: String(e) }, 500); } });
 app.get("/api/voters", async c => { try { return c.json(await voters()); } catch (e) { return c.json({ error: "Failed to fetch voters", message: String(e) }, 500); } });
 app.get("/api/staff-report", async c => { try { const staff = await staffAccounts(); return c.json({ staff: staff.map(({ id: _id, ...entry }) => entry), lastUpdated: new Date().toISOString() }); } catch (e) { return c.json({ error: "Failed to fetch staff report", message: String(e) }, 500); } });
