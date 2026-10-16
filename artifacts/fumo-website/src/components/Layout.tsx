@@ -67,8 +67,8 @@ export function Layout({ children }: LayoutProps) {
             </Button>
             {user ? (
               <div className="flex items-center gap-2">
-                {isAdmin && <Link href="/admin"><Button variant="ghost" size="sm" className="text-secondary text-xs gap-1"><Shield className="w-3 h-3" />{adminLevelLabel(user.adminLevel)}</Button></Link>}
-                <span className="text-sm text-foreground/70 font-medium max-w-[120px] truncate">{user.voterName}</span>
+                {isAdmin && <Link href="/admin" className="shrink-0"><Button variant="ghost" size="sm" className="text-secondary text-xs gap-1 whitespace-nowrap"><Shield className="w-3 h-3 shrink-0" />{adminLevelLabel(user.adminLevel)}</Button></Link>}
+                <span className="text-sm text-foreground/70 font-medium max-w-[120px] min-w-0 truncate">{user.voterName}</span>
                 <Button variant="ghost" size="sm" onClick={logout} className="text-muted-foreground hover:text-foreground"><LogOut className="w-4 h-4 mr-1" />{isEnglish ? "Sign out" : "登出"}</Button>
               </div>
             ) : (
@@ -90,7 +90,11 @@ export function Layout({ children }: LayoutProps) {
             <Button variant="outline" size="sm" onClick={() => { switchLanguage(); closeMenu(); }} className="justify-start gap-2"><Languages className="w-4 h-4" />{isEnglish ? "繁體中文" : "English"}</Button>
             <div className="border-t border-border pt-3 flex flex-col gap-2">
               {user ? <>
-                <div className="flex items-center gap-2 text-sm font-medium text-foreground"><User className="w-4 h-4" />{user.voterName}{isAdmin && <span className="text-xs text-secondary ml-1">({adminLevelLabel(user.adminLevel)})</span>}</div>
+                <div className="flex items-start gap-2 text-sm font-medium text-foreground min-w-0">
+                  <User className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span className="min-w-0 break-words">{user.voterName}</span>
+                  {isAdmin && <span className="text-xs text-secondary ml-auto shrink-0 whitespace-nowrap">({adminLevelLabel(user.adminLevel)})</span>}
+                </div>
                 {isAdmin && <Link href="/admin" onClick={closeMenu} className="text-sm text-secondary font-medium flex items-center gap-1"><Shield className="w-4 h-4" />{isEnglish ? "Admin panel" : "管理面板"}</Link>}
                 <Button variant="ghost" size="sm" onClick={() => { logout(); closeMenu(); }} className="justify-start text-muted-foreground w-fit"><LogOut className="w-4 h-4 mr-1" />{isEnglish ? "Sign out" : "登出"}</Button>
               </> : <>
