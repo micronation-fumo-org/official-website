@@ -1,5 +1,5 @@
 import { toChineseError } from "@/lib/errorMessage";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, apiUrl } from "@/lib/api";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,10 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const [, setLocation] = useLocation();
+
+  const connectGoogle = () => {
+    window.location.assign(apiUrl("/api/auth/google/start?returnTo=/login"));
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,12 +42,7 @@ export default function Login() {
         setError(toChineseError(data.error, "登入失敗，請確認 Discord ID 與密碼。"));
         return;
       }
-      login({
-        voterId: data.voterId,
-        voterName: data.voterName,
-        countryName: data.countryName,
-        adminLevel: data.adminLevel ?? 0,
-      });
+      login({ voterId: data.voterId, voterName: data.voterName, countryName: data.countryName, adminLevel: data.adminLevel ?? 0 });
       setLocation("/votes");
     } catch {
       setError("連線錯誤，請稍後再試。");
@@ -57,57 +56,18 @@ export default function Login() {
       <div className="container mx-auto px-4 max-w-md">
         <Card className="border-border/60 bg-white shadow-sm">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-primary flex items-center justify-center gap-2">
-              <KeyRound className="w-6 h-6" />
-              {isEnglish ? "Sign in" : "登入帳戶"}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              {isEnglish ? "Sign in with your Discord ID and password" : "使用您的 Discord ID 和密碼登入"}
-            </p>
+            <CardTitle className="text-2xl font-bold text-primary flex items-center justify-center gap-2"><KeyRound className="w-6 h-6" />{isEnglish ? "Sign in" : "登入帳戶"}</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">{isEnglish ? "Sign in with your Discord ID and password" : "使用您的 Discord ID 和密碼登入"}</p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Discord ID</label>
-                <Input
-                  value={voterId}
-                  onChange={(e) => setVoterId(e.target.value)}
-                  placeholder="例如: 1192442242753896541"
-                  autoComplete="username"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">密碼 Password</label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="輸入您的密碼"
-                  autoComplete="current-password"
-                />
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md">
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  <span className="text-sm">{error}</span>
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                {loading ? (isEnglish ? "Signing in..." : "登入中...") : (isEnglish ? "Sign in" : "登入")}
-              </Button>
-
-              <p className="text-center text-sm text-muted-foreground">
-                {isEnglish ? "No account yet?" : "還沒有帳戶？"}{" "}
-                <Link href="/register" className="text-primary font-medium hover:underline">
-                  {isEnglish ? "Register here" : "前往註冊"}
-                </Link>
-              </p>
+              <div><label className="block text-sm font-medium mb-1">Discord ID</label><Input value={voterId} onChange={(e) => setVoterId(e.target.value)} placeholder="例如: 1192442242753896541" autoComplete="username" /></div>
+              <div><label className="block text-sm font-medium mb-1">密碼 Password</label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="輸入您的密碼" autoComplete="current-password" /></div>
+              {error && <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md"><AlertTriangle className="w-4 h-4 shrink-0" /><span className="text-sm">{error}</span></div>}
+              <Button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">{loading ? (isEnglish ? "Signing in..." : "登入中...") : (isEnglish ? "Sign in" : "登入")}</Button>
+              <Button type="button" variant="outline" onClick={connectGoogle} className="w-full">{isEnglish ? "Connect Google after signing in" : "登入後連接 Google"}</Button>
+              <p className="text-center text-xs text-muted-foreground">{isEnglish ? "Register first, then sign in before connecting Google." : "請先註冊並登入，再連接 Google。"}</p>
+              <p className="text-center text-sm text-muted-foreground">{isEnglish ? "No account yet?" : "還沒有帳戶？"}{" "}<Link href="/register" className="text-primary font-medium hover:underline">{isEnglish ? "Register here" : "前往註冊"}</Link></p>
             </form>
           </CardContent>
         </Card>
