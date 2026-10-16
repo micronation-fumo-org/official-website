@@ -47,11 +47,16 @@ export function Layout({ children }: LayoutProps) {
   useEffect(() => {
     const url = new URL(window.location.href);
     const status = url.searchParams.get("google");
-    if (!status) return;
+    if (!status) {
+      setGoogleStatus(null);
+      return;
+    }
     setGoogleStatus(status);
     url.searchParams.delete("google");
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
-  }, []);
+    const timeout = window.setTimeout(() => setGoogleStatus(null), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [location]);
   const googleStatusText = (code: string) => {
     const messages: Record<string, { zh: string; en: string }> = {
       connected: { zh: "Google 帳戶已成功連接至目前的 FUMO 帳戶。", en: "Google has been linked to your FUMO account." },
