@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import { buildGoogleAuthorizationUrl, createPkceChallenge, fetchGoogleIdentity, randomToken } from "./googleOAuth";
-import { deliverWebhook, dispatchVoteEvent, normalizeWebhookEvents, runVoteNotificationSweep, validateWebhookUrl, voteWebhookPayload, webhookSecret, webhookSummary, WEBHOOK_EVENTS, type WebhookEvent, type WebhookRow } from "./voteWebhooks";
+import { deliverWebhook, dispatchVoteEvent, DISCORD_ROLE_ID, normalizeDiscordRoleIds, normalizeWebhookEvents, runVoteNotificationSweep, validateWebhookUrl, voteWebhookPayload, webhookSecret, webhookSummary, WEBHOOK_EVENTS, type WebhookEvent, type WebhookRow } from "./voteWebhooks";
 
 interface Env {
   DB: D1Database;
@@ -566,12 +566,16 @@ const webhookCreateSchema = z.object({
   name: z.string().trim().min(1).max(80),
   url: z.string().trim().min(1).max(512),
   events: z.array(z.string().min(1)).min(1).max(WEBHOOK_EVENTS.length),
+  discordRoleIds: z.array(z.string().regex(/^\d{17,20}$/)).max(10).optional(),
+  mentionEvents: z.array(z.enum(WEBHOOK_EVENTS)).max(WEBHOOK_EVENTS.length).optional(),
   isEnabled: z.boolean().optional(),
 });
 const webhookUpdateSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   url: z.string().trim().min(1).max(512).optional(),
   events: z.array(z.string().min(1)).min(1).max(WEBHOOK_EVENTS.length).optional(),
+  discordRoleIds: z.array(z.string().regex(/^\d{17,20}$/)).max(10).optional(),
+  mentionEvents: z.array(z.enum(WEBHOOK_EVENTS)).max(WEBHOOK_EVENTS.length).optional(),
   isEnabled: z.boolean().optional(),
 });
 
@@ -590,15 +594,17 @@ app.post("/api/admin/webhooks", async c => {
   if (!target.ok) return c.json({ error: target.error }, 400);
   const events = normalizeWebhookEvents(body.data.events);
   if (!events.length) return c.json({ error: "請至少選擇一個事件。" }, 400);
+  const discordRoleIds = normalizeDiscordRoleIds(body.data.discordRoleIds ?? [DISCORD_ROLE_ID]);
+  const mentionEvents = normalizeWebhookEvents(body.data.mentionEvents ?? [...WEBHOOK_EVENTS]);
   const count = await c.env.DB.prepare("SELECT COUNT(*) AS count FROM vote_webhooks").first<{ count: number }>();
   if (Number(count?.count ?? 0) >= 10) return c.json({ error: "最多只能設定 10 個 Webhook。" }, 409);
   const secret = webhookSecret();
-  const inserted = await c.env.DB.prepare("INSERT INTO vote_webhooks (name, url, secret, events, is_enabled, created_by) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(body.data.name, target.url, secret, JSON.stringify(events), body.data.isEnabled === false ? 0 : 1, actor.voter_id).run();
+  const inserted = await c.env.DB.prepare("INSERT INTO vote_webhooks (name, url, secret, events, discord_role_ids, mention_events, is_enabled, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .bind(body.data.name, target.url, secret, JSON.stringify(events), JSON.stringify(discordRoleIds), JSON.stringify(mentionEvents), body.data.isEnabled === false ? 0 : 1, actor.voter_id).run();
   const id = Number(inserted.meta?.last_row_id ?? 0);
   const row = id > 0 ? await c.env.DB.prepare("SELECT * FROM vote_webhooks WHERE id = ?").bind(id).first<WebhookRow>() : null;
   if (!row) return c.json({ error: "Failed to create webhook" }, 500);
-  await auditWebhook(c.env.DB, actor, "webhook.create", id, { name: row.name, endpointHost: new URL(row.url).host, events });
+  await auditWebhook(c.env.DB, actor, "webhook.create", id, { name: row.name, endpointHost: new URL(row.url).host, events, discordRoleCount: discordRoleIds.length, mentionEvents });
   return c.json({ success: true, webhook: webhookSummary(row), secret }, 201, { "Cache-Control": "no-store" });
 });
 app.patch("/api/admin/webhooks/:id", async c => {
@@ -622,6 +628,16 @@ app.patch("/api/admin/webhooks/:id", async c => {
     if (!events.length) return c.json({ error: "請至少選擇一個事件。" }, 400);
     statements.push(c.env.DB.prepare("UPDATE vote_webhooks SET events = ? WHERE id = ?").bind(JSON.stringify(events), existing.id));
     details.events = events;
+  }
+  if (body.data.discordRoleIds !== undefined) {
+    const discordRoleIds = normalizeDiscordRoleIds(body.data.discordRoleIds);
+    statements.push(c.env.DB.prepare("UPDATE vote_webhooks SET discord_role_ids = ? WHERE id = ?").bind(JSON.stringify(discordRoleIds), existing.id));
+    details.discordRoleCount = discordRoleIds.length;
+  }
+  if (body.data.mentionEvents !== undefined) {
+    const mentionEvents = normalizeWebhookEvents(body.data.mentionEvents);
+    statements.push(c.env.DB.prepare("UPDATE vote_webhooks SET mention_events = ? WHERE id = ?").bind(JSON.stringify(mentionEvents), existing.id));
+    details.mentionEvents = mentionEvents;
   }
   if (body.data.isEnabled !== undefined) {
     statements.push(c.env.DB.prepare("UPDATE vote_webhooks SET is_enabled = ? WHERE id = ?").bind(body.data.isEnabled ? 1 : 0, existing.id));

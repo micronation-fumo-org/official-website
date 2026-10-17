@@ -40,6 +40,8 @@ interface WebhookItem {
   /** The server masks the endpoint path because it may contain a bearer token. */
   url: string;
   events: EventKey[];
+  discordRoleIds: string[];
+  mentionEvents: EventKey[];
   isEnabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -64,6 +66,8 @@ const EVENT_OPTIONS: { id: EventKey; zh: string; en: string; hintZh: string; hin
   { id: "ballot.cast", zh: "收到選票", en: "Ballot cast", hintZh: "有國家完成投票（不含選項）", hintEn: "A country voted (never the choices)", Icon: Vote },
 ];
 const DEFAULT_EVENTS: EventKey[] = ["vote.created", "vote.published", "vote.started", "vote.closing_soon", "vote.closed"];
+const DEFAULT_DISCORD_ROLE_IDS = ["1337422468566093845"];
+const DEFAULT_MENTION_EVENTS: EventKey[] = ["vote.created", "vote.published", "vote.started", "vote.closing_soon", "vote.closed"];
 
 const VERIFY_SAMPLE = [
   'const timestamp = req.headers["x-fumo-timestamp"];',
@@ -204,6 +208,8 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [events, setEvents] = useState<EventKey[]>(DEFAULT_EVENTS);
+  const [discordRoleIdsInput, setDiscordRoleIdsInput] = useState(DEFAULT_DISCORD_ROLE_IDS.join(", "));
+  const [mentionEvents, setMentionEvents] = useState<EventKey[]>(DEFAULT_MENTION_EVENTS);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [shownSecret, setShownSecret] = useState("");
   const [notice, setNotice] = useState<{ type: "error" | "success"; text: string } | null>(null);
@@ -219,6 +225,8 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
     setName("");
     setUrl("");
     setEvents(DEFAULT_EVENTS);
+    setDiscordRoleIdsInput(DEFAULT_DISCORD_ROLE_IDS.join(", "));
+    setMentionEvents(DEFAULT_MENTION_EVENTS);
     setEditingId(null);
   };
 
@@ -237,9 +245,20 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
       setNotice({ type: "error", text: isEnglish ? "Select at least one event." : "請至少選擇一個事件。" });
       return;
     }
+    const roleTokens = discordRoleIdsInput.trim() ? discordRoleIdsInput.trim().split(/[\s,;]+/) : [];
+    const discordRoleIds = roleTokens.map(token => token.match(/^<@&(\d{17,20})>$/)?.[1] ?? token);
+    if (discordRoleIds.length > 10 || discordRoleIds.some(id => !/^\d{17,20}$/.test(id))) {
+      setNotice({ type: "error", text: isEnglish ? "Enter up to 10 valid Discord role IDs (17–20 digits each), or leave blank to disable pings." : "請輸入最多 10 個有效的 Discord 身分組 ID（每個 17–20 位數字）；留空代表不 ping。" });
+      return;
+    }
     setBusy("form");
     try {
-      const payload: Record<string, unknown> = { name: name.trim(), events };
+      const payload: Record<string, unknown> = {
+        name: name.trim(),
+        events,
+        discordRoleIds: [...new Set(discordRoleIds)],
+        mentionEvents,
+      };
       if (url.trim()) payload.url = url.trim();
       const path = editingId ? `/api/admin/webhooks/${editingId}` : "/api/admin/webhooks";
       const response = await apiFetch(path, {
@@ -285,6 +304,8 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
     setName(item.name);
     setUrl("");
     setEvents(item.events);
+    setDiscordRoleIdsInput(item.discordRoleIds.join(", "));
+    setMentionEvents(item.mentionEvents);
     setNotice(null);
     setShownSecret("");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -334,8 +355,8 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
             <p>{isEnglish ? "Payload includes a human-readable message and structured vote data. Some services may require a small adapter to map the fields they accept." : "Payload 同時包含可讀通知文字與結構化投票資料；不同平台接受的欄位可能不同，必要時需加一層格式轉換。"}</p>
             <p className="rounded-md border border-indigo-200 bg-white p-2 text-indigo-900">
               {isEnglish
-                ? "Discord endpoints use a colored embed and mention role 1337422468566093845 for subscribed vote events. Test messages do not ping. The role must be mentionable in Discord for members to be notified."
-                : "Discord 端點會以彩色 Embed 顯示通知，並在已訂閱的正式事件提及身分組 1337422468566093845；測試訊息不會 ping。請在 Discord 將該身分組設為可提及，成員才會收到通知。"}
+                ? "Discord endpoints use a colored embed and let you choose the role IDs and events to ping per endpoint. Test messages do not ping. Roles must be mentionable in Discord for members to be notified."
+                : "Discord 端點會以彩色 Embed 顯示通知，並可逐端點設定要提及的身分組與事件；測試訊息不會 ping。請在 Discord 將身分組設為可提及，成員才會收到通知。"}
             </p>
             <Button type="button" size="sm" variant="outline" onClick={() => setShowVerify(current => !current)}>
               {showVerify ? (isEnglish ? "Hide verification sample" : "隱藏驗證範例") : (isEnglish ? "Show verification sample" : "顯示驗證範例")}
@@ -411,6 +432,46 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
               {isEnglish ? "“Ballot cast” is off by default; when enabled it reveals which country voted, never the option." : "「收到選票」預設不勾選；啟用後會顯示哪個國家已投票，但不會洩漏選項。"}
             </p>
           </fieldset>
+          <fieldset className="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50/60 p-4">
+            <legend className="px-1 text-sm font-semibold text-indigo-950">{isEnglish ? "Discord role mentions" : "Discord 身分組提及設定"}</legend>
+            <label className="block space-y-1 text-sm">
+              <span className="font-medium">{isEnglish ? "Role IDs to mention (up to 10)" : "要提及的身分組 ID（最多 10 個）"}</span>
+              <Input
+                value={discordRoleIdsInput}
+                onChange={event => setDiscordRoleIdsInput(event.target.value)}
+                placeholder={isEnglish ? "1337422468566093845, 123456789012345678" : "1337422468566093845, 123456789012345678"}
+                aria-label={isEnglish ? "Discord role IDs" : "Discord 身分組 ID"}
+              />
+              <span className="block text-xs text-muted-foreground">
+                {isEnglish ? "Paste numeric IDs or role mentions such as <@&123…>, separated by commas. Leave blank to disable role pings. This applies only to Discord webhook URLs." : "可貼數字 ID 或 `<@&身分組ID>` 格式，多個以逗號分隔；留空表示不 ping 身分組。此設定只適用 Discord Webhook。"}
+              </span>
+            </label>
+            <div>
+              <p className="mb-2 text-sm font-medium">{isEnglish ? "Which subscribed events should ping these roles?" : "哪些已訂閱事件要 ping 這些身分組？"}</p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {EVENT_OPTIONS.map(option => {
+                  const selected = mentionEvents.includes(option.id);
+                  return (
+                    <label key={option.id} className={`flex cursor-pointer items-start gap-2 rounded-md border p-2 text-sm transition ${selected ? "border-indigo-400 bg-white" : "border-border/60 bg-white/70"}`}>
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 accent-indigo-600"
+                        checked={selected}
+                        onChange={() => setMentionEvents(current => selected ? current.filter(value => value !== option.id) : [...current, option.id])}
+                      />
+                      <span className="min-w-0">
+                        <span className="block font-medium">{isEnglish ? option.en : option.zh}</span>
+                        <span className="block text-xs text-muted-foreground">{isEnglish ? "Mention roles" : "提及身分組"}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {isEnglish ? "Pings happen only when an event is also subscribed above. “Ballot cast” can ping once per ballot; it is off by default here." : "只有上方也有訂閱的事件才會送出；「收到選票」可能每張選票都 ping，此項預設關閉。"}
+              </p>
+            </div>
+          </fieldset>
           <Button type="submit" disabled={busy === "form"} className="bg-primary text-primary-foreground hover:bg-primary/90">
             {busy === "form" ? (isEnglish ? "Saving…" : "儲存中…") : editingId ? (isEnglish ? "Save changes" : "儲存變更") : (isEnglish ? "Create webhook" : "建立 Webhook")}
           </Button>
@@ -458,6 +519,16 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
                         </span>
                       );
                     })}
+                  </div>
+                  <div className="space-y-1 rounded-md border border-indigo-100 bg-indigo-50/60 p-2 text-xs">
+                    <p className="break-all">
+                      <span className="font-semibold">{isEnglish ? "Ping roles:" : "提及身分組："}</span>{" "}
+                      {item.discordRoleIds.length ? item.discordRoleIds.map(id => <code key={id} className="mr-1 rounded bg-white px-1 py-0.5">{id}</code>) : (isEnglish ? "None" : "不提及")}
+                    </p>
+                    <p>
+                      <span className="font-semibold">{isEnglish ? "Ping events:" : "提及事件："}</span>{" "}
+                      {item.mentionEvents.length ? item.mentionEvents.map(value => eventLabel(value, isEnglish)).join("、") : (isEnglish ? "None" : "不提及")}
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">

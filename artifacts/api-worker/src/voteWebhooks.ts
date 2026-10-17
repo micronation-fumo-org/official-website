@@ -36,6 +36,8 @@ export interface WebhookRow {
   url: string;
   secret: string;
   events: string;
+  discord_role_ids: string;
+  mention_events: string;
   is_enabled: number;
   created_by: string;
   created_at: string;
@@ -85,6 +87,37 @@ export function normalizeWebhookEvents(values: string[]): WebhookEvent[] {
 export function parseWebhookEvents(value: string): WebhookEvent[] {
   try {
     const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? normalizeWebhookEvents(parsed.map(String)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function normalizeDiscordRoleIds(values: string[]): string[] {
+  const roles: string[] = [];
+  for (const value of values) {
+    const id = value.trim();
+    if (!/^\d{17,20}$/.test(id) || roles.includes(id)) continue;
+    roles.push(id);
+    if (roles.length === 10) break;
+  }
+  return roles;
+}
+
+export function parseDiscordRoleIds(value: string | null | undefined): string[] {
+  if (!value) return [DISCORD_ROLE_ID];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? normalizeDiscordRoleIds(parsed.map(String)) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function parseWebhookMentionEvents(value: string | null | undefined): WebhookEvent[] {
+  if (!value) return [...WEBHOOK_EVENTS];
+  try {
+    const parsed: unknown = JSON.parse(value);
     return Array.isArray(parsed) ? normalizeWebhookEvents(parsed.map(String)) : [];
   } catch {
     return [];
@@ -141,6 +174,8 @@ export function webhookSummary(row: WebhookRow) {
     // Never return that path to the browser after the endpoint is saved.
     url: webhookUrlLabel(row.url),
     events: parseWebhookEvents(row.events),
+    discordRoleIds: parseDiscordRoleIds(row.discord_role_ids),
+    mentionEvents: parseWebhookMentionEvents(row.mention_events),
     isEnabled: Boolean(row.is_enabled),
     createdBy: row.created_by,
     createdAt: row.created_at,
@@ -230,7 +265,12 @@ const DISCORD_EVENT_STYLE: Record<WebhookDeliveryEvent, { title: string; color: 
 };
 
 /** Build a Discord-native embed and allow-list only the requested role mention. */
-export function discordWebhookPayload(event: WebhookDeliveryEvent, payload: Record<string, unknown>) {
+export function discordWebhookPayload(
+  event: WebhookDeliveryEvent,
+  payload: Record<string, unknown>,
+  roleIds: string[] = [DISCORD_ROLE_ID],
+  mentionEvents: WebhookEvent[] = [...WEBHOOK_EVENTS],
+) {
   const vote = payload.vote && typeof payload.vote === "object"
     ? payload.vote as Record<string, unknown>
     : null;
@@ -282,10 +322,13 @@ export function discordWebhookPayload(event: WebhookDeliveryEvent, payload: Reco
   }
 
   const isTest = event === "webhook.test";
+  const allowedRoleIds = event !== "webhook.test" && mentionEvents.includes(event)
+    ? normalizeDiscordRoleIds(roleIds)
+    : [];
   return {
-    content: isTest ? "" : `<@&${DISCORD_ROLE_ID}>`,
+    content: allowedRoleIds.length ? allowedRoleIds.map(id => `<@&${id}>`).join(" ") : "",
     embeds: [embed],
-    allowed_mentions: { parse: [], roles: isTest ? [] : [DISCORD_ROLE_ID] },
+    allowed_mentions: { parse: [], roles: allowedRoleIds },
   };
 }
 
@@ -312,7 +355,9 @@ export async function deliverWebhook(
   payload: Record<string, unknown>,
   options: { record?: boolean } = {},
 ): Promise<{ ok: boolean; statusCode: number; error: string }> {
-  const body = JSON.stringify(isDiscordWebhookUrl(webhook.url) ? discordWebhookPayload(event, payload) : payload);
+  const body = JSON.stringify(isDiscordWebhookUrl(webhook.url)
+    ? discordWebhookPayload(event, payload, parseDiscordRoleIds(webhook.discord_role_ids), parseWebhookMentionEvents(webhook.mention_events))
+    : payload);
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const signature = await signWebhook(webhook.secret, timestamp, body);
   const deliveryId = crypto.randomUUID();
