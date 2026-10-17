@@ -167,7 +167,7 @@ async function historicalVoteRecords(): Promise<HistoricalVoteRecordsResponse> {
 }
 interface Member { fullName: string; shortName: string; abbreviation?: string; headOfState?: string; primeMinister?: string; governmentType: string; status: "member" | "observer"; }
 interface Voter { countryName: string; reps: { name: string; id: string }[]; }
-interface RegistrationEntry { countryName: string; voterName: string; id: string; }
+interface RegistrationEntry { countryName: string; voterName: string; id: string; email: string; }
 interface StaffEntry { id: string; name: string; roles: string[]; areas: string[]; organizations: string[]; }
 let membersCache: { value: { memberStates: Member[]; observerStates: Member[]; allStates: Member[] }; at: number } | null = null;
 let votersCache: { value: Voter[]; at: number } | null = null;
@@ -184,7 +184,7 @@ async function voters() {
   votersCache = { value, at: Date.now() }; return value;
 }
 const findVoter = (list: Voter[], id: string) => { for (const v of list) { const rep = v.reps.find(r => r.id === id); if (rep) return { countryName: v.countryName, voterName: rep.name }; } return null; };
-async function registrations() { const rows = await sheet(REGISTRATION_GID); const h = rows[0] ?? []; const idx = (n: string) => h.indexOf(n); return rows.slice(1).map(r => ({ countryName: r[idx("國家名稱")] ?? "", voterName: r[idx("註冊名稱")] ?? "", id: r[idx("註冊ID")] ?? "" })).filter(r => r.id && r.countryName && r.voterName); }
+async function registrations() { const rows = await sheet(REGISTRATION_GID); const h = rows[0] ?? []; const idx = (n: string) => h.indexOf(n); return rows.slice(1).map(r => ({ countryName: r[idx("國家名稱")] ?? "", voterName: r[idx("註冊名稱")] ?? "", id: r[idx("註冊ID")] ?? "", email: (r[idx("Email")] ?? "").trim().toLowerCase() })).filter(r => r.id && r.countryName && r.voterName && r.email); }
 async function staffAccounts() {
   if (staffCache && Date.now() - staffCache.at < 300000) return staffCache.value;
   const [secretariat, council] = await Promise.all([
@@ -364,10 +364,28 @@ app.get("/api/auth/google/callback", async c => {
     return googleResultResponse(returnTo, "connected", redirectUri, [clearCookie]);
   }
 
-  const link = await c.env.DB.prepare("SELECT voter_id FROM google_account_links WHERE google_sub = ?").bind(identity.subject).first<{ voter_id: string }>();
-  if (!link) return googleResultResponse("/login", "unlinked", redirectUri, [clearCookie]);
-  const voterAccount = await account(c.env.DB, link.voter_id);
-  if (!voterAccount) return googleResultResponse("/login", "unlinked", redirectUri, [clearCookie]);
+  const registration = (await registrations()).find(r => r.email === identity.email);
+  if (!registration) return googleResultResponse("/register", "email_not_allowed", redirectUri, [clearCookie]);
+  const existingLink = await c.env.DB.prepare("SELECT voter_id FROM google_account_links WHERE google_sub = ?").bind(identity.subject).first<{ voter_id: string }>();
+  if (existingLink && existingLink.voter_id !== registration.id) return googleResultResponse("/login", "google_already_linked", redirectUri, [clearCookie]);
+  let voterAccount = await account(c.env.DB, registration.id);
+  if (!voterAccount) {
+    await c.env.DB.prepare("INSERT INTO voter_accounts (voter_id, voter_name, country_name, password_hash) VALUES (?, ?, ?, ?)")
+      .bind(registration.id, registration.voterName, registration.countryName, await hashPassword(randomToken(32))).run();
+    voterAccount = await account(c.env.DB, registration.id);
+  }
+  if (!voterAccount) return googleResultResponse("/login", "failed", redirectUri, [clearCookie]);
+  const currentLink = await c.env.DB.prepare("SELECT google_sub FROM google_account_links WHERE voter_id = ?").bind(voterAccount.voter_id).first<{ google_sub: string }>();
+  if (currentLink && currentLink.google_sub !== identity.subject) return googleResultResponse("/login", "account_already_linked", redirectUri, [clearCookie]);
+  if (!currentLink) {
+    try {
+      await c.env.DB.prepare("INSERT INTO google_account_links (voter_id, google_sub, google_email) VALUES (?, ?, ?)").bind(voterAccount.voter_id, identity.subject, identity.email).run();
+    } catch {
+      return googleResultResponse("/login", "google_already_linked", redirectUri, [clearCookie]);
+    }
+  } else {
+    await c.env.DB.prepare("UPDATE google_account_links SET google_email = ?, updated_at = datetime('now') WHERE voter_id = ?").bind(identity.email, voterAccount.voter_id).run();
+  }
   const session = await createSession(c.env.DB, voterAccount.voter_id);
   return googleResultResponse(returnTo, "login", redirectUri, [sessionCookie(session.raw, session.maxAge), clearCookie]);
 });
@@ -477,7 +495,7 @@ app.get("/api/votes/:id", async c => {
   return c.json({ ...asVote(v, ballots.results.length), ballots: v.is_closed || new Date(v.deadline) < new Date() ? ballots.results.map(b => ({ ...b, selectedOptions: jsonArray<string>(b.selected_options) })) : [] });
 });
 app.post("/api/votes/:id/ballot", async c => {
-  const body = z.object({ selectedOptions: z.array(z.string().min(1)), password: z.string().min(1) }).safeParse(await parseJson(c));
+  const body = z.object({ selectedOptions: z.array(z.string().min(1)) }).safeParse(await parseJson(c));
   if (!body.success) return c.json({ error: "Invalid input", details: body.error.issues }, 400);
   const v = await voteByPublicId(c.env.DB, c.req.param("id"));
   if (!v || !v.is_published) return c.json({ error: "Vote not found" }, 404);
@@ -487,7 +505,6 @@ app.post("/api/votes/:id/ballot", async c => {
   if (new Date(v.deadline) < new Date()) return c.json({ error: "Voting deadline has passed" }, 403);
   const a = await currentAccount(c);
   if (!a) return c.json({ error: "請先登入。" }, 401);
-  if (!(await verifyPassword(body.data.password, a.password_hash))) return c.json({ error: "Incorrect password." }, 403);
   const vi = findVoter(await voters(), a.voter_id);
   if (!vi) return c.json({ error: "Invalid voter ID. You are not registered as an eligible voter." }, 403);
   const ms = await members();

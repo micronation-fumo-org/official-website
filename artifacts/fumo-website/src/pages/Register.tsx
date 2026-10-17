@@ -1,140 +1,32 @@
-import { toChineseError } from "@/lib/errorMessage";
-import { apiFetch } from "@/lib/api";
-import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { AlertTriangle, UserPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { AlertTriangle, CheckCircle2, UserPlus } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { googleOAuthStartUrl } from "@/lib/api";
 
 export default function Register() {
   const { isEnglish } = useLanguage();
-  const [voterId, setVoterId] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [, setLocation] = useLocation();
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    if (!voterId.trim() || !password.trim()) {
-      setError("請填寫所有欄位");
-      return;
-    }
-    if (password.length < 4) {
-      setError("密碼至少需要 4 個字元");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("兩次輸入的密碼不一致");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await apiFetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ voterId: voterId.trim(), password: password.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(toChineseError(data.error, "註冊失敗，請稍後再試。"));
-        return;
-      }
-      setSuccess(`註冊成功！歡迎，${data.voterName}。正在{isEnglish ? "Sign in here" : "前往登入"}頁面…`);
-      setTimeout(() => setLocation("/login"), 1800);
-    } catch {
-      setError("連線錯誤，請稍後再試。");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [location] = useLocation();
+  const result = new URLSearchParams(location.split("?")[1] || "").get("google");
+  const message = result === "email_not_allowed"
+    ? (isEnglish ? "This Google email is not in the registration sheet." : "這個 Google Email 不在註冊名單中，請先請管理員加入表格。")
+    : result === "not_configured"
+      ? (isEnglish ? "Google sign-in is not configured yet." : "Google 登入尚未完成設定。")
+      : result ? (isEnglish ? "Google registration failed. Please try again." : "Google 註冊失敗，請再試一次。") : null;
 
   return (
     <div className="min-h-screen bg-muted/20 py-16">
       <div className="container mx-auto px-4 max-w-md">
         <Card className="border-border/60 bg-white shadow-sm">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-primary flex items-center justify-center gap-2">
-              <UserPlus className="w-6 h-6" />
-              {isEnglish ? "Create an account" : "註冊帳戶"}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              註冊名單中的會員國與觀察國使用者皆可註冊
-            </p>
+            <CardTitle className="text-2xl font-bold text-primary flex items-center justify-center gap-2"><UserPlus className="w-6 h-6" />{isEnglish ? "Register with Google" : "使用 Google 註冊"}</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">{isEnglish ? "Your verified Google email must match the Email column in the registration sheet." : "已驗證的 Google Email 必須與註冊名單中的 Email 欄位相符。"}</p>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Discord ID</label>
-                <Input
-                  value={voterId}
-                  onChange={(e) => setVoterId(e.target.value)}
-                  placeholder="例如: 1192442242753896541"
-                  autoComplete="username"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  請輸入註冊名單中的 Discord 數字 ID
-                </p>
-              </div>
-              <p className="text-xs text-muted-foreground">註冊名單與投票代表名單分開；註冊後不會自動取得投票資格。</p>
-              <div>
-                <label className="block text-sm font-medium mb-1">設定密碼 Set Password</label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="至少 4 個字元"
-                  autoComplete="new-password"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">確認密碼 Confirm Password</label>
-                <Input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="再次輸入密碼"
-                  autoComplete="new-password"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  首次設定的密碼將成為此帳戶的永久密碼（可在設定中更改）。
-                </p>
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md">
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  <span className="text-sm">{error}</span>
-                </div>
-              )}
-              {success && (
-                <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-md">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span className="text-sm">{success}</span>
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                disabled={loading || !!success}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                {loading ? (isEnglish ? "Processing..." : "處理中...") : (isEnglish ? "Register" : "註冊")}
-              </Button>
-
-              <p className="text-center text-sm text-muted-foreground">
-                已有帳戶？{" "}
-                <Link href="/login" className="text-primary font-medium hover:underline">
-                  {isEnglish ? "Sign in here" : "前往登入"}
-                </Link>
-              </p>
-            </form>
+          <CardContent className="space-y-4">
+            {message && <div className="flex items-start gap-2 text-red-600 bg-red-50 p-3 rounded-md"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span className="text-sm">{message}</span></div>}
+            <Button type="button" onClick={() => window.location.assign(googleOAuthStartUrl("login"))} className="w-full min-h-11 bg-primary text-primary-foreground hover:bg-primary/90">{isEnglish ? "Continue with Google" : "使用 Google 帳戶註冊"}</Button>
+            <p className="text-center text-sm text-muted-foreground">{isEnglish ? "Already registered?" : "已經註冊？"}{" "}<Link href="/login" className="text-primary font-medium hover:underline">{isEnglish ? "Sign in with Google" : "使用 Google 登入"}</Link></p>
           </CardContent>
         </Card>
       </div>
