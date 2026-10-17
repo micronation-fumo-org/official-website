@@ -44,7 +44,7 @@ export default function VoteRecords() {
   const [kind, setKind] = useState<Kind>("standard");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const { data, isLoading, error } = useQuery({ queryKey: ["vote-records"], queryFn: fetchRecords, staleTime: 300000 });
+  const { data, isLoading, error } = useQuery({ queryKey: ["vote-records"], queryFn: fetchRecords, staleTime: 300000, refetchInterval: 300000 });
   useEffect(() => setPage(1), [kind, search]);
 
   const records = data?.[kind] ?? [];
