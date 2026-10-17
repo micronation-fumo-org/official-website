@@ -71,7 +71,6 @@ const PBKDF2_ITERATIONS = 100000;
 const SESSION_COOKIE = "fumo_session";
 const SESSION_TTL_DAYS = 7;
 const GOOGLE_STATE_COOKIE = "fumo_google_oauth_state";
-const GOOGLE_PENDING_COOKIE = "fumo_google_registration_pending";
 const DEFAULT_GOOGLE_REDIRECT_URI = "https://www.micronationfumo.org/api/auth/google/callback";
 
 const json = (value: unknown, status = 200, headers: HeadersInit = {}) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json", ...headers } });
@@ -241,8 +240,6 @@ function googleRedirectUri(env: Env) {
 }
 function googleStateCookie(state: string) { return `${GOOGLE_STATE_COOKIE}=${encodeURIComponent(state)}; Max-Age=600; Path=/api/auth/google/callback; HttpOnly; Secure; SameSite=Lax`; }
 function clearGoogleStateCookie() { return `${GOOGLE_STATE_COOKIE}=; Max-Age=0; Path=/api/auth/google/callback; HttpOnly; Secure; SameSite=Lax`; }
-function googlePendingCookie(token: string) { return `${GOOGLE_PENDING_COOKIE}=${encodeURIComponent(token)}; Max-Age=600; Path=/api/auth/google/complete; HttpOnly; Secure; SameSite=Lax`; }
-function clearGooglePendingCookie() { return `${GOOGLE_PENDING_COOKIE}=; Max-Age=0; Path=/api/auth/google/complete; HttpOnly; Secure; SameSite=Lax`; }
 function googleResultResponse(path: string, result: string, redirectUri: string, cookies: string[] = []) {
   const destination = new URL(path, new URL(redirectUri).origin);
   destination.searchParams.set("google", result);
@@ -367,14 +364,8 @@ app.get("/api/auth/google/callback", async c => {
     return googleResultResponse(returnTo, "connected", redirectUri, [clearCookie]);
   }
 
-  const registration = (await registrations()).find(r => r.email === identity.email);
-  if (!registration) {
-    const pendingToken = randomToken();
-    await c.env.DB.prepare("DELETE FROM google_registration_pending WHERE expires_at <= datetime('now')").run();
-    await c.env.DB.prepare("INSERT INTO google_registration_pending (token_hash, google_sub, google_email, expires_at) VALUES (?, ?, ?, datetime('now', '+10 minutes'))")
-      .bind(await sessionHash(pendingToken), identity.subject, identity.email).run();
-    return googleResultResponse("/register", "id_required", redirectUri, [clearCookie, googlePendingCookie(pendingToken)]);
-  }
+  const registration = (await registrations()).find(r => r.email && r.email === identity.email);
+  if (!registration) return googleResultResponse("/login", "email_not_allowed", redirectUri, [clearCookie]);
   const existingLink = await c.env.DB.prepare("SELECT voter_id FROM google_account_links WHERE google_sub = ?").bind(identity.subject).first<{ voter_id: string }>();
   if (existingLink && existingLink.voter_id !== registration.id) return googleResultResponse("/login", "google_already_linked", redirectUri, [clearCookie]);
   let voterAccount = await account(c.env.DB, registration.id);
@@ -568,35 +559,6 @@ app.post("/api/votes/:id/close", async c => {
   ]);
   fireVoteEvent(c, "vote.closed", { ...vote, is_closed: 1 }, { details: { reason: "manual", closedBy: actor.voter_name } });
   return c.json({ success: true, message: "Vote closed" });
-});
-
-app.post("/api/auth/google/complete", async c => {
-  const body = z.object({ voterId: z.string().trim().min(1).max(255) }).safeParse(await parseJson(c));
-  if (!body.success) return c.json({ error: "請輸入註冊 ID。" }, 400);
-  const pendingToken = cookieValue(c, GOOGLE_PENDING_COOKIE);
-  if (!pendingToken) return c.json({ error: "Google 註冊工作階段已過期，請重新開始。" }, 401);
-  const pending = await c.env.DB.prepare("SELECT google_sub, google_email FROM google_registration_pending WHERE token_hash = ? AND expires_at > datetime('now')").bind(await sessionHash(pendingToken)).first<{ google_sub: string; google_email: string }>();
-  if (!pending) return c.json({ error: "Google 註冊工作階段已過期，請重新開始。" }, 401);
-  const registration = (await registrations()).find(r => r.id === body.data.voterId);
-  if (!registration) return c.json({ error: "此註冊 ID 不在註冊名單中。" }, 403);
-  if (registration.email && registration.email !== pending.google_email) return c.json({ error: "此註冊 ID 已指定其他 Email，無法使用目前的 Google 帳戶。" }, 403);
-  const owner = await c.env.DB.prepare("SELECT voter_id FROM google_account_links WHERE google_sub = ?").bind(pending.google_sub).first<{ voter_id: string }>();
-  if (owner && owner.voter_id !== registration.id) return c.json({ error: "此 Google 帳戶已綁定其他帳戶。" }, 409);
-  let voterAccount = await account(c.env.DB, registration.id);
-  if (!voterAccount) {
-    await c.env.DB.prepare("INSERT INTO voter_accounts (voter_id, voter_name, country_name, password_hash) VALUES (?, ?, ?, ?)").bind(registration.id, registration.voterName, registration.countryName, await hashPassword(randomToken(32))).run();
-    voterAccount = await account(c.env.DB, registration.id);
-  }
-  if (!voterAccount) return c.json({ error: "帳戶建立失敗，請稍後再試。" }, 500);
-  const currentLink = await c.env.DB.prepare("SELECT google_sub FROM google_account_links WHERE voter_id = ?").bind(voterAccount.voter_id).first<{ google_sub: string }>();
-  if (currentLink && currentLink.google_sub !== pending.google_sub) return c.json({ error: "此帳戶已綁定其他 Google 帳戶。" }, 409);
-  if (!currentLink) await c.env.DB.prepare("INSERT INTO google_account_links (voter_id, google_sub, google_email) VALUES (?, ?, ?)").bind(voterAccount.voter_id, pending.google_sub, pending.google_email).run();
-  await c.env.DB.prepare("DELETE FROM google_registration_pending WHERE token_hash = ?").bind(await sessionHash(pendingToken)).run();
-  const session = await createSession(c.env.DB, voterAccount.voter_id);
-  const headers = new Headers({ "Content-Type": "application/json" });
-  headers.append("Set-Cookie", sessionCookie(session.raw, session.maxAge));
-  headers.append("Set-Cookie", clearGooglePendingCookie());
-  return new Response(JSON.stringify(publicUser(voterAccount)), { status: 200, headers });
 });
 
 app.post("/api/auth/register", async c => { const body = z.object({ voterId: z.string().min(1), password: z.string().min(4) }).safeParse(await parseJson(c)); if (!body.success) return c.json({ error: "請填寫 Discord ID 與密碼。" }, 400); const registration = (await registrations()).find(r => r.id === body.data.voterId); const staff = registration ? null : (await staffAccounts()).find(r => r.id === body.data.voterId); const identity = registration ?? (staff ? { countryName: "FUMO", voterName: staff.name, id: staff.id } : null); if (!identity) return c.json({ error: "此 ID 不在註冊名單中，請先由管理員加入註冊名單。" }, 403); if (await account(c.env.DB, body.data.voterId)) return c.json({ error: "Account already exists. Please login instead." }, 409); await c.env.DB.prepare("INSERT INTO voter_accounts (voter_id, voter_name, country_name, password_hash) VALUES (?, ?, ?, ?)").bind(body.data.voterId, identity.voterName, identity.countryName, await hashPassword(body.data.password)).run(); return c.json({ success: true, voterId: body.data.voterId, voterName: identity.voterName }); });
