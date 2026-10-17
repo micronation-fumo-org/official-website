@@ -10,6 +10,7 @@ import Members from "@/pages/Members";
 import Regulations from "@/pages/Regulations";
 import Charter from "@/pages/Charter";
 import Votes from "@/pages/Votes";
+import VoteRecords from "@/pages/VoteRecords";
 import VoteDetail from "@/pages/VoteDetail";
 import CreateVote from "@/pages/CreateVote";
 import Admin from "@/pages/Admin";
@@ -48,6 +49,7 @@ function Router() {
         <Route path="/regulations" component={Regulations} />
         <Route path="/charter" component={Charter} />
         <Route path="/votes" component={Votes} />
+        <Route path="/vote-records" component={VoteRecords} />
         <Route path="/votes/create" component={CreateVote} />
         <Route path="/votes/:id" component={VoteDetail} />
         <Route path="/admin" component={Admin} />

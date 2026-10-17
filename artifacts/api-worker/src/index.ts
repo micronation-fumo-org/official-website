@@ -60,6 +60,8 @@ const REGISTRATION_GID = "948800346";
 const STAFF_SHEET_ID = "1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0";
 const SECRETARIAT_GID = "1303265265";
 const COUNCIL_GID = "1574972161";
+const HISTORICAL_VOTES_SPECIAL_GID = "281957361";
+const HISTORICAL_VOTES_STANDARD_GID = "483555265";
 const DEFAULT_ADMIN_ID = "1406117683220709486";
 const ADMIN_NONE = 0;
 const ADMIN_TIER1 = 1;
@@ -100,7 +102,69 @@ function csvRows(text: string): string[][] {
   if (cell || row.length) { row.push(cell.trim()); rows.push(row); }
   return rows;
 }
-async function sheet(gid: string) { const r = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`); if (!r.ok) throw new Error(`Google Sheet ${r.status}`); return csvRows(await r.text()); }
+async function sheetFrom(spreadsheetId: string, gid: string) { const r = await fetch(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`); if (!r.ok) throw new Error(`Google Sheet ${r.status}`); return csvRows(await r.text()); }
+async function sheet(gid: string) { return sheetFrom(SHEET_ID, gid); }
+type HistoricalVoteKind = "special" | "standard";
+interface HistoricalVoteRecord {
+  kind: HistoricalVoteKind;
+  meeting: string;
+  code: string;
+  title: string;
+  totalVotes: string;
+  turnout: string;
+  result: string;
+  countryVotes: { countryName: string; selection: string }[];
+}
+interface HistoricalVoteRecordsResponse {
+  special: HistoricalVoteRecord[];
+  standard: HistoricalVoteRecord[];
+  fetchedAt: string;
+}
+function parseHistoricalVoteRows(rows: string[][], kind: HistoricalVoteKind): HistoricalVoteRecord[] {
+  const header = rows[0] ?? [];
+  const countryStart = kind === "standard" ? 6 : 3;
+  const dataStart = kind === "standard" ? 5 : 1;
+  const countryNames = header.slice(countryStart);
+  let currentMeeting = "";
+  const records: HistoricalVoteRecord[] = [];
+  for (const row of rows.slice(dataStart)) {
+    const meetingCell = (row[0] ?? "").trim();
+    if (meetingCell) currentMeeting = meetingCell;
+    const code = (row[1] ?? "").trim();
+    const title = (row[2] ?? "").trim();
+    if (!code && !title) continue;
+    const countryVotes = countryNames.flatMap((countryName, index) => {
+      const selection = (row[countryStart + index] ?? "").trim();
+      return countryName.trim() && selection ? [{ countryName: countryName.trim(), selection }] : [];
+    });
+    records.push({
+      kind,
+      meeting: currentMeeting,
+      code,
+      title,
+      totalVotes: kind === "standard" ? ((row[3] ?? "").trim() || String(countryVotes.length)) : String(countryVotes.length),
+      turnout: kind === "standard" ? (row[4] ?? "").trim() : "",
+      result: kind === "standard" ? (row[5] ?? "").trim() : "",
+      countryVotes,
+    });
+  }
+  return records.reverse();
+}
+let historicalVoteRecordsCache: { value: HistoricalVoteRecordsResponse; at: number } | null = null;
+async function historicalVoteRecords(): Promise<HistoricalVoteRecordsResponse> {
+  if (historicalVoteRecordsCache && Date.now() - historicalVoteRecordsCache.at < 300000) return historicalVoteRecordsCache.value;
+  const [specialRows, standardRows] = await Promise.all([
+    sheetFrom(STAFF_SHEET_ID, HISTORICAL_VOTES_SPECIAL_GID),
+    sheetFrom(STAFF_SHEET_ID, HISTORICAL_VOTES_STANDARD_GID),
+  ]);
+  const value = {
+    special: parseHistoricalVoteRows(specialRows, "special"),
+    standard: parseHistoricalVoteRows(standardRows, "standard"),
+    fetchedAt: new Date().toISOString(),
+  };
+  historicalVoteRecordsCache = { value, at: Date.now() };
+  return value;
+}
 interface Member { fullName: string; shortName: string; abbreviation?: string; headOfState?: string; primeMinister?: string; governmentType: string; status: "member" | "observer"; }
 interface Voter { countryName: string; reps: { name: string; id: string }[]; }
 interface RegistrationEntry { countryName: string; voterName: string; id: string; }
@@ -311,6 +375,13 @@ app.get("/api/auth/google/callback", async c => {
 app.get("/api/members", async c => { try { return c.json({ ...(await members()), cached: Boolean(membersCache), lastUpdated: membersCache ? new Date(membersCache.at).toISOString() : null }); } catch (e) { return c.json({ error: "Failed to fetch member states", message: String(e) }, 500); } });
 app.get("/api/voters", async c => { try { return c.json(await voters()); } catch (e) { return c.json({ error: "Failed to fetch voters", message: String(e) }, 500); } });
 app.get("/api/staff-report", async c => { try { const staff = await staffAccounts(); return c.json({ staff: staff.map(({ id: _id, ...entry }) => entry), lastUpdated: new Date().toISOString() }); } catch (e) { return c.json({ error: "Failed to fetch staff report", message: String(e) }, 500); } });
+app.get("/api/vote-records", async c => {
+  try {
+    return c.json(await historicalVoteRecords(), 200, { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=300" });
+  } catch {
+    return c.json({ error: "無法載入歷史投票紀錄，請稍後再試。" }, 502, { "Cache-Control": "no-store" });
+  }
+});
 
 app.get("/api/votes", async c => {
   const actor = await currentAccount(c);
