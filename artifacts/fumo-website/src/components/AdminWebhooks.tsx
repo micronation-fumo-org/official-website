@@ -332,6 +332,11 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
                 : "僅接受 HTTPS 網址。簽章密鑰只在建立或輪替時顯示一次；以密鑰計算 `${X-FUMO-Timestamp}.${原始請求本文}` 的 HMAC-SHA256，並與 `X-FUMO-Signature` 比對。建議同時檢查時間戳有效期限，並用 `X-FUMO-Delivery` 防止重複處理。選票通知不含投票選項。"}
             </p>
             <p>{isEnglish ? "Payload includes a human-readable message and structured vote data. Some services may require a small adapter to map the fields they accept." : "Payload 同時包含可讀通知文字與結構化投票資料；不同平台接受的欄位可能不同，必要時需加一層格式轉換。"}</p>
+            <p className="rounded-md border border-indigo-200 bg-white p-2 text-indigo-900">
+              {isEnglish
+                ? "Discord endpoints use a colored embed and mention role 1337422468566093845 for subscribed vote events. Test messages do not ping. The role must be mentionable in Discord for members to be notified."
+                : "Discord 端點會以彩色 Embed 顯示通知，並在已訂閱的正式事件提及身分組 1337422468566093845；測試訊息不會 ping。請在 Discord 將該身分組設為可提及，成員才會收到通知。"}
+            </p>
             <Button type="button" size="sm" variant="outline" onClick={() => setShowVerify(current => !current)}>
               {showVerify ? (isEnglish ? "Hide verification sample" : "隱藏驗證範例") : (isEnglish ? "Show verification sample" : "顯示驗證範例")}
             </Button>

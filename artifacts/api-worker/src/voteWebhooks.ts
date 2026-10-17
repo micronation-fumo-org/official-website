@@ -66,6 +66,7 @@ const CLOSING_SOON_MS = 24 * 60 * 60 * 1000;
 const DELIVERY_TIMEOUT_MS = 8000;
 const MAX_URL_LENGTH = 512;
 const MAX_STORED_PAYLOAD = 4000;
+export const DISCORD_ROLE_ID = "1337422468566093845";
 
 export function isWebhookEvent(value: string): value is WebhookEvent {
   return (WEBHOOK_EVENTS as readonly string[]).includes(value);
@@ -201,6 +202,93 @@ function summaryLine(event: WebhookEvent, name: string, publicId: string, deadli
   return parts.join(" · ");
 }
 
+/** Discord endpoints get a native embed; other generic webhook targets keep the original JSON. */
+export function isDiscordWebhookUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    return (url.hostname === "discord.com" || url.hostname === "discordapp.com")
+      && /^\/api\/(?:v\d+\/)?webhooks\/\d+\/[^/]+\/?$/.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function boundedText(value: unknown, maxLength: number): string {
+  if (typeof value !== "string") return "";
+  const text = value.trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
+}
+
+const DISCORD_EVENT_STYLE: Record<WebhookDeliveryEvent, { title: string; color: number }> = {
+  "vote.created": { title: "🗳️ 新投票已建立", color: 0x5865f2 },
+  "vote.published": { title: "📢 投票已發布", color: 0x3ba55c },
+  "vote.started": { title: "🟢 投票開始", color: 0x00a884 },
+  "vote.closing_soon": { title: "⏳ 投票即將截止", color: 0xfaa61a },
+  "vote.closed": { title: "🔒 投票已結束", color: 0xed4245 },
+  "ballot.cast": { title: "✅ 收到新選票", color: 0x3498db },
+  "webhook.test": { title: "🧪 FUMO Webhook 測試", color: 0x747f8d },
+};
+
+/** Build a Discord-native embed and allow-list only the requested role mention. */
+export function discordWebhookPayload(event: WebhookDeliveryEvent, payload: Record<string, unknown>) {
+  const vote = payload.vote && typeof payload.vote === "object"
+    ? payload.vote as Record<string, unknown>
+    : null;
+  const details = payload.details && typeof payload.details === "object"
+    ? payload.details as Record<string, unknown>
+    : {};
+  const style = DISCORD_EVENT_STYLE[event];
+  const fields: { name: string; value: string; inline?: boolean }[] = [];
+
+  if (vote) {
+    const name = boundedText(vote.name, 1024);
+    const publicId = boundedText(vote.publicId, 100);
+    if (name) fields.push({ name: "投票主題", value: name });
+    if (publicId) fields.push({ name: "投票 ID", value: publicId, inline: true });
+    if (typeof vote.regularMeetingNumber === "number") fields.push({ name: "例行大會", value: `第 ${vote.regularMeetingNumber} 次`, inline: true });
+    if (typeof vote.startsAt === "string" && vote.startsAt) fields.push({ name: "開始時間", value: boundedText(vote.startsAt, 100), inline: true });
+    else if (event === "vote.started") fields.push({ name: "開始時間", value: "立即開始", inline: true });
+    if (typeof vote.deadline === "string" && vote.deadline) fields.push({ name: "截止時間", value: boundedText(vote.deadline, 100), inline: true });
+    if (typeof vote.ballotCount === "number") fields.push({ name: "目前票數", value: String(vote.ballotCount), inline: true });
+  }
+  if (event === "ballot.cast") {
+    const countryName = boundedText(details.countryName, 256);
+    if (countryName) fields.push({ name: "投票國家", value: countryName, inline: true });
+    fields.push({ name: "隱私", value: "不包含投票選項", inline: true });
+  }
+  if (event === "webhook.test") {
+    fields.push({ name: "狀態", value: "測試通知已送出；此訊息不會提及身分組。" });
+  }
+
+  const description = vote
+    ? boundedText(vote.description, 1200) || boundedText(payload.text ?? payload.content, 1200)
+    : boundedText(payload.text ?? payload.content, 1200);
+  const embed: Record<string, unknown> = {
+    title: style.title,
+    color: style.color,
+    fields,
+    footer: { text: "FUMO 投票通知" },
+  };
+  if (description) embed.description = description;
+  if (typeof payload.occurredAt === "string" && Number.isFinite(Date.parse(payload.occurredAt))) {
+    embed.timestamp = new Date(payload.occurredAt).toISOString();
+  }
+  if (vote && typeof vote.url === "string") {
+    try {
+      if (new URL(vote.url).origin === SITE_ORIGIN) embed.url = vote.url;
+    } catch {
+      // Ignore malformed or unexpected links in a notification payload.
+    }
+  }
+
+  const isTest = event === "webhook.test";
+  return {
+    content: isTest ? "" : `<@&${DISCORD_ROLE_ID}>`,
+    embeds: [embed],
+    allowed_mentions: { parse: [], roles: isTest ? [] : [DISCORD_ROLE_ID] },
+  };
+}
+
 /** D1 stores UTC timestamps as `YYYY-MM-DD HH:MM:SS`; expose them as ISO instants. */
 function formatInstant(value: string): string;
 function formatInstant(value: string | null): string | null;
@@ -224,7 +312,7 @@ export async function deliverWebhook(
   payload: Record<string, unknown>,
   options: { record?: boolean } = {},
 ): Promise<{ ok: boolean; statusCode: number; error: string }> {
-  const body = JSON.stringify(payload);
+  const body = JSON.stringify(isDiscordWebhookUrl(webhook.url) ? discordWebhookPayload(event, payload) : payload);
   const timestamp = Math.floor(Date.now() / 1000).toString();
   const signature = await signWebhook(webhook.secret, timestamp, body);
   const deliveryId = crypto.randomUUID();
