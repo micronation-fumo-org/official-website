@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Shield, Users, AlertTriangle, CheckCircle2, KeyRound, LogIn, Crown, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import AdminWebhooks from "@/components/AdminWebhooks";
 
 interface Account {
   voterId: string;
@@ -455,6 +456,8 @@ export default function Admin() {
             )}
           </CardContent>
         </Card>
+
+        {isTier2Admin && <AdminWebhooks isEnglish={isEnglish} />}
 
         {isSuperAdmin && (
           <Card className="mt-8 border-border/60 bg-white">

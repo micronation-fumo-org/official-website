@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import { buildGoogleAuthorizationUrl, createPkceChallenge, fetchGoogleIdentity, randomToken } from "./googleOAuth";
+import { deliverWebhook, dispatchVoteEvent, normalizeWebhookEvents, runVoteNotificationSweep, validateWebhookUrl, voteWebhookPayload, webhookSecret, webhookSummary, WEBHOOK_EVENTS, type WebhookEvent, type WebhookRow } from "./voteWebhooks";
 
 interface Env {
   DB: D1Database;
@@ -37,6 +38,9 @@ interface VoteRow {
   regular_meeting_number: number | null;
   starts_at: string | null;
   is_published: number;
+  notify_started_at: string | null;
+  notify_closing_soon_at: string | null;
+  notify_closed_at: string | null;
 }
 interface BallotRow {
   id: number;
@@ -180,8 +184,17 @@ function googleResultResponse(path: string, result: string, redirectUri: string,
   return new Response(null, { status: 302, headers });
 }
 
+function background(c: any, promise: Promise<unknown>) {
+  try { c.executionCtx.waitUntil(promise); } catch { void promise; }
+}
+/** Queues a webhook announcement without delaying the API response. */
+function fireVoteEvent(c: any, event: WebhookEvent, vote: VoteRow, options: { ballotCount?: number; details?: Record<string, unknown> } = {}) {
+  background(c, dispatchVoteEvent(c.env, event, voteWebhookPayload(vote, event, options)));
+}
+let lastNotificationSweepAt = 0;
+
 const app: App = new Hono();
-app.use("/*", async (c, next) => { const origin = c.req.header("Origin"); const allowed = (c.env.CORS_ORIGIN || "").split(",").map(v => v.trim()).filter(Boolean); return cors({ origin: origin && (allowed.length === 0 || allowed.includes(origin)) ? origin : (allowed[0] || "https://fumo-api.micronationfumo.workers.dev"), credentials: true, allowMethods: ["GET", "POST", "DELETE", "OPTIONS"], allowHeaders: ["Content-Type"] })(c, next); });
+app.use("/*", async (c, next) => { const origin = c.req.header("Origin"); const allowed = (c.env.CORS_ORIGIN || "").split(",").map(v => v.trim()).filter(Boolean); return cors({ origin: origin && (allowed.length === 0 || allowed.includes(origin)) ? origin : (allowed[0] || "https://fumo-api.micronationfumo.workers.dev"), credentials: true, allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"], allowHeaders: ["Content-Type"] })(c, next); });
 app.use("/*", async (c, next) => {
   // Health checks must stay independent from database bootstrap so deployment
   // and D1 binding problems remain diagnosable instead of becoming opaque 500s.
@@ -203,7 +216,16 @@ app.use("/*", async (c, next) => {
   }
   return next();
 });
-app.get("/api/healthz", c => c.json({ status: "ok" }));
+app.get("/api/healthz", c => {
+  // Health checks double as a safety net for time-driven vote notifications when
+  // the cron trigger is delayed; the cooldown keeps the extra query rare.
+  const now = Date.now();
+  if (now - lastNotificationSweepAt > 60000) {
+    lastNotificationSweepAt = now;
+    background(c, runVoteNotificationSweep(c.env).catch(error => console.error("Vote notification sweep failed", error)));
+  }
+  return c.json({ status: "ok" });
+});
 app.get("/api/auth/google/start", async c => {
   const clientId = c.env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = c.env.GOOGLE_CLIENT_SECRET?.trim();
@@ -344,6 +366,13 @@ app.post("/api/votes", async c => {
   }
   const id = Number(batch[0]?.meta?.last_row_id ?? 0);
   const created = id > 0 ? await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(id).first<VoteRow>() : null;
+  if (created) {
+    if (body.data.publishMode === "immediate") {
+      await c.env.DB.prepare("UPDATE votes SET notify_started_at = datetime('now') WHERE id = ?").bind(created.id).run();
+    }
+    fireVoteEvent(c, "vote.created", created, { details: { publishMode: body.data.publishMode, createdBy: actor.voter_name } });
+    if (body.data.publishMode === "immediate") fireVoteEvent(c, "vote.started", created, { details: { reason: "created" } });
+  }
   return c.json(created ? asVote(created) : { error: "Failed to create vote" }, created ? 201 : 500);
 });
 app.post("/api/admin/votes/:voteId/publish", async c => {
@@ -358,6 +387,15 @@ app.post("/api/admin/votes/:voteId/publish", async c => {
     auditStatement(c.env.DB, actor, "vote.publish", "vote", vote.id, { voteName: vote.name, customId: vote.custom_id ?? "" }),
   ]);
   const published = await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(vote.id).first<VoteRow>();
+  if (published) {
+    const startsAt = published.starts_at ? Date.parse(published.starts_at) : null;
+    const openNow = (startsAt === null || !Number.isFinite(startsAt) || startsAt <= Date.now())
+      && !published.is_closed
+      && Date.parse(published.deadline) > Date.now();
+    if (openNow) await c.env.DB.prepare("UPDATE votes SET notify_started_at = datetime('now') WHERE id = ?").bind(published.id).run();
+    fireVoteEvent(c, "vote.published", published, { details: { publishedBy: actor.voter_name } });
+    if (openNow) fireVoteEvent(c, "vote.started", published, { details: { reason: "published" } });
+  }
   return c.json({ success: true, vote: published ? asVote(published) : asVote({ ...vote, is_published: 1 }) });
 });
 app.get("/api/votes/:id", async c => {
@@ -388,6 +426,8 @@ app.post("/api/votes/:id/ballot", async c => {
   if (!body.data.selectedOptions.length || body.data.selectedOptions.some(o => !options.includes(o))) return c.json({ error: "Invalid selected options" }, 400);
   if (!v.allow_multiple && body.data.selectedOptions.length > 1) return c.json({ error: "This vote does not allow multiple selections" }, 400);
   await c.env.DB.prepare("INSERT INTO ballots (vote_id, voter_id, voter_name, country_name, selected_options) VALUES (?, ?, ?, ?, ?)").bind(id, a.voter_id, vi.voterName, vi.countryName, JSON.stringify(body.data.selectedOptions)).run();
+  // Announce turnout without ever including the selected options in a webhook.
+  fireVoteEvent(c, "ballot.cast", v, { details: { countryName: vi.countryName } });
   return c.json({ success: true, message: "Ballot cast successfully" });
 });
 app.get("/api/votes/:id/results", async c => {
@@ -422,13 +462,14 @@ app.get("/api/votes/:id/results", async c => {
 app.post("/api/votes/:id/close", async c => {
   const actor = await currentAccount(c);
   if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
-  const vote = await voteByPublicId(c.env.DB, c.req.param("id")).then(v => v ? { id: v.id, name: v.name } : null);
+  const vote = await voteByPublicId(c.env.DB, c.req.param("id"));
   if (!vote) return c.json({ error: "Vote not found" }, 404);
   const id = vote.id;
   await c.env.DB.batch([
-    c.env.DB.prepare("UPDATE votes SET is_closed = 1, updated_at = datetime('now') WHERE id = ?").bind(id),
+    c.env.DB.prepare("UPDATE votes SET is_closed = 1, notify_closed_at = datetime('now'), updated_at = datetime('now') WHERE id = ?").bind(id),
     auditStatement(c.env.DB, actor, "vote.close", "vote", id, { voteName: vote.name }),
   ]);
+  fireVoteEvent(c, "vote.closed", { ...vote, is_closed: 1 }, { details: { reason: "manual", closedBy: actor.voter_name } });
   return c.json({ success: true, message: "Vote closed" });
 });
 
@@ -508,6 +549,147 @@ app.get("/api/admin/audit-logs", async c => {
 
 app.get("/api/admin/votes/:voteId/ballots", async c => { const a = await ((await currentAccount(c))?.admin_level ?? 0) >= ADMIN_TIER1 ? await currentAccount(c) : null; if (!a) return c.json({ error: "管理員權限不足。" }, 403); const rows = await c.env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ? ORDER BY created_at ASC").bind(Number(c.req.param("voteId"))).all<BallotRow>(); return c.json((rows.results ?? []).map(b => ({ ...b, selectedOptions: jsonArray<string>(b.selected_options) }))); });
 
+async function requireTier2(c: any) {
+  const actor = await currentAccount(c);
+  return actor && actor.admin_level >= ADMIN_TIER2 ? actor : null;
+}
+async function webhookById(db: D1Database, value: string): Promise<WebhookRow | null> {
+  const id = Number(value);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  return (await db.prepare("SELECT * FROM vote_webhooks WHERE id = ?").bind(id).first<WebhookRow>()) ?? null;
+}
+async function auditWebhook(db: D1Database, actor: Account, action: string, webhookId: number, details: Record<string, unknown>) {
+  await db.prepare("INSERT INTO admin_audit_logs (actor_voter_id, actor_name, action, target_type, target_id, details_json) VALUES (?, ?, ?, 'webhook', ?, ?)")
+    .bind(actor.voter_id, actor.voter_name, action, String(webhookId), JSON.stringify(details)).run();
+}
+const webhookCreateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  url: z.string().trim().min(1).max(512),
+  events: z.array(z.string().min(1)).min(1).max(WEBHOOK_EVENTS.length),
+  isEnabled: z.boolean().optional(),
+});
+const webhookUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  url: z.string().trim().min(1).max(512).optional(),
+  events: z.array(z.string().min(1)).min(1).max(WEBHOOK_EVENTS.length).optional(),
+  isEnabled: z.boolean().optional(),
+});
+
+app.get("/api/admin/webhooks", async c => {
+  const actor = await requireTier2(c);
+  if (!actor) return c.json({ error: "需要二階管理員權限。" }, 403);
+  const rows = await c.env.DB.prepare("SELECT * FROM vote_webhooks ORDER BY created_at DESC, id DESC").all<WebhookRow>();
+  return c.json({ events: WEBHOOK_EVENTS, items: (rows.results ?? []).map(webhookSummary) }, 200, { "Cache-Control": "no-store" });
+});
+app.post("/api/admin/webhooks", async c => {
+  const actor = await requireTier2(c);
+  if (!actor) return c.json({ error: "需要二階管理員權限。" }, 403);
+  const body = webhookCreateSchema.safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "Invalid input", details: body.error.issues }, 400);
+  const target = validateWebhookUrl(body.data.url);
+  if (!target.ok) return c.json({ error: target.error }, 400);
+  const events = normalizeWebhookEvents(body.data.events);
+  if (!events.length) return c.json({ error: "請至少選擇一個事件。" }, 400);
+  const count = await c.env.DB.prepare("SELECT COUNT(*) AS count FROM vote_webhooks").first<{ count: number }>();
+  if (Number(count?.count ?? 0) >= 10) return c.json({ error: "最多只能設定 10 個 Webhook。" }, 409);
+  const secret = webhookSecret();
+  const inserted = await c.env.DB.prepare("INSERT INTO vote_webhooks (name, url, secret, events, is_enabled, created_by) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(body.data.name, target.url, secret, JSON.stringify(events), body.data.isEnabled === false ? 0 : 1, actor.voter_id).run();
+  const id = Number(inserted.meta?.last_row_id ?? 0);
+  const row = id > 0 ? await c.env.DB.prepare("SELECT * FROM vote_webhooks WHERE id = ?").bind(id).first<WebhookRow>() : null;
+  if (!row) return c.json({ error: "Failed to create webhook" }, 500);
+  await auditWebhook(c.env.DB, actor, "webhook.create", id, { name: row.name, endpointHost: new URL(row.url).host, events });
+  return c.json({ success: true, webhook: webhookSummary(row), secret }, 201, { "Cache-Control": "no-store" });
+});
+app.patch("/api/admin/webhooks/:id", async c => {
+  const actor = await requireTier2(c);
+  if (!actor) return c.json({ error: "需要二階管理員權限。" }, 403);
+  const existing = await webhookById(c.env.DB, c.req.param("id"));
+  if (!existing) return c.json({ error: "Webhook not found" }, 404);
+  const body = webhookUpdateSchema.safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "Invalid input", details: body.error.issues }, 400);
+  const statements: D1PreparedStatement[] = [];
+  const details: Record<string, unknown> = { name: existing.name };
+  if (body.data.name !== undefined) { statements.push(c.env.DB.prepare("UPDATE vote_webhooks SET name = ? WHERE id = ?").bind(body.data.name, existing.id)); details.name = body.data.name; }
+  if (body.data.url !== undefined) {
+    const target = validateWebhookUrl(body.data.url);
+    if (!target.ok) return c.json({ error: target.error }, 400);
+    statements.push(c.env.DB.prepare("UPDATE vote_webhooks SET url = ? WHERE id = ?").bind(target.url, existing.id));
+    details.endpointHost = new URL(target.url).host;
+  }
+  if (body.data.events !== undefined) {
+    const events = normalizeWebhookEvents(body.data.events);
+    if (!events.length) return c.json({ error: "請至少選擇一個事件。" }, 400);
+    statements.push(c.env.DB.prepare("UPDATE vote_webhooks SET events = ? WHERE id = ?").bind(JSON.stringify(events), existing.id));
+    details.events = events;
+  }
+  if (body.data.isEnabled !== undefined) {
+    statements.push(c.env.DB.prepare("UPDATE vote_webhooks SET is_enabled = ? WHERE id = ?").bind(body.data.isEnabled ? 1 : 0, existing.id));
+    details.isEnabled = body.data.isEnabled;
+  }
+  if (!statements.length) return c.json({ error: "沒有要更新的欄位。" }, 400);
+  statements.push(c.env.DB.prepare("UPDATE vote_webhooks SET updated_at = datetime('now') WHERE id = ?").bind(existing.id));
+  await c.env.DB.batch(statements);
+  await auditWebhook(c.env.DB, actor, "webhook.update", existing.id, details);
+  const updated = await c.env.DB.prepare("SELECT * FROM vote_webhooks WHERE id = ?").bind(existing.id).first<WebhookRow>();
+  return c.json({ success: true, webhook: updated ? webhookSummary(updated) : null });
+});
+app.post("/api/admin/webhooks/:id/secret", async c => {
+  const actor = await requireTier2(c);
+  if (!actor) return c.json({ error: "需要二階管理員權限。" }, 403);
+  const existing = await webhookById(c.env.DB, c.req.param("id"));
+  if (!existing) return c.json({ error: "Webhook not found" }, 404);
+  const secret = webhookSecret();
+  await c.env.DB.prepare("UPDATE vote_webhooks SET secret = ?, updated_at = datetime('now') WHERE id = ?").bind(secret, existing.id).run();
+  await auditWebhook(c.env.DB, actor, "webhook.secret_rotated", existing.id, { name: existing.name });
+  return c.json({ success: true, secret }, 200, { "Cache-Control": "no-store" });
+});
+app.post("/api/admin/webhooks/:id/test", async c => {
+  const actor = await requireTier2(c);
+  if (!actor) return c.json({ error: "需要二階管理員權限。" }, 403);
+  const existing = await webhookById(c.env.DB, c.req.param("id"));
+  if (!existing) return c.json({ error: "Webhook not found" }, 404);
+  const payload = {
+    event: "webhook.test",
+    occurredAt: new Date().toISOString(),
+    source: "fumo-api",
+    content: "[FUMO] 測試通知：Webhook 連線正常。",
+    text: "[FUMO] 測試通知：Webhook 連線正常。",
+    vote: null,
+    details: { requestedBy: actor.voter_name },
+  };
+  const result = await deliverWebhook(c.env, existing, "webhook.test", payload);
+  await auditWebhook(c.env.DB, actor, "webhook.test", existing.id, { name: existing.name, statusCode: result.statusCode, ok: result.ok });
+  return c.json({ success: result.ok, statusCode: result.statusCode, error: result.error }, result.ok ? 200 : 502);
+});
+app.get("/api/admin/webhooks/:id/deliveries", async c => {
+  const actor = await requireTier2(c);
+  if (!actor) return c.json({ error: "需要二階管理員權限。" }, 403);
+  const existing = await webhookById(c.env.DB, c.req.param("id"));
+  if (!existing) return c.json({ error: "Webhook not found" }, 404);
+  const rawLimit = Number(c.req.query("limit") ?? 20);
+  const limit = Number.isInteger(rawLimit) ? Math.min(50, Math.max(1, rawLimit)) : 20;
+  const rows = await c.env.DB.prepare("SELECT id, event, vote_id, status_code, ok, error, created_at FROM vote_webhook_deliveries WHERE webhook_id = ? ORDER BY created_at DESC, id DESC LIMIT ?")
+    .bind(existing.id, limit).all();
+  return c.json({ items: rows.results ?? [] }, 200, { "Cache-Control": "no-store" });
+});
+app.delete("/api/admin/webhooks/:id", async c => {
+  const actor = await requireTier2(c);
+  if (!actor) return c.json({ error: "需要二階管理員權限。" }, 403);
+  const existing = await webhookById(c.env.DB, c.req.param("id"));
+  if (!existing) return c.json({ error: "Webhook not found" }, 404);
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM vote_webhook_deliveries WHERE webhook_id = ?").bind(existing.id),
+    c.env.DB.prepare("DELETE FROM vote_webhooks WHERE id = ?").bind(existing.id),
+  ]);
+  await auditWebhook(c.env.DB, actor, "webhook.delete", existing.id, { name: existing.name, endpointHost: new URL(existing.url).host });
+  return c.json({ success: true });
+});
 app.notFound(c => c.json({ error: "Not found" }, 404));
 app.onError((err, c) => { console.error(err); return c.json({ error: "Internal server error" }, 500); });
-export default app;
+export default {
+  fetch: app.fetch,
+  scheduled: (_event: ScheduledController, env: Env, ctx: ExecutionContext) => {
+    ctx.waitUntil(runVoteNotificationSweep(env).catch(error => console.error("Vote notification sweep failed", error)));
+  },
+} satisfies ExportedHandler<Env>;
