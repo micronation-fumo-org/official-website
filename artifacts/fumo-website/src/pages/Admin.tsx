@@ -17,6 +17,7 @@ interface Account {
   voterId: string;
   voterName: string;
   countryName: string;
+  googleEmail: string | null;
   adminLevel: number;
   createdAt: string;
 }
@@ -352,8 +353,9 @@ export default function Admin() {
                         </div>
                         <span className={`inline-flex w-fit max-w-full whitespace-normal break-words text-left text-xs px-2 py-1 rounded-full border font-medium leading-tight ${info.color}`}>{info.label}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                         <div><p className="text-xs text-muted-foreground">{isEnglish ? "Country" : "國家"}</p><p className="break-words">{a.countryName}</p></div>
+                        <div><p className="text-xs text-muted-foreground">Google Email</p><p className="break-all">{a.googleEmail || (isEnglish ? "Not connected" : "尚未綁定")}</p></div>
                         <div><p className="text-xs text-muted-foreground">{isEnglish ? "Created" : "建立時間"}</p><p>{new Date(a.createdAt).toLocaleDateString("zh-TW")}</p></div>
                       </div>
                       {isSuperAdmin && !isSelf && a.adminLevel < 9 && (
@@ -379,6 +381,7 @@ export default function Admin() {
                       <TableHead>Discord ID</TableHead>
                       <TableHead>{isEnglish ? "Representative" : "代表名稱"}</TableHead>
                       <TableHead>{isEnglish ? "Country" : "國家"}</TableHead>
+                      <TableHead>Google Email</TableHead>
                       <TableHead>{isEnglish ? "Role" : "級別"}</TableHead>
                       <TableHead>{isEnglish ? "Created" : "建立時間"}</TableHead>
                       {isSuperAdmin && <TableHead>{isEnglish ? "Set role" : "設定級別"}</TableHead>}
@@ -398,6 +401,7 @@ export default function Admin() {
                             )}
                           </TableCell>
                           <TableCell className="text-sm">{a.countryName}</TableCell>
+                          <TableCell className="text-sm break-all">{a.googleEmail || <span className="text-muted-foreground">{isEnglish ? "Not connected" : "尚未綁定"}</span>}</TableCell>
                           <TableCell className="whitespace-nowrap">
                             <span className={`inline-block whitespace-nowrap text-xs px-2 py-0.5 rounded-full border font-medium ${info.color}`}>
                               {info.label}
