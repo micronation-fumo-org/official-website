@@ -494,6 +494,36 @@ app.get("/api/votes/:id", async c => {
   const ballots = await c.env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ? ORDER BY created_at ASC").bind(v.id).all<BallotRow>();
   return c.json({ ...asVote(v, ballots.results.length), ballots: v.is_closed || new Date(v.deadline) < new Date() ? ballots.results.map(b => ({ ...b, selectedOptions: jsonArray<string>(b.selected_options) })) : [] });
 });
+app.get("/api/votes/:id/attendance", async c => {
+  const vote = await voteByPublicId(c.env.DB, c.req.param("id"));
+  const actor = await currentAccount(c);
+  if (!vote || (!vote.is_published && (!actor || actor.admin_level < ADMIN_TIER1))) return c.json({ error: "Vote not found" }, 404);
+  const rows = await c.env.DB.prepare("SELECT country_name, country_status, attended_at FROM vote_attendance WHERE vote_id = ? ORDER BY country_status ASC, country_name COLLATE NOCASE ASC")
+    .bind(vote.id).all<{ country_name: string; country_status: "member" | "observer"; attended_at: string }>();
+  const attendance = (rows.results ?? []).map(row => ({ countryName: row.country_name, status: row.country_status, attendedAt: row.attended_at }));
+  const actorStatus = actor ? (await members()).allStates.find(state => state.fullName === actor.country_name)?.status ?? null : null;
+  const myAttendance = actor ? attendance.find(item => item.countryName === actor.country_name) ?? null : null;
+  return c.json({
+    total: attendance.length,
+    memberStates: attendance.filter(item => item.status === "member"),
+    observerStates: attendance.filter(item => item.status === "observer"),
+    canAttend: Boolean(actor && actorStatus),
+    countryStatus: actorStatus,
+    myAttendance,
+  }, 200, { "Cache-Control": "private, no-store" });
+});
+app.post("/api/votes/:id/attendance", async c => {
+  const vote = await voteByPublicId(c.env.DB, c.req.param("id"));
+  if (!vote || !vote.is_published) return c.json({ error: "Vote not found" }, 404);
+  const actor = await currentAccount(c);
+  if (!actor) return c.json({ error: "請先登入才能登記出席。" }, 401);
+  const state = (await members()).allStates.find(item => item.fullName === actor.country_name);
+  if (!state) return c.json({ error: "只有成員國或觀察國帳戶可以登記出席。" }, 403);
+  const inserted = await c.env.DB.prepare("INSERT OR IGNORE INTO vote_attendance (vote_id, country_name, country_status, voter_id) VALUES (?, ?, ?, ?)")
+    .bind(vote.id, state.fullName, state.status, actor.voter_id).run();
+  if (!inserted.meta.changes) return c.json({ error: "此國家已登記出席，每個國家在此場次只能登記一次。" }, 409);
+  return c.json({ success: true, countryName: state.fullName, status: state.status });
+});
 app.post("/api/votes/:id/ballot", async c => {
   const body = z.object({ selectedOptions: z.array(z.string().min(1)) }).safeParse(await parseJson(c));
   if (!body.success) return c.json({ error: "Invalid input", details: body.error.issues }, 400);
