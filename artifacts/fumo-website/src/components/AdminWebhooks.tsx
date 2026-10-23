@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
@@ -216,6 +216,7 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
   const [busy, setBusy] = useState("");
   const [historyId, setHistoryId] = useState<number | null>(null);
   const [showVerify, setShowVerify] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const items = data?.items ?? [];
   const enabledCount = items.filter(item => item.isEnabled).length;
@@ -308,7 +309,7 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
     setMentionEvents(item.mentionEvents);
     setNotice(null);
     setShownSecret("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const copySecret = async () => {
@@ -383,7 +384,7 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
           </div>
         )}
 
-        <form onSubmit={save} className="space-y-4 rounded-lg border border-border/70 p-4">
+        <form ref={formRef} onSubmit={save} className={`scroll-mt-24 space-y-4 rounded-lg border p-4 transition-colors ${editingId ? "border-primary bg-primary/[0.02] ring-1 ring-primary/20" : "border-border/70"}`}>
           <div className="flex items-center justify-between gap-2">
             <h3 className="flex items-center gap-2 font-semibold">
               <Activity className="h-4 w-4 text-primary" />
