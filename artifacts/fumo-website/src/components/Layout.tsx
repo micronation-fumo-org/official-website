@@ -41,7 +41,7 @@ export function Layout({ children }: LayoutProps) {
         { href: "/charter", label: "憲章" },
         { href: "/partners", label: "合作組織" },
       ];
-  const morePaths = new Set(["/vote-records", "/attendance", "/regulations", "/charter", "/partners"]);
+  const morePaths = new Set(["/staff", "/partners"]);
   const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href));
   const moreNavLinks = allNavLinks.filter((link) => morePaths.has(link.href));
 
