@@ -97,6 +97,18 @@ const routeMetadata: Record<string, { zh: Omit<SeoMetadata, "path">; en: Omit<Se
       keywords: "FUMO voting records,historical votes,standard proposals,special proposals,resolutions",
     },
   },
+  "/attendance": {
+    zh: {
+      title: "出席簽到｜FUMO 聯合微國家組織",
+      description: "管理並查看聯合微國家組織 FUMO 的獨立出席場次，成員國與觀察國可分組簽到。",
+      robots: "noindex, nofollow",
+    },
+    en: {
+      title: "Attendance｜FUMO Federation of United Micronations Organisation",
+      description: "Manage and view FUMO attendance sessions, with separate check-in lists for member and observer states.",
+      robots: "noindex, nofollow",
+    },
+  },
   "/privacy": {
     zh: {
       title: "隱私權政策｜聯合微國家組織 FUMO 官方網站資料使用說明",

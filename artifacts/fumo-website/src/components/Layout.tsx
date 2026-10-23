@@ -23,6 +23,7 @@ export function Layout({ children }: LayoutProps) {
         { href: "/staff", label: "Positions" },
         { href: "/votes", label: "Voting" },
         { href: "/vote-records", label: "Vote records" },
+        { href: "/attendance", label: "Attendance" },
         { href: "/regulations", label: "Regulations" },
         { href: "/charter", label: "Charter" },
       ]
@@ -32,6 +33,7 @@ export function Layout({ children }: LayoutProps) {
         { href: "/staff", label: "職位報告" },
         { href: "/votes", label: "投票" },
         { href: "/vote-records", label: "投票紀錄" },
+        { href: "/attendance", label: "出席簽到" },
         { href: "/regulations", label: "法規" },
         { href: "/charter", label: "憲章" },
       ];

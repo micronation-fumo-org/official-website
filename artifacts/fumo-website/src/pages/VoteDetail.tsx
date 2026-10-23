@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Clock, Vote, CheckCircle2, Users, AlertTriangle, XCircle, LogIn, Trash2, Globe2, ClipboardCheck } from "lucide-react";
+import { Clock, Vote, CheckCircle2, Users, AlertTriangle, XCircle, LogIn, Trash2, Globe2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -59,21 +59,6 @@ interface ResultsData {
   countryVotes?: CountryVote[];
 }
 
-interface AttendanceRecord {
-  countryName: string;
-  status: "member" | "observer";
-  attendedAt: string;
-}
-
-interface AttendanceData {
-  total: number;
-  memberStates: AttendanceRecord[];
-  observerStates: AttendanceRecord[];
-  canAttend: boolean;
-  countryStatus: "member" | "observer" | null;
-  myAttendance: AttendanceRecord | null;
-}
-
 async function fetchVoteDetail(id: string): Promise<VoteDetail> {
   const res = await apiFetch(`/api/votes/${id}`);
   if (!res.ok) throw new Error("載入投票資料失敗。");
@@ -84,18 +69,6 @@ async function fetchResults(id: string): Promise<ResultsData> {
   const res = await apiFetch(`/api/votes/${id}/results`);
   if (!res.ok) throw new Error("載入投票結果失敗。");
   return res.json();
-}
-
-async function fetchAttendance(id: string): Promise<AttendanceData> {
-  const res = await apiFetch(`/api/votes/${id}/attendance`);
-  if (!res.ok) throw new Error("載入出席紀錄失敗。");
-  return res.json();
-}
-
-async function markAttendance(id: string): Promise<void> {
-  const res = await apiFetch(`/api/votes/${id}/attendance`, { method: "POST" });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "登記出席失敗。");
 }
 
 async function castBallot(voteId: string, selectedOptions: string[]): Promise<any> {
@@ -160,7 +133,6 @@ export default function VoteDetail() {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [voteSuccess, setVoteSuccess] = useState<string | null>(null);
   const [voteError, setVoteError] = useState<string | null>(null);
-  const [attendanceError, setAttendanceError] = useState<string | null>(null);
 
   const { data: vote, isLoading } = useQuery({
     queryKey: ["vote", voteId],
@@ -201,22 +173,6 @@ export default function VoteDetail() {
     staleTime: 0,
     enabled: !!vote && vote.isPublished,
     refetchInterval: vote && vote.isPublished && !vote.isUpcoming && !vote.isClosed && !vote.isExpired ? 5 * 1000 : false,
-  });
-
-  const { data: attendance, isLoading: attendanceLoading } = useQuery({
-    queryKey: ["vote-attendance", voteId],
-    queryFn: () => fetchAttendance(voteId),
-    enabled: !!vote && vote.isPublished,
-    refetchInterval: 10 * 1000,
-  });
-
-  const attendanceMutation = useMutation({
-    mutationFn: () => markAttendance(voteId),
-    onSuccess: () => {
-      setAttendanceError(null);
-      queryClient.invalidateQueries({ queryKey: ["vote-attendance", voteId] });
-    },
-    onError: (err: Error) => setAttendanceError(toChineseError(err)),
   });
 
   const castMutation = useMutation({
@@ -419,84 +375,6 @@ export default function VoteDetail() {
               <p className="font-medium text-primary">{isEnglish ? "This vote is scheduled and is not open yet." : "此投票已預約，尚未開放投票。"}</p>
               {vote.startsAt && <p className="text-sm text-muted-foreground">{isEnglish ? "Voting opens" : "開放時間"}：{new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</p>}
               <p className="text-sm text-muted-foreground">{isEnglish ? "Voting will open automatically at the scheduled time." : "到達預約時間後，系統會自動開放投票，無需管理員再次操作。"}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {vote.isPublished && (
-          <Card className="mb-8 border-border/60 bg-white">
-            <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2 text-lg font-bold text-primary">
-                  <ClipboardCheck className="h-5 w-5" />
-                  {isEnglish ? "Meeting attendance" : "會議出席登記"}
-                </CardTitle>
-                <Badge variant="outline">{isEnglish ? "Separate from voting" : "與投票分開計算"}</Badge>
-              </div>
-              <p className="pt-2 text-sm text-muted-foreground">
-                {isEnglish ? "Member and observer states may each check in once. Attendance does not cast a ballot or affect voting results." : "成員國與觀察國均可各登記一次出席；出席不會送出選票，也不影響投票結果。"}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4 p-4 sm:p-6">
-              {user ? (
-                attendance?.canAttend ? (
-                  <div className="flex flex-col gap-3 rounded-md border border-primary/15 bg-primary/5 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-                    <div className="min-w-0">
-                      <p className="break-words text-sm font-semibold text-primary">{user.countryName}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {attendance.countryStatus === "member" ? (isEnglish ? "Member state" : "成員國") : (isEnglish ? "Observer state" : "觀察國")}
-                      </p>
-                    </div>
-                    {attendance.myAttendance ? (
-                      <Badge className="w-fit gap-1 bg-green-100 text-green-800 hover:bg-green-100"><CheckCircle2 className="h-3.5 w-3.5" />{isEnglish ? "Attendance recorded" : "已登記出席"}</Badge>
-                    ) : (
-                      <Button className="min-h-11 w-full sm:w-auto" onClick={() => attendanceMutation.mutate()} disabled={attendanceMutation.isPending}>
-                        {attendanceMutation.isPending ? (isEnglish ? "Recording…" : "登記中…") : (isEnglish ? "Confirm attendance" : "確認出席")}
-                      </Button>
-                    )}
-                  </div>
-                ) : attendance ? (
-                  <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">{isEnglish ? "This account is not associated with a member or observer state." : "此帳戶未關聯至成員國或觀察國，無法登記出席。"}</p>
-                ) : null
-              ) : (
-                <div className="flex min-w-0 items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 sm:p-4">
-                  <LogIn className="h-5 w-5 shrink-0 text-amber-600" />
-                  <p className="min-w-0 text-sm text-amber-800">{isEnglish ? "Sign in with a member or observer state account to check in." : "請先登入成員國或觀察國帳戶以登記出席。"} <Link href="/login" className="font-medium underline">{isEnglish ? "Sign in" : "登入"}</Link></p>
-                </div>
-              )}
-              {attendanceError && <p className="text-sm text-red-600" role="alert">{attendanceError}</p>}
-              {attendanceLoading ? (
-                <p className="text-sm text-muted-foreground">{isEnglish ? "Loading attendance…" : "載入出席名單中…"}</p>
-              ) : attendance ? (
-                <>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {([
-                      { key: "member" as const, title: isEnglish ? "Member states" : "成員國", records: attendance.memberStates, color: "border-blue-200 bg-blue-50/70" },
-                      { key: "observer" as const, title: isEnglish ? "Observer states" : "觀察國", records: attendance.observerStates, color: "border-violet-200 bg-violet-50/70" },
-                    ]).map(group => (
-                      <section key={group.key} className={`rounded-md border p-3 ${group.color}`}>
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                          <h3 className="text-sm font-semibold text-primary">{group.title}</h3>
-                          <Badge variant="secondary">{group.records.length}</Badge>
-                        </div>
-                        {group.records.length ? (
-                          <ul className="space-y-2">
-                            {group.records.map(record => (
-                              <li key={record.countryName} className="flex min-w-0 items-center justify-between gap-2 rounded bg-white/80 px-2.5 py-2 text-sm">
-                                <span className="min-w-0 break-words font-medium">{record.countryName}</span>
-                                <time className="shrink-0 text-xs text-muted-foreground" dateTime={record.attendedAt}>{new Date(record.attendedAt.endsWith("Z") ? record.attendedAt : `${record.attendedAt.replace(" ", "T")}Z`).toLocaleTimeString(isEnglish ? "en-US" : "zh-TW", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })}</time>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">{isEnglish ? "No states checked in yet." : "尚無國家登記出席。"}</p>
-                        )}
-                      </section>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{isEnglish ? `${attendance.total} states present · one attendance entry per state` : `目前 ${attendance.total} 國出席・每國限登記一次`}</p>
-                </>
-              ) : null}
             </CardContent>
           </Card>
         )}

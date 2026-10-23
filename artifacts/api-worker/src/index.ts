@@ -487,42 +487,90 @@ app.post("/api/admin/votes/:voteId/publish", async c => {
   }
   return c.json({ success: true, vote: published ? asVote(published) : asVote({ ...vote, is_published: 1 }) });
 });
+app.get("/api/attendance/sessions", async c => {
+  const actor = await currentAccount(c);
+  const countryName = actor?.country_name ?? "";
+  const result = await c.env.DB.prepare(`SELECT s.id, s.title, s.event_date, s.is_open, s.created_at,
+      COUNT(r.id) AS total,
+      COALESCE(SUM(CASE WHEN r.country_status = 'member' THEN 1 ELSE 0 END), 0) AS member_count,
+      COALESCE(SUM(CASE WHEN r.country_status = 'observer' THEN 1 ELSE 0 END), 0) AS observer_count,
+      COALESCE(MAX(CASE WHEN r.country_name = ? THEN 1 ELSE 0 END), 0) AS has_attended
+    FROM attendance_sessions s LEFT JOIN attendance_records r ON r.session_id = s.id
+    GROUP BY s.id ORDER BY s.is_open DESC, COALESCE(s.event_date, s.created_at) DESC, s.id DESC LIMIT 100`)
+    .bind(countryName).all<{ id: number; title: string; event_date: string | null; is_open: number; created_at: string; total: number; member_count: number; observer_count: number; has_attended: number }>();
+  return c.json({ sessions: (result.results ?? []).map(row => ({
+    id: row.id, title: row.title, eventDate: row.event_date, isOpen: Boolean(row.is_open), createdAt: row.created_at,
+    total: Number(row.total), memberCount: Number(row.member_count), observerCount: Number(row.observer_count), hasAttended: Boolean(row.has_attended),
+  })) }, 200, { "Cache-Control": "private, no-store" });
+});
+app.post("/api/attendance/sessions", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "需要一階管理員權限。" }, 403);
+  const body = z.object({ title: z.string().trim().min(1).max(120), eventDate: z.string().datetime({ offset: true }).nullable().optional() }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "場次名稱或日期格式不正確。" }, 400);
+  const inserted = await c.env.DB.prepare("INSERT INTO attendance_sessions (title, event_date, created_by) VALUES (?, ?, ?)")
+    .bind(body.data.title, body.data.eventDate ?? null, actor.voter_id).run();
+  const id = Number(inserted.meta?.last_row_id ?? 0);
+  if (!id) return c.json({ error: "建立出席場次失敗。" }, 500);
+  await auditStatement(c.env.DB, actor, "attendance_session.create", "attendance_session", id, { title: body.data.title });
+  return c.json({ success: true, id }, 201);
+});
+app.get("/api/attendance/sessions/:id", async c => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid session ID" }, 400);
+  const session = await c.env.DB.prepare("SELECT id, title, event_date, is_open, created_at FROM attendance_sessions WHERE id = ?").bind(id)
+    .first<{ id: number; title: string; event_date: string | null; is_open: number; created_at: string }>();
+  if (!session) return c.json({ error: "Attendance session not found" }, 404);
+  const actor = await currentAccount(c);
+  const rows = await c.env.DB.prepare("SELECT country_name, country_status, attended_at FROM attendance_records WHERE session_id = ? ORDER BY country_status ASC, country_name COLLATE NOCASE ASC")
+    .bind(id).all<{ country_name: string; country_status: "member" | "observer"; attended_at: string }>();
+  const records = (rows.results ?? []).map(row => ({ countryName: row.country_name, status: row.country_status, attendedAt: row.attended_at }));
+  const countryStatus = actor ? (await members()).allStates.find(state => state.fullName === actor.country_name)?.status ?? null : null;
+  const myAttendance = actor ? records.find(record => record.countryName === actor.country_name) ?? null : null;
+  return c.json({
+    id: session.id, title: session.title, eventDate: session.event_date, isOpen: Boolean(session.is_open), createdAt: session.created_at,
+    total: records.length, memberCount: records.filter(record => record.status === "member").length,
+    observerCount: records.filter(record => record.status === "observer").length,
+    memberStates: records.filter(record => record.status === "member"), observerStates: records.filter(record => record.status === "observer"),
+    canAttend: Boolean(actor && countryStatus), countryStatus, myAttendance,
+  }, 200, { "Cache-Control": "private, no-store" });
+});
+app.patch("/api/attendance/sessions/:id", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "需要一階管理員權限。" }, 403);
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid session ID" }, 400);
+  const body = z.object({ isOpen: z.boolean() }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "場次狀態不正確。" }, 400);
+  const existing = await c.env.DB.prepare("SELECT id, title FROM attendance_sessions WHERE id = ?").bind(id).first<{ id: number; title: string }>();
+  if (!existing) return c.json({ error: "Attendance session not found" }, 404);
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE attendance_sessions SET is_open = ?, updated_at = datetime('now') WHERE id = ?").bind(body.data.isOpen ? 1 : 0, id),
+    auditStatement(c.env.DB, actor, body.data.isOpen ? "attendance_session.reopen" : "attendance_session.close", "attendance_session", id, { title: existing.title }),
+  ]);
+  return c.json({ success: true, isOpen: body.data.isOpen });
+});
+app.post("/api/attendance/sessions/:id/check-in", async c => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid session ID" }, 400);
+  const session = await c.env.DB.prepare("SELECT id, is_open FROM attendance_sessions WHERE id = ?").bind(id).first<{ id: number; is_open: number }>();
+  if (!session) return c.json({ error: "Attendance session not found" }, 404);
+  if (!session.is_open) return c.json({ error: "此出席場次已關閉簽到。" }, 403);
+  const actor = await currentAccount(c);
+  if (!actor) return c.json({ error: "請先登入才能簽到。" }, 401);
+  const state = (await members()).allStates.find(item => item.fullName === actor.country_name);
+  if (!state) return c.json({ error: "只有成員國或觀察國帳戶可以簽到。" }, 403);
+  const inserted = await c.env.DB.prepare("INSERT OR IGNORE INTO attendance_records (session_id, country_name, country_status, voter_id) VALUES (?, ?, ?, ?)")
+    .bind(id, state.fullName, state.status, actor.voter_id).run();
+  if (!inserted.meta.changes) return c.json({ error: "此國家已在此場次簽到，每場每國限一次。" }, 409);
+  return c.json({ success: true, countryName: state.fullName, status: state.status });
+});
 app.get("/api/votes/:id", async c => {
   const v = await voteByPublicId(c.env.DB, c.req.param("id"));
   const actor = await currentAccount(c);
   if (!v || (!v.is_published && (!actor || actor.admin_level < ADMIN_TIER1))) return c.json({ error: "Vote not found" }, 404);
   const ballots = await c.env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ? ORDER BY created_at ASC").bind(v.id).all<BallotRow>();
   return c.json({ ...asVote(v, ballots.results.length), ballots: v.is_closed || new Date(v.deadline) < new Date() ? ballots.results.map(b => ({ ...b, selectedOptions: jsonArray<string>(b.selected_options) })) : [] });
-});
-app.get("/api/votes/:id/attendance", async c => {
-  const vote = await voteByPublicId(c.env.DB, c.req.param("id"));
-  const actor = await currentAccount(c);
-  if (!vote || (!vote.is_published && (!actor || actor.admin_level < ADMIN_TIER1))) return c.json({ error: "Vote not found" }, 404);
-  const rows = await c.env.DB.prepare("SELECT country_name, country_status, attended_at FROM vote_attendance WHERE vote_id = ? ORDER BY country_status ASC, country_name COLLATE NOCASE ASC")
-    .bind(vote.id).all<{ country_name: string; country_status: "member" | "observer"; attended_at: string }>();
-  const attendance = (rows.results ?? []).map(row => ({ countryName: row.country_name, status: row.country_status, attendedAt: row.attended_at }));
-  const actorStatus = actor ? (await members()).allStates.find(state => state.fullName === actor.country_name)?.status ?? null : null;
-  const myAttendance = actor ? attendance.find(item => item.countryName === actor.country_name) ?? null : null;
-  return c.json({
-    total: attendance.length,
-    memberStates: attendance.filter(item => item.status === "member"),
-    observerStates: attendance.filter(item => item.status === "observer"),
-    canAttend: Boolean(actor && actorStatus),
-    countryStatus: actorStatus,
-    myAttendance,
-  }, 200, { "Cache-Control": "private, no-store" });
-});
-app.post("/api/votes/:id/attendance", async c => {
-  const vote = await voteByPublicId(c.env.DB, c.req.param("id"));
-  if (!vote || !vote.is_published) return c.json({ error: "Vote not found" }, 404);
-  const actor = await currentAccount(c);
-  if (!actor) return c.json({ error: "請先登入才能登記出席。" }, 401);
-  const state = (await members()).allStates.find(item => item.fullName === actor.country_name);
-  if (!state) return c.json({ error: "只有成員國或觀察國帳戶可以登記出席。" }, 403);
-  const inserted = await c.env.DB.prepare("INSERT OR IGNORE INTO vote_attendance (vote_id, country_name, country_status, voter_id) VALUES (?, ?, ?, ?)")
-    .bind(vote.id, state.fullName, state.status, actor.voter_id).run();
-  if (!inserted.meta.changes) return c.json({ error: "此國家已登記出席，每個國家在此場次只能登記一次。" }, 409);
-  return c.json({ success: true, countryName: state.fullName, status: state.status });
 });
 app.post("/api/votes/:id/ballot", async c => {
   const body = z.object({ selectedOptions: z.array(z.string().min(1)) }).safeParse(await parseJson(c));
