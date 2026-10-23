@@ -279,13 +279,24 @@ export function Layout({ children }: LayoutProps) {
       {googleStatus && <div className="container mx-auto px-4 pt-3"><div className={`flex items-start justify-between gap-3 rounded-md border p-3 text-sm ${googleStatus === "connected" || googleStatus === "login" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`} role={googleStatus === "connected" || googleStatus === "login" ? "status" : "alert"}><span>{googleStatusText(googleStatus)}</span><button type="button" onClick={() => setGoogleStatus(null)} aria-label={isEnglish ? "Dismiss" : "關閉提示"} className="shrink-0 font-bold">×</button></div></div>}
       <main className="flex-1 w-full">{children}</main>
 
-      <footer className="bg-primary text-primary-foreground border-t border-primary/20 py-12 mt-auto">
-        <div className="container mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div><div className="flex items-center gap-3 mb-4"><img src="/fumo-flag.png" alt="FUMO Flag" className="h-8 w-8 object-contain" /><h3 className="font-bold text-lg">Federation of United Micronations Organisation</h3></div><p className="text-primary-foreground/70 text-sm max-w-xs">{isEnglish ? "United in determination, advancing together." : "眾志成城，攜手共進。"}</p></div>
-          <div><h4 className="font-bold mb-4 text-secondary">{isEnglish ? "Quick links" : "快速連結"}</h4><div className="flex flex-col gap-2">{allNavLinks.map((link) => <Link key={link.href} href={link.href} className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">{link.label}</Link>)}<Link href="/admin" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit flex items-center gap-1"><Shield className="w-3 h-3" />{isEnglish ? "Admin panel" : "管理面板"}</Link></div></div>
-          <div><h4 className="font-bold mb-4 text-secondary">{isEnglish ? "Official resources" : "官方資源"}</h4><div className="flex flex-col gap-2"><a href="https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/HJeBOxjctGl" target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">{isEnglish ? "Regulations directory" : "法規目錄"}</a><a href={isEnglish ? charterUrlEn : charterUrlZh} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">{isEnglish ? "Charter" : "憲章"}</a><Link href="/privacy" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">{isEnglish ? "Privacy policy" : "隱私權政策"}</Link><Link href="/terms" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">{isEnglish ? "Terms of use" : "使用條款"}</Link></div></div>
+      <footer className="bg-primary text-primary-foreground border-t border-primary/20 py-10 mt-auto">
+        <div className="container mx-auto max-w-6xl px-4">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-[1.2fr_1fr_1fr] md:gap-10">
+            <div>
+              <div className="flex items-center gap-3 mb-3"><img src="/fumo-flag.png" alt="FUMO Flag" className="h-9 w-9 rounded-sm object-contain shadow-sm" /><div><h3 className="font-bold text-lg leading-tight">聯微 FUMO</h3><p className="text-xs text-primary-foreground/60">Federation of United Micronations Organisation</p></div></div>
+              <p className="text-primary-foreground/70 text-sm max-w-sm leading-6">{isEnglish ? "United in determination, advancing together." : "眾志成城，攜手共進。"}</p>
+            </div>
+            <div>
+              <h4 className="font-bold mb-3 text-secondary">{isEnglish ? "Site navigation" : "網站導覽"}</h4>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2">{allNavLinks.map((link) => <Link key={link.href} href={link.href} className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{link.label}</Link>)}<Link href="/admin" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors flex items-center gap-1"><Shield className="w-3 h-3" />{isEnglish ? "Admin panel" : "管理面板"}</Link></div>
+            </div>
+            <div>
+              <h4 className="font-bold mb-3 text-secondary">{isEnglish ? "Official resources" : "官方資源"}</h4>
+              <div className="grid grid-cols-1 gap-2"><a href="https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/HJeBOxjctGl" target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Regulations directory" : "法規目錄"}</a><a href={isEnglish ? charterUrlEn : charterUrlZh} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Charter" : "憲章"}</a><Link href="/privacy" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Privacy policy" : "隱私權政策"}</Link><Link href="/terms" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Terms of use" : "使用條款"}</Link></div>
+            </div>
+          </div>
+          <div className="mt-8 flex flex-col gap-2 border-t border-primary-foreground/10 pt-5 text-xs text-primary-foreground/60 sm:flex-row sm:items-center sm:justify-between"><p>© {new Date().getFullYear()} FUMO. {isEnglish ? "All rights reserved." : "所有權利保留。"}</p><p>{isEnglish ? "Website by FUMO and " : "網站由 FUMO 與 "}<a href="https://damcurryrice.com" target="_blank" rel="noopener noreferrer" className="text-primary-foreground/80 hover:text-secondary transition-colors">蛋包咖哩飯</a>{isEnglish ? "." : "共同製作。"}</p></div>
         </div>
-        <div className="container mx-auto px-4 mt-8 pt-8 border-t border-primary-foreground/10 text-center text-sm text-primary-foreground/60"><p>© {new Date().getFullYear()} FUMO. {isEnglish ? "All rights reserved." : "所有權利保留。"}</p><a href="damcurryrice.com" target="_blank" rel="noopener noreferrer" className="inline-block mt-2 hover:text-secondary transition-colors"></a>蛋包咖哩飯與貓娘秘書長</div>
       </footer>
     </div>
   );
