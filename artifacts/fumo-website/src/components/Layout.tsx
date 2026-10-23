@@ -165,7 +165,7 @@ export function Layout({ children }: LayoutProps) {
                 aria-haspopup="menu"
                 aria-expanded={isDesktopMoreOpen}
                 onClick={() => setIsDesktopMoreOpen(true)}
-                className={`gap-1 whitespace-nowrap px-2 ${moreNavLinks.some((link) => location === link.href) ? "text-secondary font-bold" : "text-foreground/80"}`}
+                className={`gap-1 whitespace-nowrap px-2 text-sm font-medium ${moreNavLinks.some((link) => location === link.href) ? "text-secondary font-bold" : "text-foreground/80"}`}
               >
                 {isEnglish ? "More" : "更多"}
                 {isDesktopMoreOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
@@ -241,7 +241,7 @@ export function Layout({ children }: LayoutProps) {
                 aria-expanded={isMobileMoreOpen}
                 onClick={() => setIsMobileMoreOpen((open) => !open)}
                 aria-label={isEnglish ? "Toggle more pages" : "展開或收合其他頁面"}
-                className="flex w-full items-center justify-between px-2"
+                className="flex w-full items-center justify-between px-2 text-sm font-medium"
               >
                 <span>{isEnglish ? "More" : "更多"}</span>
                 {isMobileMoreOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
