@@ -11,11 +11,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Shield, Users, AlertTriangle, CheckCircle2, KeyRound, LogIn, Crown, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import AdminWebhooks from "@/components/AdminWebhooks";
 
 interface Account {
   voterId: string;
   voterName: string;
   countryName: string;
+  googleEmail: string | null;
   adminLevel: number;
   createdAt: string;
 }
@@ -289,7 +291,7 @@ export default function Admin() {
               <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
                 <KeyRound className="w-5 h-5" />
                 {isEnglish ? "Reset password" : "重設密碼"}
-                <span className="text-xs font-normal text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full ml-1">
+                <span className="inline-block whitespace-nowrap text-xs font-normal text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full ml-1">
                   {isEnglish ? "Tier 2 Admin" : "二階管理員"}
                 </span>
               </CardTitle>
@@ -338,7 +340,7 @@ export default function Admin() {
               </div>
             )}
             {accounts && accounts.length > 0 && (
-              <div className="lg:hidden space-y-3">
+              <div className="xl:hidden space-y-3">
                 {accounts.map((a) => {
                   const info = adminLevelLabel(a.adminLevel, isEnglish);
                   const isSelf = a.voterId === user!.voterId;
@@ -351,8 +353,9 @@ export default function Admin() {
                         </div>
                         <span className={`inline-flex w-fit max-w-full whitespace-normal break-words text-left text-xs px-2 py-1 rounded-full border font-medium leading-tight ${info.color}`}>{info.label}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div><p className="text-xs text-muted-foreground">{isEnglish ? "Country" : "國家"}</p><p className="break-words">{a.countryName}</p></div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                        <div className="min-w-0"><p className="text-xs text-muted-foreground">{isEnglish ? "Country" : "國家"}</p><p className="break-words [overflow-wrap:anywhere]">{a.countryName}</p></div>
+                        <div className="min-w-0"><p className="text-xs text-muted-foreground">Google Email</p><p className="break-words [overflow-wrap:anywhere]">{a.googleEmail || (isEnglish ? "Not connected" : "尚未綁定")}</p></div>
                         <div><p className="text-xs text-muted-foreground">{isEnglish ? "Created" : "建立時間"}</p><p>{new Date(a.createdAt).toLocaleDateString("zh-TW")}</p></div>
                       </div>
                       {isSuperAdmin && !isSelf && a.adminLevel < 9 && (
@@ -371,13 +374,14 @@ export default function Admin() {
               <p className="text-muted-foreground text-sm py-4">{isEnglish ? "No accounts yet" : "尚無帳戶"}</p>
             )}
             {accounts && accounts.length > 0 && (
-              <div className="hidden lg:block overflow-x-auto">
-                <Table>
+              <div className="hidden xl:block overflow-x-auto">
+                <Table className="min-w-[1120px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Discord ID</TableHead>
                       <TableHead>{isEnglish ? "Representative" : "代表名稱"}</TableHead>
                       <TableHead>{isEnglish ? "Country" : "國家"}</TableHead>
+                      <TableHead>Google Email</TableHead>
                       <TableHead>{isEnglish ? "Role" : "級別"}</TableHead>
                       <TableHead>{isEnglish ? "Created" : "建立時間"}</TableHead>
                       {isSuperAdmin && <TableHead>{isEnglish ? "Set role" : "設定級別"}</TableHead>}
@@ -397,8 +401,9 @@ export default function Admin() {
                             )}
                           </TableCell>
                           <TableCell className="text-sm">{a.countryName}</TableCell>
-                          <TableCell>
-                            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${info.color}`}>
+                          <TableCell className="max-w-64 break-words text-sm [overflow-wrap:anywhere]">{a.googleEmail || <span className="text-muted-foreground">{isEnglish ? "Not connected" : "尚未綁定"}</span>}</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <span className={`inline-block whitespace-nowrap text-xs px-2 py-0.5 rounded-full border font-medium ${info.color}`}>
                               {info.label}
                             </span>
                           </TableCell>
@@ -456,6 +461,8 @@ export default function Admin() {
           </CardContent>
         </Card>
 
+        {isTier2Admin && <AdminWebhooks isEnglish={isEnglish} />}
+
         {isSuperAdmin && (
           <Card className="mt-8 border-border/60 bg-white">
             <CardHeader>
@@ -501,7 +508,7 @@ export default function Admin() {
                 <p className="py-8 text-center text-sm text-muted-foreground">{isEnglish ? "Loading activity log…" : "載入操作紀錄中…"}</p>
               ) : auditPage && auditPage.items.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[880px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>{isEnglish ? "Time (UTC)" : "時間（UTC）"}</TableHead>

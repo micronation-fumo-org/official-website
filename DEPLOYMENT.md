@@ -36,7 +36,11 @@ pnpm exec wrangler d1 migrations apply fumo-production --local
 pnpm exec wrangler d1 migrations apply fumo-production --remote
 ```
 
-包含管理操作紀錄功能的 Worker 版本，必須先成功套用 `0004_admin_audit_logs.sql` 再部署 Worker；此 migration 只新增稽核紀錄表與索引，不修改既有帳戶、投票或選票資料。部署前可先執行 `pnpm exec wrangler d1 migrations list fumo-production --remote` 檢查套用狀態。
+包含管理操作紀錄功能的 Worker 版本，必須先成功套用 `0004_admin_audit_logs.sql` 再部署 Worker。新增自訂投票 ID 與例行大會分區時，先套用 `0005_vote_ids_and_regular_meetings.sql`；新增草稿與預約開始功能時，先套用 `0006_vote_drafts_and_scheduling.sql`；新增 Google 帳戶連結時，先套用 `0007_google_oauth_account_links.sql`。這些 migration 只新增資料表與索引，不修改既有帳戶、投票或選票內容。部署前可先執行 `pnpm exec wrangler d1 migrations list fumo-production --remote` 檢查套用狀態。
+
+管理員建立投票時可選擇立即公開、儲存為僅管理員可見的草稿，或設定未來開始時間。預約投票會公開顯示為「即將開始」，到開始時間後由 API 自動允許投票；投票時間由 API 即時判斷，不依賴排程服務。草稿可由管理員在投票詳情頁手動發布，發布操作會寫入管理操作紀錄。
+
+Google OAuth 使用 Cloudflare Worker secrets `GOOGLE_CLIENT_ID` 與 `GOOGLE_CLIENT_SECRET`。Google Cloud OAuth 用戶端需登記以下 Authorized redirect URI（必須完全相符）：`https://www.micronationfumo.org/api/auth/google/callback`。Worker 僅請求 `openid email profile` 身分範圍；只將 Google subject 與已驗證電子郵件寫入 D1，不保存 OAuth 存取權杖或更新權杖，也不授權讀取 Google Drive 或 Sheets。第一次綁定必須先以既有 FUMO 帳戶登入；只有已綁定的 Google 帳戶可用於後續登入。
 
 ## 4. 部署 API
 

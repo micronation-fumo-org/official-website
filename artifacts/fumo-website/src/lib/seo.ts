@@ -85,6 +85,30 @@ const routeMetadata: Record<string, { zh: Omit<SeoMetadata, "path">; en: Omit<Se
       keywords: "FUMO votes,resolutions,micronation voting,public proposals,aggregate results",
     },
   },
+  "/vote-records": {
+    zh: {
+      title: "FUMO 歷史投票紀錄｜標準與特殊議案表決結果",
+      description: "瀏覽聯合微國家組織 FUMO 標準與特殊議案的歷史投票紀錄，可搜尋議案、代號、例會、國家與選項。資料唯讀取自官方公開試算表。",
+      keywords: "FUMO投票紀錄,歷史投票,標準議案,特殊議案,議案表決,國家投票",
+    },
+    en: {
+      title: "FUMO Historical Voting Records｜Standard and Special Proposals",
+      description: "Browse and search FUMO historical standard and special proposal votes by proposal, ID, meeting, country, or choice. Read-only data from official public spreadsheets.",
+      keywords: "FUMO voting records,historical votes,standard proposals,special proposals,resolutions",
+    },
+  },
+  "/attendance": {
+    zh: {
+      title: "出席簽到｜FUMO 聯合微國家組織",
+      description: "管理並查看聯合微國家組織 FUMO 的獨立出席場次，成員國與觀察國可分組簽到。",
+      robots: "noindex, nofollow",
+    },
+    en: {
+      title: "Attendance｜FUMO Federation of United Micronations Organisation",
+      description: "Manage and view FUMO attendance sessions, with separate check-in lists for member and observer states.",
+      robots: "noindex, nofollow",
+    },
+  },
   "/privacy": {
     zh: {
       title: "隱私權政策｜聯合微國家組織 FUMO 官方網站資料使用說明",

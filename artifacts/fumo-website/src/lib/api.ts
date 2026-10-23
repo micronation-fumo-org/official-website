@@ -13,6 +13,11 @@ export function apiUrl(path: string): string {
   return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+export function googleOAuthStartUrl(mode: "login" | "link"): string {
+  const origin = isProductionSite ? "https://www.micronationfumo.org" : API_BASE_URL;
+  return `${origin}/api/auth/google/start?mode=${mode}`;
+}
+
 export function apiFetch(path: string, init: RequestInit = {}) {
   return fetch(apiUrl(path), { ...init, credentials: "include" });
 }

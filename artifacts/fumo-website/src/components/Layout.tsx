@@ -1,16 +1,18 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Shield, LogIn, UserPlus, LogOut, User, Languages } from "lucide-react";
+import { Menu, X, Shield, LogIn, UserPlus, LogOut, User, Languages, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { charterUrlEn, charterUrlZh } from "@/data/regulations";
+import { googleOAuthStartUrl } from "@/lib/api";
 
 interface LayoutProps { children: ReactNode; }
 
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [googleStatus, setGoogleStatus] = useState<string | null>(null);
   const { user, logout, isAdmin } = useAuth();
   const { language, setLanguage, isEnglish } = useLanguage();
 
@@ -20,6 +22,8 @@ export function Layout({ children }: LayoutProps) {
         { href: "/members", label: "Member States" },
         { href: "/staff", label: "Positions" },
         { href: "/votes", label: "Voting" },
+        { href: "/vote-records", label: "Vote records" },
+        { href: "/attendance", label: "Attendance" },
         { href: "/regulations", label: "Regulations" },
         { href: "/charter", label: "Charter" },
       ]
@@ -28,6 +32,8 @@ export function Layout({ children }: LayoutProps) {
         { href: "/members", label: "會員國" },
         { href: "/staff", label: "職位報告" },
         { href: "/votes", label: "投票" },
+        { href: "/vote-records", label: "投票紀錄" },
+        { href: "/attendance", label: "出席簽到" },
         { href: "/regulations", label: "法規" },
         { href: "/charter", label: "憲章" },
       ];
@@ -41,6 +47,37 @@ export function Layout({ children }: LayoutProps) {
 
   const switchLanguage = () => setLanguage(language === "zh" ? "en" : "zh");
   const closeMenu = () => setIsMobileMenuOpen(false);
+  const connectGoogle = () => window.location.assign(googleOAuthStartUrl("link"));
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const status = url.searchParams.get("google");
+    if (!status) {
+      setGoogleStatus(null);
+      return;
+    }
+    setGoogleStatus(status);
+    url.searchParams.delete("google");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    const timeout = window.setTimeout(() => setGoogleStatus(null), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [location]);
+  const googleStatusText = (code: string) => {
+    const messages: Record<string, { zh: string; en: string }> = {
+      connected: { zh: "Google 帳戶已成功連接至目前的 FUMO 帳戶。", en: "Google has been linked to your FUMO account." },
+      login: { zh: "已使用已連接的 Google 帳戶登入。", en: "You signed in with your linked Google account." },
+      unlinked: { zh: "此 Google 帳戶尚未連接 FUMO 帳戶。請先使用 Discord ID 與密碼登入，再選擇「連接 Google」。", en: "This Google account is not linked. Sign in with your Discord ID and password, then choose Connect Google." },
+      sign_in_first: { zh: "請先登入 FUMO 帳戶，再連接 Google。", en: "Sign in to your FUMO account before connecting Google." },
+      google_already_linked: { zh: "此 Google 帳戶已連接至另一個 FUMO 帳戶。", en: "This Google account is already linked to another FUMO account." },
+      account_already_linked: { zh: "此 FUMO 帳戶已連接另一個 Google 帳戶；如需更換，請聯絡管理員。", en: "This FUMO account is already linked to a different Google account. Contact an administrator to change it." },
+      session_changed: { zh: "連接期間登入狀態已變更或帳戶不存在，請重新登入後再試。", en: "Your sign-in changed during linking or the account no longer exists. Sign in and try again." },
+      denied: { zh: "您取消了 Google 授權。", en: "You cancelled Google authorization." },
+      not_configured: { zh: "Google 登入尚未設定完成，請聯絡管理員。", en: "Google sign-in is not configured yet. Contact an administrator." },
+      invalid_state: { zh: "授權已逾時或驗證狀態無效，請重新開始。", en: "The authorization expired or its state was invalid. Please try again." },
+      failed: { zh: "Google 驗證失敗，請稍後再試。", en: "Google verification failed. Please try again later." },
+    };
+    const message = messages[code] ?? messages.failed;
+    return isEnglish ? message.en : message.zh;
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
@@ -67,8 +104,9 @@ export function Layout({ children }: LayoutProps) {
             </Button>
             {user ? (
               <div className="flex items-center gap-2">
-                {isAdmin && <Link href="/admin"><Button variant="ghost" size="sm" className="text-secondary text-xs gap-1"><Shield className="w-3 h-3" />{adminLevelLabel(user.adminLevel)}</Button></Link>}
-                <span className="text-sm text-foreground/70 font-medium max-w-[120px] truncate">{user.voterName}</span>
+                {isAdmin && <Link href="/admin" className="shrink-0"><Button variant="ghost" size="sm" className="text-secondary text-xs gap-1 whitespace-nowrap"><Shield className="w-3 h-3 shrink-0" />{adminLevelLabel(user.adminLevel)}</Button></Link>}
+                <span className="text-sm text-foreground/70 font-medium max-w-[120px] min-w-0 truncate">{user.voterName}</span>
+                <Button variant="outline" size="sm" onClick={connectGoogle} className="gap-1.5 whitespace-nowrap"><Link2 className="w-4 h-4" />{isEnglish ? "Connect Google" : "連接 Google"}</Button>
                 <Button variant="ghost" size="sm" onClick={logout} className="text-muted-foreground hover:text-foreground"><LogOut className="w-4 h-4 mr-1" />{isEnglish ? "Sign out" : "登出"}</Button>
               </div>
             ) : (
@@ -90,8 +128,13 @@ export function Layout({ children }: LayoutProps) {
             <Button variant="outline" size="sm" onClick={() => { switchLanguage(); closeMenu(); }} className="justify-start gap-2"><Languages className="w-4 h-4" />{isEnglish ? "繁體中文" : "English"}</Button>
             <div className="border-t border-border pt-3 flex flex-col gap-2">
               {user ? <>
-                <div className="flex items-center gap-2 text-sm font-medium text-foreground"><User className="w-4 h-4" />{user.voterName}{isAdmin && <span className="text-xs text-secondary ml-1">({adminLevelLabel(user.adminLevel)})</span>}</div>
+                <div className="flex items-start gap-2 text-sm font-medium text-foreground min-w-0">
+                  <User className="w-4 h-4 mt-0.5 shrink-0" />
+                  <span className="min-w-0 break-words">{user.voterName}</span>
+                  {isAdmin && <span className="text-xs text-secondary ml-auto shrink-0 whitespace-nowrap">({adminLevelLabel(user.adminLevel)})</span>}
+                </div>
                 {isAdmin && <Link href="/admin" onClick={closeMenu} className="text-sm text-secondary font-medium flex items-center gap-1"><Shield className="w-4 h-4" />{isEnglish ? "Admin panel" : "管理面板"}</Link>}
+                <Button variant="outline" size="sm" onClick={() => { connectGoogle(); closeMenu(); }} className="justify-start gap-2 w-full"><Link2 className="w-4 h-4" />{isEnglish ? "Connect Google" : "連接 Google"}</Button>
                 <Button variant="ghost" size="sm" onClick={() => { logout(); closeMenu(); }} className="justify-start text-muted-foreground w-fit"><LogOut className="w-4 h-4 mr-1" />{isEnglish ? "Sign out" : "登出"}</Button>
               </> : <>
                 <Link href="/login" onClick={closeMenu}><Button variant="ghost" size="sm" className="text-foreground/80 justify-start w-full"><LogIn className="w-4 h-4 mr-1" />{isEnglish ? "Sign in" : "登入"}</Button></Link>
@@ -102,6 +145,7 @@ export function Layout({ children }: LayoutProps) {
         )}
       </header>
 
+      {googleStatus && <div className="container mx-auto px-4 pt-3"><div className={`flex items-start justify-between gap-3 rounded-md border p-3 text-sm ${googleStatus === "connected" || googleStatus === "login" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`} role={googleStatus === "connected" || googleStatus === "login" ? "status" : "alert"}><span>{googleStatusText(googleStatus)}</span><button type="button" onClick={() => setGoogleStatus(null)} aria-label={isEnglish ? "Dismiss" : "關閉提示"} className="shrink-0 font-bold">×</button></div></div>}
       <main className="flex-1 w-full">{children}</main>
 
       <footer className="bg-primary text-primary-foreground border-t border-primary/20 py-12 mt-auto">

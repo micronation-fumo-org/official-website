@@ -1,4 +1,4 @@
-import { regulations, regulationCategories, regulationsDirectoryUrl, charterUrlZh, charterUrlEn } from "@/data/regulations";
+import { regulations, regulationCategories, regulationsDirectoryUrl, regulationsDirectoryUrlEn, charterUrlZh, charterUrlEn } from "@/data/regulations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ export default function Regulations() {
       case "complete": return <CheckCircle2 className="w-4 h-4 text-green-600" />;
       case "pending": return <Clock className="w-4 h-4 text-amber-600" />;
       case "draft": return <PenTool className="w-4 h-4 text-slate-500" />;
+      case "superseded": return <Book className="w-4 h-4 text-slate-500" />;
       default: return null;
     }
   };
@@ -22,6 +23,7 @@ export default function Regulations() {
       case "complete": return isEnglish ? "Active" : "已生效";
       case "pending": return isEnglish ? "Pending" : "審議中";
       case "draft": return isEnglish ? "Draft" : "草案";
+      case "superseded": return isEnglish ? "Superseded" : "歷史版本（已被取代）";
       default: return status;
     }
   };
@@ -46,7 +48,7 @@ export default function Regulations() {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button asChild size="lg" className="bg-primary">
-              <a href={regulationsDirectoryUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+              <a href={isEnglish ? regulationsDirectoryUrlEn : regulationsDirectoryUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                 <Book className="w-5 h-5" />
                 {isEnglish ? "Regulations directory" : "完整法規目錄"}
                 <ExternalLink className="w-4 h-4 ml-1" />
@@ -86,12 +88,14 @@ export default function Regulations() {
                             ${reg.status === 'complete' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
                             ${reg.status === 'pending' ? 'bg-amber-100 text-amber-800 hover:bg-amber-100' : ''}
                             ${reg.status === 'draft' ? 'bg-slate-100 text-slate-800 hover:bg-slate-100' : ''}
+                            ${reg.status === 'superseded' ? 'bg-slate-100 text-slate-700 hover:bg-slate-100' : ''}
                             flex items-center gap-1.5 py-1 shrink-0
                           `}
                         >
                           {getStatusIcon(reg.status)}
                           {getStatusLabel(reg.status)}
                         </Badge>
+                        {reg.code && <Badge variant="outline" className="ml-auto shrink-0 font-mono text-xs">{reg.code}</Badge>}
                       </div>
                       <CardTitle className="text-xl leading-tight text-primary">{isEnglish && reg.nameEn ? reg.nameEn : reg.name}</CardTitle>
                       {!isEnglish && reg.nameEn && <CardDescription className="text-sm font-medium mt-1">{reg.nameEn}</CardDescription>}

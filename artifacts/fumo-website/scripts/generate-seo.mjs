@@ -11,17 +11,9 @@ const escapeHtml = (value = "") => String(value).replace(/&/g, "&amp;").replace(
 const text = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
 
 async function fetchJson(route, fallback) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 4500);
+  const userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
   try {
-    const response = await fetch(`${API_BASE}${route}`, { signal: controller.signal, headers: { accept: "application/json" } });
-    if (response.ok) return await response.json();
-  } catch {
-  } finally {
-    clearTimeout(timer);
-  }
-  try {
-    const raw = execFileSync("curl", ["--fail", "--silent", "--show-error", "--connect-timeout", "3", "--max-time", "6", "-H", "accept: application/json", `${API_BASE}${route}`], { encoding: "utf8", timeout: 7000, maxBuffer: 8 * 1024 * 1024 });
+    const raw = execFileSync("curl", ["--fail", "--silent", "--show-error", "--connect-timeout", "3", "--max-time", "8", "-A", userAgent, "-H", `origin: ${SITE_ORIGIN}`, "-H", "accept: application/json", `${API_BASE}${route}`], { encoding: "utf8", timeout: 9000, maxBuffer: 8 * 1024 * 1024 });
     return JSON.parse(raw);
   } catch {
     return fallback;
@@ -110,13 +102,14 @@ function markdownToHtml(source) {
   return blocks.join("\n");
 }
 
-const navigation = `<nav aria-label="主要導覽"><a href="/">首頁</a> · <a href="/members">會員國與觀察國</a> · <a href="/staff">職位報告</a> · <a href="/regulations">法規</a> · <a href="/charter">憲章</a> · <a href="/votes">投票</a></nav>`;
+const navigation = `<nav aria-label="主要導覽"><a href="/">首頁</a> · <a href="/members">會員國與觀察國</a> · <a href="/staff">職位報告</a> · <a href="/regulations">法規</a> · <a href="/charter">憲章</a> · <a href="/votes">投票</a> · <a href="/vote-records">投票紀錄</a> · <a href="/attendance">出席簽到</a></nav>`;
 const asLink = (href, label) => `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
 
-const [membersData, staffData, votesData] = await Promise.all([
+const [membersData, staffData, votesData, voteRecordsData] = await Promise.all([
   fetchJson("/api/members", { memberStates: [], observerStates: [], allStates: [] }),
   fetchJson("/api/staff-report", { staff: [] }),
   fetchJson("/api/votes", []),
+  fetchJson("/api/vote-records", { standard: [], special: [], fetchedAt: "" }),
 ]);
 
 const websiteDescription = "聯合微國家組織（F.U.M.O.，Federation of United Micronations Organisation）致力於微國家之間的交流、合作、和平與組織治理。官網提供會員國名錄、組織憲章與法規、秘書處及議事中心公開職位報告，以及公開投票資訊。";
@@ -175,20 +168,35 @@ addPage({
 });
 
 const votes = Array.isArray(votesData) ? votesData : [];
-const voteDetails = await Promise.all(votes.map(async (vote) => ({ vote, results: await fetchJson(`/api/votes/${encodeURIComponent(vote.id)}/results`, null) })));
-const voteStatus = (vote) => vote.isClosed ? "已關閉" : vote.isExpired ? "已截止" : "進行中";
+const publicVoteId = (vote) => String(vote.publicId || vote.customId || vote.id);
+const voteDetails = await Promise.all(votes.map(async (vote) => ({ vote, results: await fetchJson(`/api/votes/${encodeURIComponent(publicVoteId(vote))}/results`, null) })));
+const voteStatus = (vote) => vote.isClosed ? "已關閉" : vote.isExpired ? "已截止" : vote.isUpcoming ? "即將開始" : "進行中";
+const voteListItem = (vote) => `<li>${asLink(`/votes/${encodeURIComponent(publicVoteId(vote))}`, text(vote.name) || `投票 ${publicVoteId(vote)}`)} — ${voteStatus(vote)}；${typeof vote.regularMeetingNumber === "number" ? `第 ${vote.regularMeetingNumber} 次例行大會` : "未指定例行大會"}；投票 ID：${escapeHtml(text(vote.customId || publicVoteId(vote)))}；${vote.startsAt ? `開始：${escapeHtml(text(vote.startsAt))}；` : ""}截止：${escapeHtml(text(vote.deadline))}；已投票 ${Number(vote.ballotCount) || 0} 國${vote.description ? `；${escapeHtml(text(vote.description))}` : ""}</li>`;
+const upcomingVotes = votes.filter((vote) => vote.isUpcoming && !vote.isClosed && !vote.isExpired);
+const activeVotes = votes.filter((vote) => !vote.isUpcoming && !vote.isClosed && !vote.isExpired);
+const pastVotes = votes.filter((vote) => vote.isClosed || vote.isExpired);
+const pastMeetingGroups = new Map();
+for (const vote of pastVotes) {
+  const key = vote.regularMeetingNumber == null ? "unassigned" : String(vote.regularMeetingNumber);
+  pastMeetingGroups.set(key, [...(pastMeetingGroups.get(key) || []), vote]);
+}
+const pastVotesHtml = [...pastMeetingGroups.entries()]
+  .sort(([a], [b]) => a === "unassigned" ? 1 : b === "unassigned" ? -1 : Number(b) - Number(a))
+  .map(([meeting, meetingVotes]) => `<section><h2>${meeting === "unassigned" ? "未指定例行大會" : `第 ${Number(meeting)} 次例行大會`}</h2><ul>${meetingVotes.map(voteListItem).join("")}</ul></section>`)
+  .join("");
 addPage({
   path: "/votes",
   title: "FUMO 組織正式投票與決議｜聯合微國家組織投票公告",
   description: "瀏覽聯合微國家組織 FUMO 公開投票、議案狀態、投票期限與彙總結果。進行中的投票不公開個別投票者選擇。",
   keywords: "FUMO投票,組織決議,微國家投票,公開議案,投票結果",
   type: "CollectionPage",
-  body: `<h1>公開投票與決議</h1><p>此處列出公開投票的議案說明、選項、截止時間與彙總結果。進行中的投票只顯示彙總票數，不顯示個別投票者或其選擇。</p>${votes.length ? `<ul>${votes.map((vote) => `<li>${asLink(`/votes/${encodeURIComponent(vote.id)}`, text(vote.name) || `投票 ${vote.id}`)} — ${voteStatus(vote)}；截止：${escapeHtml(text(vote.deadline))}；已投票 ${Number(vote.ballotCount) || 0} 國${vote.description ? `；${escapeHtml(text(vote.description))}` : ""}</li>`).join("")}</ul>` : `<p>目前沒有公開投票，或本次建置未能取得最新投票資料。若有投票，將於互動頁面顯示。</p>`}`,
+  body: `<h1>公開投票與決議</h1><p>此處列出公開投票的議案說明、選項、截止時間與彙總結果。預約投票會標示開始時間，在指定時間前不可投票；進行中的投票只顯示彙總票數，不顯示個別投票者或其選擇；已結束的投票依例行大會分區。</p>${votes.length ? `<section><h2>即將開始的投票</h2>${upcomingVotes.length ? `<ul>${upcomingVotes.map(voteListItem).join("")}</ul>` : `<p>目前沒有預約開始的投票。</p>`}</section><section><h2>進行中的投票</h2>${activeVotes.length ? `<ul>${activeVotes.map(voteListItem).join("")}</ul>` : `<p>目前沒有進行中的投票。</p>`}</section><section><h2>已結束的投票</h2>${pastVotesHtml || `<p>目前沒有已結束的投票。</p>`}</section>` : `<p>目前沒有公開投票，或本次建置未能取得最新投票資料。若有投票，將於互動頁面顯示。</p>`}`,
 });
 
 for (const { vote, results } of voteDetails) {
-  const pagePath = `/votes/${encodeURIComponent(vote.id)}`;
-  const safeName = text(vote.name) || `投票 ${vote.id}`;
+  const voteId = publicVoteId(vote);
+  const pagePath = `/votes/${encodeURIComponent(voteId)}`;
+  const safeName = text(vote.name) || `投票 ${voteId}`;
   const options = Array.isArray(vote.options) ? vote.options : [];
   const aggregateResults = Array.isArray(results?.results) ? results.results : [];
   const resultByOption = new Map(aggregateResults.map((result) => [result.option, result]));
@@ -202,15 +210,31 @@ for (const { vote, results } of voteDetails) {
     keywords: "FUMO投票,聯合微國家組織議案,公開投票,投票結果",
     type: "WebPage",
     extraSchema: { "@type": "WebPage" },
-    body: `<h1>${escapeHtml(safeName)}</h1><p>${escapeHtml(text(vote.description) || "本次投票為聯合微國家組織的公開議案。")}</p><p>狀態：${voteStatus(vote)}；截止時間：${escapeHtml(text(vote.deadline))}；${vote.allowMultiple ? "可複選" : "單選"}。</p><h2>投票選項</h2><ul>${options.map((option) => `<li>${escapeHtml(text(option))}${resultByOption.has(option) ? ` — ${Number(resultByOption.get(option).count) || 0} 票（${escapeHtml(text(resultByOption.get(option).percentage))}%）` : ""}</li>`).join("")}</ul>${resultsHtml}<p>投票、登入與互動詳情請前往${asLink(pagePath, "投票互動頁面")}。公開頁不包含個人帳戶 ID、投票者名單或私人選項。</p>`,
+    body: `<h1>${escapeHtml(safeName)}</h1><p>${escapeHtml(text(vote.description) || "本次投票為聯合微國家組織的公開議案。")}</p><p>狀態：${voteStatus(vote)}；例行大會：${typeof vote.regularMeetingNumber === "number" ? `第 ${vote.regularMeetingNumber} 次` : "未指定"}；投票 ID：${escapeHtml(text(vote.customId || voteId))}；截止時間：${escapeHtml(text(vote.deadline))}；${vote.allowMultiple ? "可複選" : "單選"}。</p><h2>投票選項</h2><ul>${options.map((option) => `<li>${escapeHtml(text(option))}${resultByOption.has(option) ? ` — ${Number(resultByOption.get(option).count) || 0} 票（${escapeHtml(text(resultByOption.get(option).percentage))}%）` : ""}</li>`).join("")}</ul>${resultsHtml}<p>投票、登入與互動詳情請前往${asLink(pagePath, "投票互動頁面")}。公開頁不包含個人帳戶 ID、投票者名單或私人選項。</p>`,
   });
 }
+
+const historicalVoteRecords = {
+  standard: Array.isArray(voteRecordsData?.standard) ? voteRecordsData.standard : [],
+  special: Array.isArray(voteRecordsData?.special) ? voteRecordsData.special : [],
+};
+const recordPreview = (record) => `<li><strong>${escapeHtml(text(record.code) || "未提供代號")}</strong> — ${escapeHtml(text(record.title) || "未命名議案")}${record.meeting ? `（${escapeHtml(text(record.meeting))}）` : ""}${record.result ? `；表決結果：${escapeHtml(text(record.result))}` : ""}</li>`;
+const recordSourceLinks = `<p>來源試算表：${asLink("https://docs.google.com/spreadsheets/d/1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0/edit?gid=483555265#gid=483555265", "標準議案")} · ${asLink("https://docs.google.com/spreadsheets/d/1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0/edit?gid=281957361#gid=281957361", "特殊議案")}</p>`;
+addPage({
+  path: "/vote-records",
+  title: "FUMO 歷史投票紀錄｜標準與特殊議案表決結果",
+  description: "瀏覽聯合微國家組織 FUMO 標準與特殊議案的歷史投票紀錄，可搜尋議案、代號、例會、國家與選項。資料唯讀取自官方公開試算表。",
+  keywords: "FUMO投票紀錄,歷史投票,標準議案,特殊議案,議案表決,國家投票",
+  type: "CollectionPage",
+  body: `<h1>歷史投票紀錄</h1><p>本頁彙整 FUMO 標準與特殊議案的公開歷史投票紀錄，可依代號、議案名稱、例會、國家或投票選項搜尋。資料以唯讀方式取自官方公開試算表，不會修改來源資料。</p>${recordSourceLinks}<section><h2>標準議案（${historicalVoteRecords.standard.length} 筆）</h2>${historicalVoteRecords.standard.length ? `<ul>${historicalVoteRecords.standard.slice(0, 20).map(recordPreview).join("")}</ul>` : `<p>靜態建置時未能取得紀錄；互動頁面會從官方公開試算表讀取資料。</p>`}</section><section><h2>特殊議案（${historicalVoteRecords.special.length} 筆）</h2>${historicalVoteRecords.special.length ? `<ul>${historicalVoteRecords.special.slice(0, 20).map(recordPreview).join("")}</ul>` : `<p>靜態建置時未能取得紀錄；互動頁面會從官方公開試算表讀取資料。</p>`}</section><p>${asLink("/vote-records", "開啟完整可搜尋的投票紀錄互動頁面")}</p>`,
+});
 
 const privatePages = [
   ["/admin", "管理面板", "管理員專用帳戶與組織操作介面。"],
   ["/login", "登入", "使用已註冊帳戶登入 FUMO 官方網站。"],
   ["/register", "註冊", "依官方名冊註冊 FUMO 網站帳戶。"],
   ["/votes/create", "建立投票", "管理員建立組織投票的操作介面。"],
+  ["/attendance", "出席簽到", "查看獨立於投票議案的出席場次與成員國、觀察國簽到名單。"],
 ];
 for (const [pagePath, label, description] of privatePages) addPage({
   path: pagePath,
@@ -267,7 +291,7 @@ function jsonLdFor(page) {
   const crumbs = [{ name: "首頁", path: "/" }];
   if (page.path !== "/") {
     const segment = page.path.split("/").filter(Boolean)[0];
-    const routeName = segment === "members" ? "會員國與觀察國" : segment === "staff" ? "職位報告" : segment === "regulations" ? "法規" : segment === "charter" ? "憲章" : segment === "votes" ? "投票" : segment === "privacy" ? "隱私權政策" : segment === "terms" ? "使用條款" : "頁面";
+    const routeName = segment === "members" ? "會員國與觀察國" : segment === "staff" ? "職位報告" : segment === "regulations" ? "法規" : segment === "charter" ? "憲章" : segment === "votes" ? "投票" : segment === "vote-records" ? "投票紀錄" : segment === "privacy" ? "隱私權政策" : segment === "terms" ? "使用條款" : "頁面";
     crumbs.push({ name: routeName, path: `/${segment}` });
     if (/^\/votes\/\d+$/.test(page.path)) crumbs.push({ name: page.title.split("｜")[0], path: page.path });
   }
@@ -332,4 +356,5 @@ const sitemapEntries = pages.filter((page) => page.indexable).map((page) => `  <
 await fs.writeFile(path.join(PUBLIC_DIR, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapEntries}\n</urlset>\n`, "utf8");
 const llms = `# ${SITE_NAME}\n\n> 聯合微國家組織（F.U.M.O.；Federation of United Micronations Organisation）官方網站，提供組織治理、會員國資訊、公開法規及正式投票資訊。\n\n## 公開頁面\n\n- [組織首頁](${SITE_ORIGIN}/): 組織使命、架構與公開資訊入口。\n- [會員國與觀察國](${SITE_ORIGIN}/members): 公開國家名稱、簡稱、體制與成員身分。\n- [職位報告](${SITE_ORIGIN}/staff): 秘書處與議事中心公開職稱及職責，不含私人帳號 ID。\n- [組織法規](${SITE_ORIGIN}/regulations): 憲章、成員資格、治理及程序規章索引。\n- [組織憲章](${SITE_ORIGIN}/charter): 憲章第七版文字內容與官方文件連結。\n- [公開投票](${SITE_ORIGIN}/votes): 公開議案、狀態及彙總資訊；進行中的投票不顯示個別選擇。\n- [隱私權政策](${SITE_ORIGIN}/privacy)\n- [使用條款](${SITE_ORIGIN}/terms)\n\n## 官方文件\n\n- [FUMO 憲章（繁體中文）](https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/rJfgOxo5KGx)\n- [FUMO 憲章（English）](https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/ryHGtgtiGg)\n- [網站地圖](${SITE_ORIGIN}/sitemap.xml)\n\n## 準確性與隱私\n\n請以各頁所連結的官方文件及最新公開名錄為準。網站帳戶、管理操作紀錄、私人識別碼、密碼及個人投票選擇不屬於公開資料，也不應被索引或推論。\n`;
 await fs.writeFile(path.join(PUBLIC_DIR, "llms.txt"), llms, "utf8");
+await fs.writeFile(path.join(PUBLIC_DIR, "llms.txt"), llms.replace(`- [隱私權政策](${SITE_ORIGIN}/privacy)`, `- [投票紀錄](${SITE_ORIGIN}/vote-records): 可搜尋的標準與特殊議案歷史投票紀錄，唯讀取自官方公開試算表。\n- [隱私權政策](${SITE_ORIGIN}/privacy)`), "utf8");
 console.log(`Generated ${pages.length} SEO-ready HTML routes and sitemap.xml (${memberList.length} public states, ${staff.length} public staff entries, ${votes.length} public votes).`);
