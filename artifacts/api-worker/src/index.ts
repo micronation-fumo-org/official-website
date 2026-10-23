@@ -58,7 +58,8 @@ const OBSERVER_GID = "1711083489";
 const VOTER_GID = "569164345";
 const REGISTRATION_GID = "948800346";
 const PARTNERS_GID = "1745343944";
-const STAFF_ROSTER_GID = "1939375804";
+const SECRETARIAT_ROSTER_GID = "1939375804";
+const COUNCIL_ROSTER_GID = "504385056";
 const HISTORICAL_VOTES_SPECIAL_GID = "1639143639";
 const HISTORICAL_VOTES_STANDARD_GID = "248931932";
 const DEFAULT_ADMIN_ID = "1406117683220709486";
@@ -188,19 +189,28 @@ const findVoter = (list: Voter[], id: string) => { for (const v of list) { const
 async function registrations() { const rows = await sheet(REGISTRATION_GID); const h = rows[0] ?? []; const idx = (n: string) => h.indexOf(n); return rows.slice(1).map(r => ({ countryName: r[idx("國家名稱")] ?? "", voterName: r[idx("註冊名稱")] ?? "", id: r[idx("註冊ID")] ?? "", email: (r[idx("Email")] ?? "").trim().toLowerCase() })).filter(r => r.id && r.countryName && r.voterName); }
 async function staffRoster() {
   if (staffCache && Date.now() - staffCache.at < 300000) return staffCache.value;
-  const rows = await sheet(STAFF_ROSTER_GID);
-  const headers = rows[0] ?? [];
-  const nameAt = headers.indexOf("暱稱");
-  const roleAt = headers.indexOf("職稱");
-  const areaAt = headers.indexOf("負責區域");
-  if (nameAt < 0 || roleAt < 0) throw new Error("Secretariat roster is missing required columns.");
-  const value: StaffEntry[] = rows.slice(1).flatMap(row => {
-    const name = (row[nameAt] ?? "").trim();
-    if (!name) return [];
-    const role = (row[roleAt] ?? "").trim();
-    const areas = areaAt < 0 ? [] : (row[areaAt] ?? "").split(/[、，,；;]/).map(area => area.trim()).filter(Boolean);
-    return [{ name, roles: role ? [role] : [], areas, organizations: ["秘書處"] }];
-  });
+  const parseRoster = (rows: string[][], organization: string): StaffEntry[] => {
+    const headers = rows[0] ?? [];
+    const nameAt = headers.indexOf("暱稱");
+    const roleAt = headers.indexOf("職稱");
+    const areaAt = headers.indexOf("負責區域");
+    if (nameAt < 0 || roleAt < 0) throw new Error(`${organization} roster is missing required columns.`);
+    return rows.slice(1).flatMap(row => {
+      const name = (row[nameAt] ?? "").trim();
+      if (!name) return [];
+      const role = (row[roleAt] ?? "").trim();
+      const areas = areaAt < 0 ? [] : (row[areaAt] ?? "").split(/[、，,；;]/).map(area => area.trim()).filter(Boolean);
+      return [{ name, roles: role ? [role] : [], areas, organizations: [organization] }];
+    });
+  };
+  const [secretariatRows, councilRows] = await Promise.all([
+    sheet(SECRETARIAT_ROSTER_GID),
+    sheet(COUNCIL_ROSTER_GID),
+  ]);
+  const value: StaffEntry[] = [
+    ...parseRoster(secretariatRows, "秘書處"),
+    ...parseRoster(councilRows, "議事中心"),
+  ];
   staffCache = { value, at: Date.now() }; return value;
 }
 async function partnerOrganizations() {
