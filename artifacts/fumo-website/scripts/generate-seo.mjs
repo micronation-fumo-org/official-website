@@ -102,7 +102,7 @@ function markdownToHtml(source) {
   return blocks.join("\n");
 }
 
-const navigation = `<nav aria-label="主要導覽"><a href="/">首頁</a> · <a href="/members">會員國與觀察國</a> · <a href="/staff">職位報告</a> · <a href="/regulations">法規</a> · <a href="/charter">憲章</a> · <a href="/votes">投票</a> · <a href="/vote-records">投票紀錄</a></nav>`;
+const navigation = `<nav aria-label="主要導覽"><a href="/">首頁</a> · <a href="/members">會員國與觀察國</a> · <a href="/staff">職位報告</a> · <a href="/regulations">法規</a> · <a href="/charter">憲章</a> · <a href="/votes">投票</a> · <a href="/vote-records">投票紀錄</a> · <a href="/attendance">出席簽到</a></nav>`;
 const asLink = (href, label) => `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
 
 const [membersData, staffData, votesData, voteRecordsData] = await Promise.all([
@@ -234,6 +234,7 @@ const privatePages = [
   ["/login", "登入", "使用已註冊帳戶登入 FUMO 官方網站。"],
   ["/register", "註冊", "依官方名冊註冊 FUMO 網站帳戶。"],
   ["/votes/create", "建立投票", "管理員建立組織投票的操作介面。"],
+  ["/attendance", "出席簽到", "查看獨立於投票議案的出席場次與成員國、觀察國簽到名單。"],
 ];
 for (const [pagePath, label, description] of privatePages) addPage({
   path: pagePath,
