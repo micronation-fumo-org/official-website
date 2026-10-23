@@ -1,4 +1,4 @@
-import { regulations, regulationCategories, regulationsDirectoryUrl, charterUrlZh, charterUrlEn } from "@/data/regulations";
+import { regulations, regulationCategories, regulationsDirectoryUrl, regulationsDirectoryUrlEn, charterUrlZh, charterUrlEn } from "@/data/regulations";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,7 @@ export default function Regulations() {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button asChild size="lg" className="bg-primary">
-              <a href={regulationsDirectoryUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+              <a href={isEnglish ? regulationsDirectoryUrlEn : regulationsDirectoryUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                 <Book className="w-5 h-5" />
                 {isEnglish ? "Regulations directory" : "完整法規目錄"}
                 <ExternalLink className="w-4 h-4 ml-1" />
