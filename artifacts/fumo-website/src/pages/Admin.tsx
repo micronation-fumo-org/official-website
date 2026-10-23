@@ -340,7 +340,7 @@ export default function Admin() {
               </div>
             )}
             {accounts && accounts.length > 0 && (
-              <div className="lg:hidden space-y-3">
+              <div className="xl:hidden space-y-3">
                 {accounts.map((a) => {
                   const info = adminLevelLabel(a.adminLevel, isEnglish);
                   const isSelf = a.voterId === user!.voterId;
@@ -353,9 +353,9 @@ export default function Admin() {
                         </div>
                         <span className={`inline-flex w-fit max-w-full whitespace-normal break-words text-left text-xs px-2 py-1 rounded-full border font-medium leading-tight ${info.color}`}>{info.label}</span>
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                        <div><p className="text-xs text-muted-foreground">{isEnglish ? "Country" : "國家"}</p><p className="break-words">{a.countryName}</p></div>
-                        <div><p className="text-xs text-muted-foreground">Google Email</p><p className="break-all">{a.googleEmail || (isEnglish ? "Not connected" : "尚未綁定")}</p></div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                        <div className="min-w-0"><p className="text-xs text-muted-foreground">{isEnglish ? "Country" : "國家"}</p><p className="break-words [overflow-wrap:anywhere]">{a.countryName}</p></div>
+                        <div className="min-w-0"><p className="text-xs text-muted-foreground">Google Email</p><p className="break-words [overflow-wrap:anywhere]">{a.googleEmail || (isEnglish ? "Not connected" : "尚未綁定")}</p></div>
                         <div><p className="text-xs text-muted-foreground">{isEnglish ? "Created" : "建立時間"}</p><p>{new Date(a.createdAt).toLocaleDateString("zh-TW")}</p></div>
                       </div>
                       {isSuperAdmin && !isSelf && a.adminLevel < 9 && (
@@ -374,8 +374,8 @@ export default function Admin() {
               <p className="text-muted-foreground text-sm py-4">{isEnglish ? "No accounts yet" : "尚無帳戶"}</p>
             )}
             {accounts && accounts.length > 0 && (
-              <div className="hidden lg:block overflow-x-auto">
-                <Table>
+              <div className="hidden xl:block overflow-x-auto">
+                <Table className="min-w-[1120px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Discord ID</TableHead>
@@ -401,7 +401,7 @@ export default function Admin() {
                             )}
                           </TableCell>
                           <TableCell className="text-sm">{a.countryName}</TableCell>
-                          <TableCell className="text-sm break-all">{a.googleEmail || <span className="text-muted-foreground">{isEnglish ? "Not connected" : "尚未綁定"}</span>}</TableCell>
+                          <TableCell className="max-w-64 break-words text-sm [overflow-wrap:anywhere]">{a.googleEmail || <span className="text-muted-foreground">{isEnglish ? "Not connected" : "尚未綁定"}</span>}</TableCell>
                           <TableCell className="whitespace-nowrap">
                             <span className={`inline-block whitespace-nowrap text-xs px-2 py-0.5 rounded-full border font-medium ${info.color}`}>
                               {info.label}
@@ -508,7 +508,7 @@ export default function Admin() {
                 <p className="py-8 text-center text-sm text-muted-foreground">{isEnglish ? "Loading activity log…" : "載入操作紀錄中…"}</p>
               ) : auditPage && auditPage.items.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[880px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead>{isEnglish ? "Time (UTC)" : "時間（UTC）"}</TableHead>

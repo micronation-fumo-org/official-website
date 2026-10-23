@@ -158,7 +158,7 @@ export default function Attendance() {
             <CardTitle className="text-base text-primary">{isEnglish ? "Create an attendance session" : "建立出席場次"}</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0 sm:px-6 sm:pb-6">
-            <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(220px,280px)_auto]" onSubmit={(event) => { event.preventDefault(); if (!title.trim()) { setFormError(isEnglish ? "Enter a session name." : "請輸入場次名稱。"); return; } createMutation.mutate(); }}>
+            <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,280px)_auto]" onSubmit={(event) => { event.preventDefault(); if (!title.trim()) { setFormError(isEnglish ? "Enter a session name." : "請輸入場次名稱。"); return; } createMutation.mutate(); }}>
               <Input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} placeholder={isEnglish ? "Session name (e.g. 43rd Regular Assembly)" : "場次名稱（例如：第 43 次例行大會）"} aria-label={isEnglish ? "Session name" : "場次名稱"} />
               <Input type="datetime-local" value={eventDate} onChange={(event) => setEventDate(event.target.value)} aria-label={isEnglish ? "Session date and time" : "場次日期與時間"} />
               <Button type="submit" className="min-h-11" disabled={createMutation.isPending}>{createMutation.isPending ? (isEnglish ? "Creating…" : "建立中…") : (isEnglish ? "Create session" : "建立場次")}</Button>
@@ -257,14 +257,14 @@ export default function Attendance() {
                 )}
                 {actionError && <p className="text-sm text-red-600" role="alert">{actionError}</p>}
                 {isAdmin && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+                  <div className="flex flex-col items-stretch gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">{isEnglish ? "Session control" : "場次管理"}</p>
-                    <Button variant={detail.isOpen ? "outline" : "default"} className="min-h-10" disabled={toggleMutation.isPending} onClick={() => toggleMutation.mutate({ id: detail.id, isOpen: !detail.isOpen })}>
+                    <Button variant={detail.isOpen ? "outline" : "default"} className="min-h-10 w-full sm:w-auto" disabled={toggleMutation.isPending} onClick={() => toggleMutation.mutate({ id: detail.id, isOpen: !detail.isOpen })}>
                       {detail.isOpen ? (isEnglish ? "Close check-in" : "關閉簽到") : (isEnglish ? "Reopen check-in" : "重新開放簽到")}
                     </Button>
                   </div>
                 )}
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 md:grid-cols-2">
                   {([
                     { key: "member" as const, title: isEnglish ? "Member states" : "成員國", records: detail.memberStates, style: "border-blue-200 bg-blue-50/70" },
                     { key: "observer" as const, title: isEnglish ? "Observer states" : "觀察國", records: detail.observerStates, style: "border-violet-200 bg-violet-50/70" },
@@ -274,9 +274,9 @@ export default function Attendance() {
                       {group.records.length ? (
                         <ul className="space-y-2">
                           {group.records.map((record) => (
-                            <li key={record.countryName} className="flex min-w-0 items-center justify-between gap-2 rounded bg-white/80 px-2.5 py-2 text-sm">
-                              <span className="min-w-0 break-words font-medium">{record.countryName}</span>
-                              <time className="shrink-0 text-xs text-muted-foreground" dateTime={record.attendedAt}>{new Date(record.attendedAt.endsWith("Z") ? record.attendedAt : `${record.attendedAt.replace(" ", "T")}Z`).toLocaleTimeString(isEnglish ? "en-US" : "zh-TW", { hour: "2-digit", minute: "2-digit" })}</time>
+                            <li key={record.countryName} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-2 rounded bg-white/80 px-2.5 py-2 text-sm">
+                              <span className="min-w-0 break-words font-medium [overflow-wrap:anywhere]">{record.countryName}</span>
+                              <time className="shrink-0 whitespace-nowrap text-right text-xs text-muted-foreground" dateTime={record.attendedAt}>{new Date(record.attendedAt.endsWith("Z") ? record.attendedAt : `${record.attendedAt.replace(" ", "T")}Z`).toLocaleTimeString(isEnglish ? "en-US" : "zh-TW", { hour: "2-digit", minute: "2-digit" })}</time>
                             </li>
                           ))}
                         </ul>
