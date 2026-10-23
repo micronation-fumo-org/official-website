@@ -50,6 +50,20 @@ export function Layout({ children }: LayoutProps) {
   const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href) && !votingSubPaths.has(link.href));
   const moreNavLinks = allNavLinks.filter((link) => morePaths.has(link.href));
   const votingNavLinks = allNavLinks.filter((link) => votingSubPaths.has(link.href));
+  const footerGroups = [
+    {
+      title: isEnglish ? "Main pages" : "主要頁面",
+      links: allNavLinks.filter((link) => ["/", "/members", "/staff", "/partners", "/acknowledgements"].includes(link.href)),
+    },
+    {
+      title: isEnglish ? "Voting" : "投票相關",
+      links: allNavLinks.filter((link) => ["/votes", "/vote-records", "/attendance"].includes(link.href)),
+    },
+    {
+      title: isEnglish ? "Organization" : "組織資訊",
+      links: allNavLinks.filter((link) => ["/regulations", "/charter"].includes(link.href)),
+    },
+  ];
 
   const adminLevelLabel = (level: number) => {
     if (level >= 9) return isEnglish ? "Super Admin" : "最高管理員";
@@ -290,7 +304,15 @@ export function Layout({ children }: LayoutProps) {
             </div>
             <div>
               <h4 className="font-bold mb-3 text-secondary">{isEnglish ? "Site navigation" : "網站導覽"}</h4>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2">{allNavLinks.map((link) => <Link key={link.href} href={link.href} className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{link.label}</Link>)}<Link href="/admin" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors flex items-center gap-1"><Shield className="w-3 h-3" />{isEnglish ? "Admin panel" : "管理面板"}</Link></div>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-4">
+                {footerGroups.map((group) => (
+                  <div key={group.title}>
+                    <h5 className="mb-2 text-xs font-semibold tracking-wide text-primary-foreground/55">{group.title}</h5>
+                    <div className="flex flex-col gap-2">{group.links.map((link) => <Link key={link.href} href={link.href} className="text-sm text-primary-foreground/80 transition-colors hover:text-secondary">{link.label}</Link>)}</div>
+                  </div>
+                ))}
+                <Link href="/admin" className="text-sm text-primary-foreground/80 transition-colors hover:text-secondary sm:col-span-3 sm:mt-1 flex items-center gap-1"><Shield className="h-3 w-3" />{isEnglish ? "Admin panel" : "管理面板"}</Link>
+              </div>
             </div>
             <div>
               <h4 className="font-bold mb-3 text-secondary">{isEnglish ? "Official resources" : "官方資源"}</h4>
