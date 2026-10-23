@@ -57,6 +57,7 @@ const MEMBER_GID = "1958346154";
 const OBSERVER_GID = "1711083489";
 const VOTER_GID = "569164345";
 const REGISTRATION_GID = "948800346";
+const PARTNERS_GID = "1745343944";
 const STAFF_SHEET_ID = "1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0";
 const SECRETARIAT_GID = "1303265265";
 const COUNCIL_GID = "1574972161";
@@ -169,9 +170,11 @@ interface Member { fullName: string; shortName: string; abbreviation?: string; h
 interface Voter { countryName: string; reps: { name: string; id: string }[]; }
 interface RegistrationEntry { countryName: string; voterName: string; id: string; email: string; }
 interface StaffEntry { id: string; name: string; roles: string[]; areas: string[]; organizations: string[]; }
+interface PartnerOrganization { name: string; cooperationDate: string; }
 let membersCache: { value: { memberStates: Member[]; observerStates: Member[]; allStates: Member[] }; at: number } | null = null;
 let votersCache: { value: Voter[]; at: number } | null = null;
 let staffCache: { value: StaffEntry[]; at: number } | null = null;
+let partnersCache: { value: { organizations: PartnerOrganization[]; fetchedAt: string }; at: number } | null = null;
 async function members() {
   if (membersCache && Date.now() - membersCache.at < 300000) return membersCache.value;
   const parse = (rows: string[][], status: Member["status"]): Member[] => { const h = rows[0] ?? []; const idx = (n: string) => h.indexOf(n); return rows.slice(1).filter(r => r[idx("國家名稱")]).map(r => ({ fullName: r[idx("國家名稱")] ?? "", shortName: r[idx("國家簡稱")] ?? "", abbreviation: r[idx("國家代號")] || undefined, headOfState: r[idx("最高領袖")] || undefined, primeMinister: r[idx("最高首腦")] || undefined, governmentType: r[idx("國家體制")] ?? "", status })); };
@@ -207,6 +210,22 @@ async function staffAccounts() {
     }
   }
   const value = [...byId.values()]; staffCache = { value, at: Date.now() }; return value;
+}
+async function partnerOrganizations() {
+  if (partnersCache && Date.now() - partnersCache.at < 300000) return partnersCache.value;
+  const rows = await sheet(PARTNERS_GID);
+  const headers = rows[0] ?? [];
+  const nameAt = headers.findIndex(value => ["合作組織名稱", "組織名稱"].includes(value.trim()));
+  const dateAt = headers.findIndex(value => ["合作日期", "合作開始日期"].includes(value.trim()));
+  if (nameAt < 0) throw new Error("Partner sheet is missing its organization-name column.");
+  const organizations = rows.slice(1).flatMap(row => {
+    const name = (row[nameAt] ?? "").trim();
+    if (!name) return [];
+    return [{ name, cooperationDate: dateAt >= 0 ? (row[dateAt] ?? "").trim() : "" }];
+  });
+  const value = { organizations, fetchedAt: new Date().toISOString() };
+  partnersCache = { value, at: Date.now() };
+  return value;
 }
 
 const enc = new TextEncoder();
@@ -393,6 +412,7 @@ app.get("/api/auth/google/callback", async c => {
 app.get("/api/members", async c => { try { return c.json({ ...(await members()), cached: Boolean(membersCache), lastUpdated: membersCache ? new Date(membersCache.at).toISOString() : null }); } catch (e) { return c.json({ error: "Failed to fetch member states", message: String(e) }, 500); } });
 app.get("/api/voters", async c => { try { return c.json(await voters()); } catch (e) { return c.json({ error: "Failed to fetch voters", message: String(e) }, 500); } });
 app.get("/api/staff-report", async c => { try { const staff = await staffAccounts(); return c.json({ staff: staff.map(({ id: _id, ...entry }) => entry), lastUpdated: new Date().toISOString() }); } catch (e) { return c.json({ error: "Failed to fetch staff report", message: String(e) }, 500); } });
+app.get("/api/partners", async c => { try { return c.json(await partnerOrganizations(), 200, { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=300" }); } catch { return c.json({ error: "無法載入合作組織名錄，請稍後再試。" }, 502, { "Cache-Control": "no-store" }); } });
 app.get("/api/vote-records", async c => {
   try {
     return c.json(await historicalVoteRecords(), 200, { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=300" });

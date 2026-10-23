@@ -102,14 +102,15 @@ function markdownToHtml(source) {
   return blocks.join("\n");
 }
 
-const navigation = `<nav aria-label="主要導覽"><a href="/">首頁</a> · <a href="/members">會員國與觀察國</a> · <a href="/staff">職位報告</a> · <a href="/regulations">法規</a> · <a href="/charter">憲章</a> · <a href="/votes">投票</a> · <a href="/vote-records">投票紀錄</a> · <a href="/attendance">出席簽到</a></nav>`;
+const navigation = `<nav aria-label="主要導覽"><a href="/">首頁</a> · <a href="/members">會員國與觀察國</a> · <a href="/staff">職位報告</a> · <a href="/votes">投票</a> · <a href="/vote-records">投票紀錄</a> · <a href="/attendance">出席簽到</a> · <a href="/regulations">法規</a> · <a href="/charter">憲章</a> · <a href="/partners">合作組織</a></nav>`;
 const asLink = (href, label) => `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
 
-const [membersData, staffData, votesData, voteRecordsData] = await Promise.all([
+const [membersData, staffData, votesData, voteRecordsData, partnersData] = await Promise.all([
   fetchJson("/api/members", { memberStates: [], observerStates: [], allStates: [] }),
   fetchJson("/api/staff-report", { staff: [] }),
   fetchJson("/api/votes", []),
   fetchJson("/api/vote-records", { standard: [], special: [], fetchedAt: "" }),
+  fetchJson("/api/partners", { organizations: [], fetchedAt: "" }),
 ]);
 
 const websiteDescription = "聯合微國家組織（F.U.M.O.，Federation of United Micronations Organisation）致力於微國家之間的交流、合作、和平與組織治理。官網提供會員國名錄、組織憲章與法規、秘書處及議事中心公開職位報告，以及公開投票資訊。";
@@ -124,7 +125,7 @@ addPage({
   description: websiteDescription,
   keywords: "聯合微國家組織,FUMO,微國家,國際組織,微國家外交,會員國合作",
   type: "WebSite",
-  body: `<h1>聯合微國家組織（F.U.M.O.）</h1><p>${escapeHtml(websiteDescription)}</p><h2>公開資訊</h2><ul><li>${asLink("/members", "會員國與觀察國名錄")}</li><li>${asLink("/charter", "聯合微國家組織憲章")}</li><li>${asLink("/regulations", "組織法規與規章")}</li><li>${asLink("/staff", "秘書處與議事中心職位報告")}</li><li>${asLink("/votes", "公開投票與決議資訊")}</li></ul><h2>組織宗旨</h2><p>FUMO 以促進微國家交流、國際合作、和平與秩序為核心，透過憲章、公開規章與議事程序建立共同治理架構。</p><p>官方社群：${asLink("https://discord.gg/MuSM3yXrQh", "FUMO Discord 社群")}</p>`,
+  body: `<h1>聯合微國家組織（F.U.M.O.）</h1><p>${escapeHtml(websiteDescription)}</p><h2>公開資訊</h2><ul><li>${asLink("/members", "會員國與觀察國名錄")}</li><li>${asLink("/charter", "聯合微國家組織憲章")}</li><li>${asLink("/regulations", "組織法規與規章")}</li><li>${asLink("/staff", "秘書處與議事中心職位報告")}</li><li>${asLink("/partners", "合作組織名錄")}</li><li>${asLink("/votes", "公開投票與決議資訊")}</li></ul><h2>組織宗旨</h2><p>FUMO 以促進微國家交流、國際合作、和平與秩序為核心，透過憲章、公開規章與議事程序建立共同治理架構。</p><p>官方社群：${asLink("https://discord.gg/MuSM3yXrQh", "FUMO Discord 社群")}</p>`,
 });
 
 const memberStates = Array.isArray(membersData?.memberStates) ? membersData.memberStates : (Array.isArray(membersData?.allStates) ? membersData.allStates.filter((state) => state.status === "member") : []);
@@ -145,6 +146,16 @@ addPage({
   description: "查看聯合微國家組織 FUMO 秘書處與議事中心目前公開職位、職稱與職責分工。名錄只展示公開職務資訊，不公開私人帳號識別碼。",
   keywords: "FUMO秘書處,議事中心,組織職位,微國家職務名錄,秘書處成員",
   body: `<h1>秘書處與議事中心職位報告</h1><p>本頁整理 FUMO 公開的組織職位、職稱及負責領域。為保護隱私，不列出私人帳號 ID。</p>${staff.length ? `<ul>${staff.map((entry) => `<li><strong>${escapeHtml(text(entry.name))}</strong> — ${escapeHtml([...(entry.organizations || []), ...(entry.roles || [])].join("、"))}${entry.areas?.length ? `；負責範圍：${escapeHtml(entry.areas.join("、"))}` : ""}</li>`).join("")}</ul>` : `<p>目前沒有可供本次靜態建置使用的公開職位資料。互動名錄仍會從官方公開工作表同步。</p>`}${asLink("/staff", "開啟互動職位報告")}`,
+});
+
+const partnerOrganizations = Array.isArray(partnersData?.organizations) ? partnersData.organizations : [];
+addPage({
+  path: "/partners",
+  title: "FUMO 合作組織名錄｜聯合微國家組織合作夥伴",
+  description: "瀏覽與聯合微國家組織 FUMO 建立合作關係的組織及合作日期，名錄唯讀同步自官方 Google 試算表。",
+  keywords: "FUMO合作組織,合作夥伴,微國家組織合作,國際合作名錄",
+  type: "CollectionPage",
+  body: `<h1>合作組織</h1><p>本頁列出與聯合微國家組織建立合作關係的組織及合作日期。名錄以唯讀方式同步自官方 Google 試算表，不會修改來源資料。</p>${partnerOrganizations.length ? `<ul>${partnerOrganizations.map((organization) => `<li><strong>${escapeHtml(text(organization.name))}</strong>${text(organization.cooperationDate) ? ` — 合作日期：${escapeHtml(text(organization.cooperationDate))}` : ""}</li>`).join("")}</ul>` : `<p>靜態建置時未能取得公開合作組織資料；互動頁面會從官方試算表讀取最新名錄。</p>`}`,
 });
 
 const regulationsSource = await fs.readFile(path.resolve(process.cwd(), "src/data/regulations.ts"), "utf8").catch(() => "");
@@ -291,7 +302,7 @@ function jsonLdFor(page) {
   const crumbs = [{ name: "首頁", path: "/" }];
   if (page.path !== "/") {
     const segment = page.path.split("/").filter(Boolean)[0];
-    const routeName = segment === "members" ? "會員國與觀察國" : segment === "staff" ? "職位報告" : segment === "regulations" ? "法規" : segment === "charter" ? "憲章" : segment === "votes" ? "投票" : segment === "vote-records" ? "投票紀錄" : segment === "privacy" ? "隱私權政策" : segment === "terms" ? "使用條款" : "頁面";
+    const routeName = segment === "members" ? "會員國與觀察國" : segment === "staff" ? "職位報告" : segment === "partners" ? "合作組織" : segment === "regulations" ? "法規" : segment === "charter" ? "憲章" : segment === "votes" ? "投票" : segment === "vote-records" ? "投票紀錄" : segment === "privacy" ? "隱私權政策" : segment === "terms" ? "使用條款" : "頁面";
     crumbs.push({ name: routeName, path: `/${segment}` });
     if (/^\/votes\/\d+$/.test(page.path)) crumbs.push({ name: page.title.split("｜")[0], path: page.path });
   }
@@ -356,5 +367,5 @@ const sitemapEntries = pages.filter((page) => page.indexable).map((page) => `  <
 await fs.writeFile(path.join(PUBLIC_DIR, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapEntries}\n</urlset>\n`, "utf8");
 const llms = `# ${SITE_NAME}\n\n> 聯合微國家組織（F.U.M.O.；Federation of United Micronations Organisation）官方網站，提供組織治理、會員國資訊、公開法規及正式投票資訊。\n\n## 公開頁面\n\n- [組織首頁](${SITE_ORIGIN}/): 組織使命、架構與公開資訊入口。\n- [會員國與觀察國](${SITE_ORIGIN}/members): 公開國家名稱、簡稱、體制與成員身分。\n- [職位報告](${SITE_ORIGIN}/staff): 秘書處與議事中心公開職稱及職責，不含私人帳號 ID。\n- [組織法規](${SITE_ORIGIN}/regulations): 憲章、成員資格、治理及程序規章索引。\n- [組織憲章](${SITE_ORIGIN}/charter): 憲章第七版文字內容與官方文件連結。\n- [公開投票](${SITE_ORIGIN}/votes): 公開議案、狀態及彙總資訊；進行中的投票不顯示個別選擇。\n- [隱私權政策](${SITE_ORIGIN}/privacy)\n- [使用條款](${SITE_ORIGIN}/terms)\n\n## 官方文件\n\n- [FUMO 憲章（繁體中文）](https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/rJfgOxo5KGx)\n- [FUMO 憲章（English）](https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/ryHGtgtiGg)\n- [網站地圖](${SITE_ORIGIN}/sitemap.xml)\n\n## 準確性與隱私\n\n請以各頁所連結的官方文件及最新公開名錄為準。網站帳戶、管理操作紀錄、私人識別碼、密碼及個人投票選擇不屬於公開資料，也不應被索引或推論。\n`;
 await fs.writeFile(path.join(PUBLIC_DIR, "llms.txt"), llms, "utf8");
-await fs.writeFile(path.join(PUBLIC_DIR, "llms.txt"), llms.replace(`- [隱私權政策](${SITE_ORIGIN}/privacy)`, `- [投票紀錄](${SITE_ORIGIN}/vote-records): 可搜尋的標準與特殊議案歷史投票紀錄，唯讀取自官方公開試算表。\n- [隱私權政策](${SITE_ORIGIN}/privacy)`), "utf8");
-console.log(`Generated ${pages.length} SEO-ready HTML routes and sitemap.xml (${memberList.length} public states, ${staff.length} public staff entries, ${votes.length} public votes).`);
+await fs.writeFile(path.join(PUBLIC_DIR, "llms.txt"), llms.replace(`- [隱私權政策](${SITE_ORIGIN}/privacy)`, `- [合作組織](${SITE_ORIGIN}/partners): 與 FUMO 建立合作關係的組織名錄與合作日期，唯讀同步自官方試算表。\n- [投票紀錄](${SITE_ORIGIN}/vote-records): 可搜尋的標準與特殊議案歷史投票紀錄，唯讀取自官方公開試算表。\n- [隱私權政策](${SITE_ORIGIN}/privacy)`), "utf8");
+console.log(`Generated ${pages.length} SEO-ready HTML routes and sitemap.xml (${memberList.length} public states, ${staff.length} public staff entries, ${partnerOrganizations.length} partner organizations, ${votes.length} public votes).`);

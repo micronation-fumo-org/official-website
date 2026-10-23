@@ -49,6 +49,18 @@ const routeMetadata: Record<string, { zh: Omit<SeoMetadata, "path">; en: Omit<Se
       keywords: "FUMO Secretariat,Deliberation Center,public offices,organization directory",
     },
   },
+  "/partners": {
+    zh: {
+      title: "FUMO 合作組織名錄｜聯合微國家組織合作夥伴",
+      description: "瀏覽與聯合微國家組織 FUMO 建立合作關係的組織及合作日期，名錄唯讀同步自官方 Google 試算表。",
+      keywords: "FUMO合作組織,合作夥伴,微國家組織合作,國際合作名錄",
+    },
+    en: {
+      title: "FUMO Partner Organizations｜Official Cooperation Directory",
+      description: "Browse organizations that have established cooperation with FUMO and their cooperation dates, read-only synchronized from the official Google Sheet.",
+      keywords: "FUMO partners,partner organizations,international cooperation,micronation partnerships",
+    },
+  },
   "/regulations": {
     zh: {
       title: "FUMO 組織法規及成員國規範｜聯合微國家組織法規目錄",
