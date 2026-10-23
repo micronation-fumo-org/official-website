@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ChevronDown, Menu, X, Shield, LogIn, UserPlus, LogOut, User, Languages, Link2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Menu, X, Shield, LogIn, UserPlus, LogOut, User, Languages, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -113,7 +113,7 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </Link>
 
-          <nav className="hidden lg:flex min-w-0 flex-1 items-center justify-center gap-5" aria-label={isEnglish ? "Main navigation" : "主要導覽"}>
+          <nav className="hidden lg:flex min-w-0 flex-1 items-center justify-center gap-4 xl:gap-5" aria-label={isEnglish ? "Main navigation" : "主要導覽"}>
             {navLinks.map((link) => link.href === "/votes" ? (
               <div
                 key={link.href}
@@ -128,7 +128,7 @@ export function Layout({ children }: LayoutProps) {
               >
                 <Link href={link.href} className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-secondary ${location === link.href || votingSubPaths.has(location) ? "text-secondary font-bold" : "text-foreground/80"}`}>
                   {link.label}
-                  <ChevronDown className={`h-4 w-4 transition-transform ${isDesktopVotingOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                  {isDesktopVotingOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
                 </Link>
                 <div className={`absolute left-0 top-full z-50 min-w-44 pt-2 transition-opacity duration-150 ${isDesktopVotingOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
                   <div role="menu" aria-label={isEnglish ? "Voting pages" : "投票頁面"} className="rounded-md border border-border bg-background p-2 shadow-lg">
@@ -168,7 +168,7 @@ export function Layout({ children }: LayoutProps) {
                 className={`gap-1 whitespace-nowrap px-2 ${moreNavLinks.some((link) => location === link.href) ? "text-secondary font-bold" : "text-foreground/80"}`}
               >
                 {isEnglish ? "More" : "更多"}
-                <ChevronDown className={`h-4 w-4 transition-transform ${isDesktopMoreOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                {isDesktopMoreOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
               </Button>
               <div className={`absolute right-0 top-full z-50 min-w-52 pt-2 transition-opacity duration-150 ${isDesktopMoreOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
                 <div role="menu" aria-label={isEnglish ? "More pages" : "更多頁面"} className="rounded-md border border-border bg-background p-2 shadow-lg">
@@ -215,15 +215,15 @@ export function Layout({ children }: LayoutProps) {
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-border bg-background py-4 px-4 flex flex-col gap-3 shadow-lg absolute w-full">
             {navLinks.map((link) => link.href === "/votes" ? (
-              <div key={link.href} className="border-y border-border py-1">
+              <div key={link.href} className="border-y border-border py-1.5">
                 <div className="flex items-center gap-2">
                   <Link href={link.href} onClick={closeMenu} className={`flex-1 py-2 text-sm font-medium transition-colors hover:text-secondary ${location === link.href || votingSubPaths.has(location) ? "text-secondary font-bold" : "text-foreground/80"}`}>{link.label}</Link>
-                  <Button type="button" variant="ghost" size="sm" aria-expanded={isMobileVotingOpen} onClick={() => setIsMobileVotingOpen((open) => !open)} className="px-2">
-                    <ChevronDown className={`h-4 w-4 transition-transform ${isMobileVotingOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                  <Button type="button" variant="ghost" size="sm" aria-label={isEnglish ? "Toggle voting pages" : "展開或收合投票頁面"} aria-expanded={isMobileVotingOpen} onClick={() => setIsMobileVotingOpen((open) => !open)} className="px-2">
+                    {isMobileVotingOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
                   </Button>
                 </div>
                 {isMobileVotingOpen && (
-                  <div className="ml-2 flex flex-col border-l border-border pl-3">
+                  <div className="ml-2 flex flex-col border-l border-border pl-4 pt-1">
                     {votingNavLinks.map((subLink) => (
                       <Link key={subLink.href} href={subLink.href} onClick={closeMenu} className={`py-2 text-sm transition-colors hover:text-secondary ${location === subLink.href ? "font-bold text-secondary" : "text-foreground/80"}`}>{subLink.label}</Link>
                     ))}
@@ -233,20 +233,21 @@ export function Layout({ children }: LayoutProps) {
             ) : (
               <Link key={link.href} href={link.href} onClick={closeMenu} className={`text-sm font-medium py-2 transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>{link.label}</Link>
             ))}
-            <div className="border-y border-border py-1">
+            <div className="border-y border-border py-1.5">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 aria-expanded={isMobileMoreOpen}
                 onClick={() => setIsMobileMoreOpen((open) => !open)}
+                aria-label={isEnglish ? "Toggle more pages" : "展開或收合其他頁面"}
                 className="flex w-full items-center justify-between px-2"
               >
                 <span>{isEnglish ? "More" : "更多"}</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${isMobileMoreOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                {isMobileMoreOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
               </Button>
               {isMobileMoreOpen && (
-                <div className="ml-2 flex flex-col border-l border-border pl-3">
+                <div className="ml-2 flex flex-col border-l border-border pl-4 pt-1">
                   {moreNavLinks.map((link) => (
                     <Link key={link.href} href={link.href} onClick={closeMenu} className={`py-2 text-sm transition-colors hover:text-secondary ${location === link.href ? "font-bold text-secondary" : "text-foreground/80"}`}>
                       {link.label}
