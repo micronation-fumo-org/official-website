@@ -28,8 +28,8 @@ interface RecordData {
 
 const PAGE_SIZE = 20;
 const SOURCES: Record<Kind, string> = {
-  standard: "https://docs.google.com/spreadsheets/d/1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0/edit?gid=483555265#gid=483555265",
-  special: "https://docs.google.com/spreadsheets/d/1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0/edit?gid=281957361#gid=281957361",
+  standard: "https://docs.google.com/spreadsheets/d/1ebE_1cZa2nqcdPwrFq_60wmElO1GDNtoG8zFPciqHFo/edit?gid=248931932#gid=248931932",
+  special: "https://docs.google.com/spreadsheets/d/1ebE_1cZa2nqcdPwrFq_60wmElO1GDNtoG8zFPciqHFo/edit?gid=1639143639#gid=1639143639",
 };
 
 async function fetchRecords(): Promise<RecordData> {
@@ -67,7 +67,7 @@ export default function VoteRecords() {
           <div>
             <div className="mb-2 flex items-center gap-2 text-secondary"><FileSpreadsheet className="h-5 w-5" /><span className="text-sm font-semibold">{isEnglish ? "Official public archive" : "官方公開檔案"}</span></div>
             <h1 className="text-2xl font-bold text-primary sm:text-3xl">{isEnglish ? "Voting Records" : "投票紀錄"}</h1>
-            <p className="mt-2 max-w-3xl text-sm text-muted-foreground sm:text-base">{isEnglish ? "Browse historical standard and special proposal votes. This page is read-only and reflects the public official spreadsheets." : "瀏覽標準與特殊議案的歷史投票紀錄。本頁為唯讀，資料取自官方公開試算表。"}</p>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground sm:text-base">{isEnglish ? "Browse historical standard and special proposal votes. This page is read-only and reflects the official website data sheet." : "瀏覽標準與特殊議案的歷史投票紀錄。本頁為唯讀，資料取自官方網站資料表。"}</p>
           </div>
           <a href={SOURCES[kind]} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center gap-2 self-start rounded-md border border-border bg-white px-3 py-2 text-sm font-medium text-primary hover:bg-muted sm:self-auto"><ExternalLink className="h-4 w-4" />{isEnglish ? "Open source sheet" : "開啟來源試算表"}</a>
         </header>
@@ -113,7 +113,7 @@ export default function VoteRecords() {
             </div>
           </>
         )}
-        <p className="mt-5 text-center text-xs text-muted-foreground">{isEnglish ? "Read-only source data; no changes are made to the spreadsheets. Records refresh from the public sheets approximately every five minutes." : "此頁僅讀取公開試算表，不會修改來源資料；紀錄約每五分鐘更新一次。"}</p>
+        <p className="mt-5 text-center text-xs text-muted-foreground">{isEnglish ? "Read-only source data; no changes are made to the spreadsheet. Records refresh from the official website data sheet approximately every five minutes." : "此頁僅讀取官方網站資料表，不會修改來源資料；紀錄約每五分鐘更新一次。"}</p>
       </div>
     </main>
   );

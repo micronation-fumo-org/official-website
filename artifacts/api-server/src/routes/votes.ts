@@ -6,8 +6,8 @@ import { logger } from "../lib/logger";
 import { z } from "zod";
 import argon2 from "argon2";
 
-const SHEET_ID = "1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0";
-const VOTER_GID = "1885327256";
+const SHEET_ID = "1ebE_1cZa2nqcdPwrFq_60wmElO1GDNtoG8zFPciqHFo";
+const VOTER_GID = "569164345";
 
 // Default super-admin Discord ID
 const DEFAULT_ADMIN_ID = "1406117683220709486";

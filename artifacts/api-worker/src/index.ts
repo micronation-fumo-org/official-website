@@ -58,11 +58,9 @@ const OBSERVER_GID = "1711083489";
 const VOTER_GID = "569164345";
 const REGISTRATION_GID = "948800346";
 const PARTNERS_GID = "1745343944";
-const STAFF_SHEET_ID = "1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0";
-const SECRETARIAT_GID = "1303265265";
-const COUNCIL_GID = "1574972161";
-const HISTORICAL_VOTES_SPECIAL_GID = "281957361";
-const HISTORICAL_VOTES_STANDARD_GID = "483555265";
+const STAFF_ROSTER_GID = "1939375804";
+const HISTORICAL_VOTES_SPECIAL_GID = "1639143639";
+const HISTORICAL_VOTES_STANDARD_GID = "248931932";
 const DEFAULT_ADMIN_ID = "1406117683220709486";
 const ADMIN_NONE = 0;
 const ADMIN_TIER1 = 1;
@@ -155,8 +153,8 @@ let historicalVoteRecordsCache: { value: HistoricalVoteRecordsResponse; at: numb
 async function historicalVoteRecords(): Promise<HistoricalVoteRecordsResponse> {
   if (historicalVoteRecordsCache && Date.now() - historicalVoteRecordsCache.at < 300000) return historicalVoteRecordsCache.value;
   const [specialRows, standardRows] = await Promise.all([
-    sheetFrom(STAFF_SHEET_ID, HISTORICAL_VOTES_SPECIAL_GID),
-    sheetFrom(STAFF_SHEET_ID, HISTORICAL_VOTES_STANDARD_GID),
+    sheet(HISTORICAL_VOTES_SPECIAL_GID),
+    sheet(HISTORICAL_VOTES_STANDARD_GID),
   ]);
   const value = {
     special: parseHistoricalVoteRows(specialRows, "special"),
@@ -169,7 +167,7 @@ async function historicalVoteRecords(): Promise<HistoricalVoteRecordsResponse> {
 interface Member { fullName: string; shortName: string; abbreviation?: string; headOfState?: string; primeMinister?: string; governmentType: string; status: "member" | "observer"; }
 interface Voter { countryName: string; reps: { name: string; id: string }[]; }
 interface RegistrationEntry { countryName: string; voterName: string; id: string; email: string; }
-interface StaffEntry { id: string; name: string; roles: string[]; areas: string[]; organizations: string[]; }
+interface StaffEntry { name: string; roles: string[]; areas: string[]; organizations: string[]; }
 interface PartnerOrganization { name: string; cooperationDate: string; }
 let membersCache: { value: { memberStates: Member[]; observerStates: Member[]; allStates: Member[] }; at: number } | null = null;
 let votersCache: { value: Voter[]; at: number } | null = null;
@@ -188,28 +186,22 @@ async function voters() {
 }
 const findVoter = (list: Voter[], id: string) => { for (const v of list) { const rep = v.reps.find(r => r.id === id); if (rep) return { countryName: v.countryName, voterName: rep.name }; } return null; };
 async function registrations() { const rows = await sheet(REGISTRATION_GID); const h = rows[0] ?? []; const idx = (n: string) => h.indexOf(n); return rows.slice(1).map(r => ({ countryName: r[idx("國家名稱")] ?? "", voterName: r[idx("註冊名稱")] ?? "", id: r[idx("註冊ID")] ?? "", email: (r[idx("Email")] ?? "").trim().toLowerCase() })).filter(r => r.id && r.countryName && r.voterName); }
-async function staffAccounts() {
+async function staffRoster() {
   if (staffCache && Date.now() - staffCache.at < 300000) return staffCache.value;
-  const [secretariat, council] = await Promise.all([
-    fetch(`https://docs.google.com/spreadsheets/d/${STAFF_SHEET_ID}/export?format=csv&gid=${SECRETARIAT_GID}`).then(r => r.text()).then(csvRows),
-    fetch(`https://docs.google.com/spreadsheets/d/${STAFF_SHEET_ID}/export?format=csv&gid=${COUNCIL_GID}`).then(r => r.text()).then(csvRows),
-  ]);
-  const byId = new Map<string, StaffEntry>();
-  for (const [rows, organization] of [[secretariat, "秘書處"], [council, "議事中心"]] as const) {
-    const h = rows[0] ?? []; const idAt = h.indexOf("使用者ID"); const nameAt = h.indexOf("暱稱"); const roleAt = h.indexOf("職稱");
-    if (idAt < 0 || nameAt < 0 || roleAt < 0) continue;
-    for (const r of rows.slice(1)) {
-      const id = (r[idAt] ?? "").trim(); const name = (r[nameAt] ?? "").trim(); const role = (r[roleAt] ?? "").trim();
-      if (!id || !name) continue;
-      const area = (r[h.indexOf("負責區域")] ?? "").trim();
-      const entry = byId.get(id) ?? { id, name, roles: [], areas: [], organizations: [] };
-      if (role && !entry.roles.includes(role)) entry.roles.push(role);
-      if (area && !entry.areas.includes(area)) entry.areas.push(area);
-      if (!entry.organizations.includes(organization)) entry.organizations.push(organization);
-      byId.set(id, entry);
-    }
-  }
-  const value = [...byId.values()]; staffCache = { value, at: Date.now() }; return value;
+  const rows = await sheet(STAFF_ROSTER_GID);
+  const headers = rows[0] ?? [];
+  const nameAt = headers.indexOf("暱稱");
+  const roleAt = headers.indexOf("職稱");
+  const areaAt = headers.indexOf("負責區域");
+  if (nameAt < 0 || roleAt < 0) throw new Error("Secretariat roster is missing required columns.");
+  const value: StaffEntry[] = rows.slice(1).flatMap(row => {
+    const name = (row[nameAt] ?? "").trim();
+    if (!name) return [];
+    const role = (row[roleAt] ?? "").trim();
+    const areas = areaAt < 0 ? [] : (row[areaAt] ?? "").split(/[、，,；;]/).map(area => area.trim()).filter(Boolean);
+    return [{ name, roles: role ? [role] : [], areas, organizations: ["秘書處"] }];
+  });
+  staffCache = { value, at: Date.now() }; return value;
 }
 async function partnerOrganizations() {
   if (partnersCache && Date.now() - partnersCache.at < 300000) return partnersCache.value;
@@ -411,7 +403,7 @@ app.get("/api/auth/google/callback", async c => {
 
 app.get("/api/members", async c => { try { return c.json({ ...(await members()), cached: Boolean(membersCache), lastUpdated: membersCache ? new Date(membersCache.at).toISOString() : null }); } catch (e) { return c.json({ error: "Failed to fetch member states", message: String(e) }, 500); } });
 app.get("/api/voters", async c => { try { return c.json(await voters()); } catch (e) { return c.json({ error: "Failed to fetch voters", message: String(e) }, 500); } });
-app.get("/api/staff-report", async c => { try { const staff = await staffAccounts(); return c.json({ staff: staff.map(({ id: _id, ...entry }) => entry), lastUpdated: new Date().toISOString() }); } catch (e) { return c.json({ error: "Failed to fetch staff report", message: String(e) }, 500); } });
+app.get("/api/staff-report", async c => { try { const staff = await staffRoster(); return c.json({ staff, lastUpdated: new Date().toISOString() }); } catch (e) { return c.json({ error: "Failed to fetch staff report", message: String(e) }, 500); } });
 app.get("/api/partners", async c => { try { return c.json(await partnerOrganizations(), 200, { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=300" }); } catch { return c.json({ error: "無法載入合作組織名錄，請稍後再試。" }, 502, { "Cache-Control": "no-store" }); } });
 app.get("/api/vote-records", async c => {
   try {
@@ -659,7 +651,7 @@ app.post("/api/votes/:id/close", async c => {
   return c.json({ success: true, message: "Vote closed" });
 });
 
-app.post("/api/auth/register", async c => { const body = z.object({ voterId: z.string().min(1), password: z.string().min(4) }).safeParse(await parseJson(c)); if (!body.success) return c.json({ error: "請填寫 Discord ID 與密碼。" }, 400); const registration = (await registrations()).find(r => r.id === body.data.voterId); const staff = registration ? null : (await staffAccounts()).find(r => r.id === body.data.voterId); const identity = registration ?? (staff ? { countryName: "FUMO", voterName: staff.name, id: staff.id } : null); if (!identity) return c.json({ error: "此 ID 不在註冊名單中，請先由管理員加入註冊名單。" }, 403); if (await account(c.env.DB, body.data.voterId)) return c.json({ error: "Account already exists. Please login instead." }, 409); await c.env.DB.prepare("INSERT INTO voter_accounts (voter_id, voter_name, country_name, password_hash) VALUES (?, ?, ?, ?)").bind(body.data.voterId, identity.voterName, identity.countryName, await hashPassword(body.data.password)).run(); return c.json({ success: true, voterId: body.data.voterId, voterName: identity.voterName }); });
+app.post("/api/auth/register", async c => { const body = z.object({ voterId: z.string().min(1), password: z.string().min(4) }).safeParse(await parseJson(c)); if (!body.success) return c.json({ error: "請填寫 Discord ID 與密碼。" }, 400); const identity = (await registrations()).find(r => r.id === body.data.voterId); if (!identity) return c.json({ error: "此 ID 不在註冊名單中，請先由管理員加入註冊名單。" }, 403); if (await account(c.env.DB, body.data.voterId)) return c.json({ error: "Account already exists. Please login instead." }, 409); await c.env.DB.prepare("INSERT INTO voter_accounts (voter_id, voter_name, country_name, password_hash) VALUES (?, ?, ?, ?)").bind(body.data.voterId, identity.voterName, identity.countryName, await hashPassword(body.data.password)).run(); return c.json({ success: true, voterId: body.data.voterId, voterName: identity.voterName }); });
 app.get("/api/auth/me", async c => { const a = await currentAccount(c); return a ? c.json(publicUser(a)) : c.json({ user: null }, 401); });
 app.post("/api/auth/login", async c => { const body = z.object({ voterId: z.string().min(1), password: z.string().min(1) }).safeParse(await parseJson(c)); if (!body.success) return c.json({ error: "Invalid input" }, 400); const a = await account(c.env.DB, body.data.voterId); if (!a) return c.json({ error: "Account not found. Please register first." }, 403); if (!(await verifyPassword(body.data.password, a.password_hash))) return c.json({ error: "Incorrect password." }, 403); const session = await createSession(c.env.DB, a.voter_id); return json(publicUser(a), 200, { "Set-Cookie": sessionCookie(session.raw, session.maxAge) }); });
 app.post("/api/auth/logout", async c => { const token = cookieValue(c, SESSION_COOKIE); if (token) await c.env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash = ?").bind(await sessionHash(token)).run(); return json({ success: true }, 200, { "Set-Cookie": clearSessionCookie() }); });

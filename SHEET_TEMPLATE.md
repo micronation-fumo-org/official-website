@@ -1,4 +1,4 @@
-# Google Sheet 程式讀取格式
+# FUMO 官方網站資料 Sheet 模板：程式讀取格式
 
 程式使用第一列作為欄位標題，欄位名稱必須完全一致，包括中文、順序中的文字與「第」字。第一列上方不要放標題、說明或合併儲存格。
 
@@ -71,20 +71,27 @@ Worker 的規則：
 
 | 用途 | GID |
 |---|---:|
-| 成員國 | `643747757` |
-| 觀察國 | `1983936747` |
-| 投票代表與資格 | `1885327256` |
+| 成員國 | `1958346154` |
+| 觀察國 | `1711083489` |
+| 投票代表與資格 | `569164345` |
+| 註冊名單 | `948800346` |
+| 秘書處名冊 | `1939375804` |
+| 合作組織列表 | `1745343944` |
+| 歷史投票紀錄（標準） | `248931932` |
+| 歷史投票紀錄（特殊） | `1639143639` |
 
 Google Sheet 連結：
 
-<https://docs.google.com/spreadsheets/d/1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0/edit>
+<https://docs.google.com/spreadsheets/d/1ebE_1cZa2nqcdPwrFq_60wmElO1GDNtoG8zFPciqHFo/edit>
+
+網站所有公開名冊與歷史投票紀錄均讀取這份模板，不使用聯合微國家組織公開資料總表。兩個歷史投票分頁是複製後的獨立資料值，不會再引用原總表公式。
 
 ## 程式讀取方式
 
 Worker 使用 Google Sheet CSV 匯出：
 
 ```text
-https://docs.google.com/spreadsheets/d/1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0/export?format=csv&gid=643747757
+https://docs.google.com/spreadsheets/d/1ebE_1cZa2nqcdPwrFq_60wmElO1GDNtoG8zFPciqHFo/export?format=csv&gid=1958346154
 ```
 
 因此每個分頁必須允許 Worker 讀取公開 CSV；Worker 會快取資料約 5 分鐘。

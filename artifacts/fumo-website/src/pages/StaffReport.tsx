@@ -50,12 +50,12 @@ export default function StaffReport() {
               <span className="text-sm font-semibold tracking-wide">FUMO</span>
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold text-primary">
-              {isEnglish ? "Institutional position report" : "秘書處與議事中心職位報告"}
+              {isEnglish ? "Secretariat position report" : "秘書處職位報告"}
             </h1>
             <p className="text-foreground/70 mt-2 max-w-2xl">
               {isEnglish
-                ? "Current public roster of FUMO Secretariat and Deliberation Center positions. Account IDs are not displayed."
-                : "FUMO 秘書處與議事中心目前職位名錄。此報告只顯示公開職務資料，不顯示帳號 ID。"}
+                ? "Current public roster of FUMO Secretariat positions, titles, and responsibilities from the official website data sheet. Account IDs are not displayed."
+                : "FUMO 官方網站資料表中的秘書處職位、職稱與負責區域。此報告只顯示公開職務資料，不顯示帳號 ID。"}
             </p>
           </div>
           <Button variant="outline" onClick={() => refetch()} disabled={isFetching} className="w-full sm:w-auto">
@@ -73,14 +73,13 @@ export default function StaffReport() {
           <div className="text-center py-16 text-muted-foreground">{isEnglish ? "Loading report..." : "載入職位報告中..."}</div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {["秘書處", "議事中心"].map((organization) => {
-              const entries = grouped.get(organization) ?? [];
+            {[...grouped.entries()].map(([organization, entries]) => {
               return (
                 <Card key={organization} className="border-border/60 bg-white shadow-sm">
                   <CardHeader className="border-b border-border/50">
                     <CardTitle className="flex items-center gap-2 text-primary">
                       <Building2 className="w-5 h-5 text-secondary" />
-                      {isEnglish ? (organization === "秘書處" ? "Secretariat" : "Deliberation Center") : organization}
+                      {isEnglish ? (organization === "秘書處" ? "Secretariat" : organization) : organization}
                       <Badge variant="secondary" className="ml-auto">{entries.length}</Badge>
                     </CardTitle>
                   </CardHeader>

@@ -16,10 +16,10 @@ type MemberState = {
   status: "member" | "observer";
 };
 
-const SHEET_ID = "1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0";
-const VOTER_GID = "1885327256";
-const MEMBER_GID = "643747757";
-const OBSERVER_GID = "1983936747";
+const SHEET_ID = "1ebE_1cZa2nqcdPwrFq_60wmElO1GDNtoG8zFPciqHFo";
+const VOTER_GID = "569164345";
+const MEMBER_GID = "1958346154";
+const OBSERVER_GID = "1711083489";
 const DEFAULT_ADMIN_ID = "1406117683220709486";
 const ADMIN_LEVEL_TIER1 = 1;
 const ADMIN_LEVEL_TIER2 = 2;

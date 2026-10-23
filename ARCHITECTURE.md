@@ -4,7 +4,7 @@
 
 Google Sheet 與 Cloudflare D1 分開使用：
 
-- **Google Sheet**：管理國家、觀察國、代表及投票資格等名冊資料。
+- **Google Sheet**：使用使用者指定的「FUMO 官方網站資料 Sheet 模板」，管理國家、代表、註冊白名單、秘書處名冊、合作組織及歷史投票檔案。
 - **Cloudflare D1**：管理網站帳號、密碼雜湊、管理員權限、投票項目及投票紀錄。
 - **Cloudflare Pages**：託管 React/Vite 前端。
 - **Cloudflare Workers**：提供獨立 API，連接 Google Sheet 與 D1。
@@ -14,13 +14,14 @@ flowchart TD
     U[使用者瀏覽器] --> P[Cloudflare Pages\nReact + Vite 前端]
     P -->|HTTPS /api/*| W[Cloudflare Worker\nfumo-api]
     W -->|SELECT / INSERT / UPDATE| D[(Cloudflare D1\nfumo-production)]
-    W -->|公開 CSV 讀取| S[Google Sheet\n國家與代表名冊]
+    W -->|公開 CSV 讀取| S[官方網站資料 Sheet 模板]
 
     D --> A[帳號與密碼雜湊]
     D --> V[投票項目]
     D --> B[投票紀錄]
     S --> M[成員國 / 觀察國]
-    S --> R[代表 / 投票資格]
+    S --> R[代表 / 註冊白名單]
+    S --> X[秘書處 / 合作組織 / 歷史投票]
 ```
 
 ## 2. 各服務責任
@@ -30,20 +31,25 @@ flowchart TD
 | Cloudflare Pages | 前端畫面、路由、表單、API 呼叫 | 不直接連接 D1、不保存密碼 |
 | Cloudflare Worker | API、權限檢查、資料整合、CORS | 不把 Google Sheet 名冊複製到 D1 |
 | Cloudflare D1 | 帳戶、投票、投票紀錄、管理員權限 | 不保存國家名冊的主要來源 |
-| Google Sheet | 國家、觀察國、代表、代表 ID、投票資格 | 不保存密碼、不保存投票紀錄 |
+| Google Sheet | 公開名冊、註冊白名單、合作組織與歷史投票檔案 | 不保存網站密碼；即時網站投票仍由 D1 管理 |
 
 ## 3. Google Sheet 分頁
 
 | 用途 | GID |
 |---|---:|
-| 成員國 | `643747757` |
-| 觀察國 | `1983936747` |
-| 投票代表與資格 | `1885327256` |
+| 成員國 | `1958346154` |
+| 觀察國 | `1711083489` |
+| 投票代表與資格 | `569164345` |
+| 註冊名單 | `948800346` |
+| 秘書處名冊 | `1939375804` |
+| 合作組織列表 | `1745343944` |
+| 歷史投票紀錄（標準） | `248931932` |
+| 歷史投票紀錄（特殊） | `1639143639` |
 
 Worker 透過 Google Sheet 公開 CSV 匯出介面讀取：
 
 ```text
-https://docs.google.com/spreadsheets/d/1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0/export?format=csv&gid=分頁GID
+https://docs.google.com/spreadsheets/d/1ebE_1cZa2nqcdPwrFq_60wmElO1GDNtoG8zFPciqHFo/export?format=csv&gid=分頁GID
 ```
 
 Worker 會在記憶體中快取資料約 5 分鐘，減少對 Google Sheet 的請求。
