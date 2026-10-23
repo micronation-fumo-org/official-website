@@ -4,6 +4,7 @@
     { "path": "/members", "title": "會員國與觀察國" },
     { "path": "/staff", "title": "秘書處與議事中心職位報告" },
     { "path": "/partners", "title": "合作組織" },
+    { "path": "/acknowledgements", "title": "致謝名單" },
     { "path": "/regulations", "title": "組織法規" },
     { "path": "/charter", "title": "組織憲章" },
     { "path": "/votes", "title": "公開投票" },

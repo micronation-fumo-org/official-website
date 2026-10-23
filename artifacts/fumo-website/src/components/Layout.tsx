@@ -31,6 +31,7 @@ export function Layout({ children }: LayoutProps) {
         { href: "/regulations", label: "Regulations" },
         { href: "/charter", label: "Charter" },
         { href: "/partners", label: "Partner Organizations" },
+        { href: "/acknowledgements", label: "Acknowledgements" },
       ]
     : [
         { href: "/", label: "首頁" },
@@ -42,8 +43,9 @@ export function Layout({ children }: LayoutProps) {
         { href: "/regulations", label: "法規" },
         { href: "/charter", label: "憲章" },
         { href: "/partners", label: "合作組織" },
+        { href: "/acknowledgements", label: "致謝名單" },
       ];
-  const morePaths = new Set(["/staff", "/partners", "/regulations", "/charter"]);
+  const morePaths = new Set(["/staff", "/partners", "/acknowledgements", "/regulations", "/charter"]);
   const votingSubPaths = new Set(["/vote-records", "/attendance"]);
   const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href) && !votingSubPaths.has(link.href));
   const moreNavLinks = allNavLinks.filter((link) => morePaths.has(link.href));
