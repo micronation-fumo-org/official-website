@@ -297,7 +297,19 @@ export function Layout({ children }: LayoutProps) {
               <div className="grid grid-cols-1 gap-2"><a href="https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/HJeBOxjctGl" target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Regulations directory" : "法規目錄"}</a><a href={isEnglish ? charterUrlEn : charterUrlZh} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Charter" : "憲章"}</a><Link href="/privacy" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Privacy policy" : "隱私權政策"}</Link><Link href="/terms" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Terms of use" : "使用條款"}</Link></div>
             </div>
           </div>
-          <div className="mt-8 flex flex-col gap-2 border-t border-primary-foreground/10 pt-5 text-xs text-primary-foreground/60 sm:flex-row sm:items-center sm:justify-between"><p>© {new Date().getFullYear()} FUMO. {isEnglish ? "All rights reserved." : "所有權利保留。"}</p><p>{isEnglish ? "Website by FUMO and " : "網站由 FUMO 與 "}<a href="https://damcurryrice.com" target="_blank" rel="noopener noreferrer" className="text-primary-foreground/80 hover:text-secondary transition-colors">蛋包咖哩飯</a>{isEnglish ? "." : "共同製作。"}</p></div>
+          <div className="mt-8 rounded-xl border border-primary-foreground/10 bg-primary-foreground/[0.04] px-4 py-4 shadow-inner sm:px-5">
+            <div className="flex flex-col gap-3 text-xs text-primary-foreground/65 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-semibold text-primary-foreground/85">© {new Date().getFullYear()} FUMO</span>
+                <span className="hidden text-primary-foreground/30 sm:inline" aria-hidden="true">•</span>
+                <span>{isEnglish ? "All rights reserved." : "所有權利保留。"}</span>
+              </div>
+              <a href="https://damcurryrice.com" target="_blank" rel="noopener noreferrer" aria-label={isEnglish ? "Visit Dam Curry Rice website" : "前往蛋包咖哩飯網站"} className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary-foreground/15 px-3 py-1.5 font-medium text-primary-foreground/80 transition-colors hover:border-secondary/60 hover:bg-secondary/10 hover:text-secondary">
+                <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{isEnglish ? "Website by FUMO & Dam Curry Rice" : "FUMO × 蛋包咖哩飯"}</span>
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
