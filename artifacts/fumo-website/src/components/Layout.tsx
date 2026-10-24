@@ -49,6 +49,7 @@ export function Layout({ children }: LayoutProps) {
   const morePaths = new Set(["/staff", "/partners", "/acknowledgements", "/regulations", "/charter"]);
   const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href) && !votingPaths.has(link.href));
   const votingNavLinks = allNavLinks.filter((link) => votingPaths.has(link.href));
+  const discordInviteUrl = "https://discord.com/invite/MuSM3yXrQh";
   const moreNavLinks = allNavLinks.filter((link) => morePaths.has(link.href));
   const footerGroups = [
     {
@@ -130,6 +131,14 @@ export function Layout({ children }: LayoutProps) {
           </Link>
 
           <nav className="hidden lg:flex min-w-0 flex-1 items-center justify-center gap-4 xl:gap-5" aria-label={isEnglish ? "Main navigation" : "主要導覽"}>
+            <a
+              href={discordInviteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="whitespace-nowrap text-sm font-medium text-secondary transition-colors hover:text-secondary/80"
+            >
+              {isEnglish ? "Join Discord" : "加入 Discord"}
+            </a>
             {navLinks.map((link) => (
               <Link key={link.href} href={link.href} className={`text-sm font-medium transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>
                 {link.label}
@@ -245,6 +254,9 @@ export function Layout({ children }: LayoutProps) {
 
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-border bg-background py-4 px-4 flex flex-col gap-3 shadow-lg absolute w-full">
+            <a href={discordInviteUrl} target="_blank" rel="noopener noreferrer" onClick={closeMenu} className="py-2 text-sm font-medium text-secondary transition-colors hover:text-secondary/80">
+              {isEnglish ? "Join Discord" : "加入 Discord"}
+            </a>
             {navLinks.map((link) => (
               <Link key={link.href} href={link.href} onClick={closeMenu} className={`text-sm font-medium py-2 transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>{link.label}</Link>
             ))}
