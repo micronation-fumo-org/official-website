@@ -25,9 +25,9 @@ export function Layout({ children }: LayoutProps) {
         { href: "/", label: "Home" },
         { href: "/members", label: "Member States" },
         { href: "/staff", label: "Positions" },
-        { href: "/votes", label: "Voting" },
         { href: "/vote-records", label: "Vote records" },
         { href: "/attendance", label: "Attendance" },
+        { href: "/votes", label: "Voting" },
         { href: "/regulations", label: "Regulations" },
         { href: "/charter", label: "Charter" },
         { href: "/partners", label: "Partner Organizations" },
@@ -37,19 +37,20 @@ export function Layout({ children }: LayoutProps) {
         { href: "/", label: "首頁" },
         { href: "/members", label: "會員國" },
         { href: "/staff", label: "職位報告" },
-        { href: "/votes", label: "投票" },
         { href: "/vote-records", label: "投票紀錄" },
         { href: "/attendance", label: "出席簽到" },
+        { href: "/votes", label: "投票" },
         { href: "/regulations", label: "法規" },
         { href: "/charter", label: "憲章" },
         { href: "/partners", label: "合作組織" },
         { href: "/acknowledgements", label: "致謝名單" },
       ];
+  const votingPaths = new Set(["/vote-records", "/attendance", "/votes"]);
   const morePaths = new Set(["/staff", "/partners", "/acknowledgements", "/regulations", "/charter"]);
-  const votingSubPaths = new Set(["/vote-records", "/attendance"]);
-  const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href) && !votingSubPaths.has(link.href));
+  const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href) && !votingPaths.has(link.href));
+  const votingNavLinks = allNavLinks.filter((link) => votingPaths.has(link.href));
+  const discordInviteUrl = "https://discord.com/invite/MuSM3yXrQh";
   const moreNavLinks = allNavLinks.filter((link) => morePaths.has(link.href));
-  const votingNavLinks = allNavLinks.filter((link) => votingSubPaths.has(link.href));
   const footerGroups = [
     {
       title: isEnglish ? "Main pages" : "主要頁面",
@@ -130,37 +131,60 @@ export function Layout({ children }: LayoutProps) {
           </Link>
 
           <nav className="hidden lg:flex min-w-0 flex-1 items-center justify-center gap-4 xl:gap-5" aria-label={isEnglish ? "Main navigation" : "主要導覽"}>
-            {navLinks.map((link) => link.href === "/votes" ? (
-              <div
-                key={link.href}
-                className="relative flex h-full items-center"
-                onMouseEnter={() => setIsDesktopVotingOpen(true)}
-                onMouseLeave={() => setIsDesktopVotingOpen(false)}
-                onFocusCapture={() => setIsDesktopVotingOpen(true)}
-                onBlur={(event) => {
-                  const nextTarget = event.relatedTarget;
-                  if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) setIsDesktopVotingOpen(false);
-                }}
-              >
-                <Link href={link.href} className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-secondary ${location === link.href || votingSubPaths.has(location) ? "text-secondary font-bold" : "text-foreground/80"}`}>
-                  {link.label}
-                  {isDesktopVotingOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
-                </Link>
-                <div className={`absolute left-0 top-full z-50 min-w-44 pt-2 transition-opacity duration-150 ${isDesktopVotingOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
-                  <div role="menu" aria-label={isEnglish ? "Voting pages" : "投票頁面"} className="rounded-md border border-border bg-background p-2 shadow-lg">
-                    {votingNavLinks.map((subLink) => (
-                      <Link key={subLink.href} href={subLink.href} role="menuitem" onClick={() => setIsDesktopVotingOpen(false)} className={`block rounded-sm px-3 py-2 text-sm transition-colors hover:bg-muted hover:text-secondary ${location === subLink.href ? "font-semibold text-secondary" : "text-foreground/80"}`}>
-                        {subLink.label}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
+            <a
+              href={discordInviteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="whitespace-nowrap text-sm font-medium text-secondary transition-colors hover:text-secondary/80"
+            >
+              {isEnglish ? "Join Discord" : "加入 Discord"}
+            </a>
+            {navLinks.map((link) => (
               <Link key={link.href} href={link.href} className={`text-sm font-medium transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>
                 {link.label}
               </Link>
             ))}
+            <div
+              className="relative flex h-full items-center"
+              onMouseEnter={() => setIsDesktopVotingOpen(true)}
+              onMouseLeave={() => setIsDesktopVotingOpen(false)}
+              onFocusCapture={() => setIsDesktopVotingOpen(true)}
+              onBlur={(event) => {
+                const nextTarget = event.relatedTarget;
+                if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) setIsDesktopVotingOpen(false);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setIsDesktopVotingOpen(false);
+              }}
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-haspopup="menu"
+                aria-expanded={isDesktopVotingOpen}
+                onClick={() => setIsDesktopVotingOpen(true)}
+                className={`h-auto gap-1 whitespace-nowrap px-0 py-0 text-sm font-medium leading-5 ${votingNavLinks.some((link) => location === link.href) ? "text-secondary font-bold" : "text-foreground/80"}`}
+              >
+                {isEnglish ? "Voting pages" : "投票相關"}
+                {isDesktopVotingOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
+              </Button>
+              <div className={`absolute right-0 top-full z-50 min-w-52 pt-2 transition-opacity duration-150 ${isDesktopVotingOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
+                <div role="menu" aria-label={isEnglish ? "Voting pages" : "投票相關頁面"} className="rounded-md border border-border bg-background p-2 shadow-lg">
+                  {votingNavLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      role="menuitem"
+                      onClick={() => setIsDesktopVotingOpen(false)}
+                      className={`block rounded-sm px-3 py-2 text-sm transition-colors hover:bg-muted hover:text-secondary ${location === link.href ? "font-semibold text-secondary" : "text-foreground/80"}`}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
             <div
               className="relative flex h-full items-center"
               onMouseEnter={() => setIsDesktopMoreOpen(true)}
@@ -230,25 +254,36 @@ export function Layout({ children }: LayoutProps) {
 
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-border bg-background py-4 px-4 flex flex-col gap-3 shadow-lg absolute w-full">
-            {navLinks.map((link) => link.href === "/votes" ? (
-              <div key={link.href} className="border-y border-border py-1.5">
-                <div className="flex items-center gap-2">
-                  <Link href={link.href} onClick={closeMenu} className={`flex-1 py-2 text-sm font-medium transition-colors hover:text-secondary ${location === link.href || votingSubPaths.has(location) ? "text-secondary font-bold" : "text-foreground/80"}`}>{link.label}</Link>
-                  <Button type="button" variant="ghost" size="sm" aria-label={isEnglish ? "Toggle voting pages" : "展開或收合投票頁面"} aria-expanded={isMobileVotingOpen} onClick={() => setIsMobileVotingOpen((open) => !open)} className="px-2">
-                    {isMobileVotingOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
-                  </Button>
-                </div>
-                {isMobileVotingOpen && (
-                  <div className="ml-2 flex flex-col border-l border-border pl-4 pt-1">
-                    {votingNavLinks.map((subLink) => (
-                      <Link key={subLink.href} href={subLink.href} onClick={closeMenu} className={`py-2 text-sm transition-colors hover:text-secondary ${location === subLink.href ? "font-bold text-secondary" : "text-foreground/80"}`}>{subLink.label}</Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
+            <a href={discordInviteUrl} target="_blank" rel="noopener noreferrer" onClick={closeMenu} className="py-2 text-sm font-medium text-secondary transition-colors hover:text-secondary/80">
+              {isEnglish ? "Join Discord" : "加入 Discord"}
+            </a>
+            {navLinks.map((link) => (
               <Link key={link.href} href={link.href} onClick={closeMenu} className={`text-sm font-medium py-2 transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>{link.label}</Link>
             ))}
+            <div className="border-y border-border py-1.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-haspopup="menu"
+                aria-expanded={isMobileVotingOpen}
+                onClick={() => setIsMobileVotingOpen((open) => !open)}
+                aria-label={isEnglish ? "Toggle voting pages" : "展開或收合投票相關頁面"}
+                className="h-auto w-full items-center justify-between px-0 py-2 text-sm font-medium leading-5"
+              >
+                <span>{isEnglish ? "Voting pages" : "投票相關"}</span>
+                {isMobileVotingOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
+              </Button>
+              {isMobileVotingOpen && (
+                <div role="menu" aria-label={isEnglish ? "Voting pages" : "投票相關頁面"} className="ml-2 flex flex-col border-l border-border pl-4 pt-1">
+                  {votingNavLinks.map((link) => (
+                    <Link key={link.href} href={link.href} role="menuitem" onClick={closeMenu} className={`py-2 text-sm transition-colors hover:text-secondary ${location === link.href ? "font-bold text-secondary" : "text-foreground/80"}`}>
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="border-y border-border py-1.5">
               <Button
                 type="button"

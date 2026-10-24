@@ -92,6 +92,11 @@ export default function Home() {
                 {isEnglish ? "Read the charter" : "閱讀憲章"}
               </Button>
             </Link>
+            <a href="https://discord.com/invite/MuSM3yXrQh" target="_blank" rel="noopener noreferrer">
+              <Button size="lg" variant="outline" className="border-secondary text-secondary hover:bg-secondary/5 min-w-[200px] h-14 text-lg">
+                {isEnglish ? "Join Discord" : "加入 Discord"}
+              </Button>
+            </a>
           </motion.div>
         </div>
       </section>
