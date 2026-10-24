@@ -39,14 +39,26 @@ const routeMetadata: Record<string, { zh: Omit<SeoMetadata, "path">; en: Omit<Se
   },
   "/staff": {
     zh: {
-      title: "FUMO 秘書處與議事中心現任職位名錄｜聯合微國家組織",
-      description: "查看聯合微國家組織 FUMO 秘書處與議事中心目前公開職位、職稱與職責分工。名錄只展示公開職務資訊，不公開私人帳號識別碼。",
-      keywords: "FUMO秘書處,議事中心,組織職位,微國家職務名錄,秘書處成員",
+      title: "FUMO 秘書處職位名錄｜聯合微國家組織公開職務",
+      description: "查看 FUMO 官方網站資料表中的秘書處公開名冊、職稱與負責區域。名錄只展示公開職務資訊，不公開私人帳號識別碼。",
+      keywords: "FUMO秘書處,秘書處名冊,組織職位,微國家職務名錄,秘書處成員",
     },
     en: {
-      title: "FUMO Secretariat and Deliberation Center｜Public Office Directory",
-      description: "See the public office directory for FUMO's Secretariat and Deliberation Center, including titles and areas of responsibility.",
-      keywords: "FUMO Secretariat,Deliberation Center,public offices,organization directory",
+      title: "FUMO Secretariat Roster｜Official Position Directory",
+      description: "See the FUMO Secretariat's public roster, titles, and responsibilities from the official website data sheet. Account IDs are not displayed.",
+      keywords: "FUMO Secretariat,Secretariat roster,public offices,organization directory",
+    },
+  },
+  "/partners": {
+    zh: {
+      title: "FUMO 合作組織名錄｜聯合微國家組織合作夥伴",
+      description: "瀏覽與聯合微國家組織 FUMO 建立合作關係的組織及合作日期，名錄唯讀取自官方網站資料表模板。",
+      keywords: "FUMO合作組織,合作夥伴,微國家組織合作,國際合作名錄",
+    },
+    en: {
+      title: "FUMO Partner Organizations｜Official Cooperation Directory",
+      description: "Browse organizations that have established cooperation with FUMO and their cooperation dates, read-only from the official website data sheet template.",
+      keywords: "FUMO partners,partner organizations,international cooperation,micronation partnerships",
     },
   },
   "/regulations": {
@@ -88,12 +100,12 @@ const routeMetadata: Record<string, { zh: Omit<SeoMetadata, "path">; en: Omit<Se
   "/vote-records": {
     zh: {
       title: "FUMO 歷史投票紀錄｜標準與特殊議案表決結果",
-      description: "瀏覽聯合微國家組織 FUMO 標準與特殊議案的歷史投票紀錄，可搜尋議案、代號、例會、國家與選項。資料唯讀取自官方公開試算表。",
+      description: "瀏覽聯合微國家組織 FUMO 標準與特殊議案的歷史投票紀錄，可搜尋議案、代號、例會、國家與選項。資料唯讀取自官方網站資料表模板。",
       keywords: "FUMO投票紀錄,歷史投票,標準議案,特殊議案,議案表決,國家投票",
     },
     en: {
       title: "FUMO Historical Voting Records｜Standard and Special Proposals",
-      description: "Browse and search FUMO historical standard and special proposal votes by proposal, ID, meeting, country, or choice. Read-only data from official public spreadsheets.",
+      description: "Browse and search FUMO historical standard and special proposal votes by proposal, ID, meeting, country, or choice. Read-only data from the official website data sheet template.",
       keywords: "FUMO voting records,historical votes,standard proposals,special proposals,resolutions",
     },
   },

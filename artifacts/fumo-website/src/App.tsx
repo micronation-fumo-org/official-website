@@ -20,6 +20,8 @@ import Register from "@/pages/Register";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import StaffReport from "@/pages/StaffReport";
+import Partners from "@/pages/Partners";
+import Acknowledgements from "@/pages/Acknowledgements";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -47,6 +49,8 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/members" component={Members} />
         <Route path="/staff" component={StaffReport} />
+        <Route path="/partners" component={Partners} />
+        <Route path="/acknowledgements" component={Acknowledgements} />
         <Route path="/regulations" component={Regulations} />
         <Route path="/charter" component={Charter} />
         <Route path="/votes" component={Votes} />

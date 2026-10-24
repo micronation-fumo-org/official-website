@@ -1,15 +1,20 @@
-name = "official-website"
-main = "artifacts/api-server/src/worker.ts"
+# Keep aligned with artifacts/api-worker/wrangler.toml; root-level deploys use the active Worker source.
+name = "fumo-api"
+main = "artifacts/api-worker/src/index.ts"
 compatibility_date = "2026-10-11"
-
-[vars]
-ENVIRONMENT = "production"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "official-website"
-database_id = "04a5cd44-95eb-4a02-a954-88946515c6da"
-migrations_dir = "migrations"
+database_name = "fumo-production"
+database_id = "12d68b57-505d-40e9-8581-5024867dbb01"
+migrations_dir = "artifacts/api-worker/migrations"
 
-[dev]
-port = 8787
+[vars]
+CORS_ORIGIN = "https://www.micronationfumo.org,https://official-website-6q7.pages.dev"
+GOOGLE_REDIRECT_URI = "https://www.micronationfumo.org/api/auth/google/callback"
+
+[observability]
+enabled = true
+
+[triggers]
+crons = ["* * * * *"]

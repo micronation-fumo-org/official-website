@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Shield, LogIn, UserPlus, LogOut, User, Languages, Link2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Menu, X, Shield, LogIn, UserPlus, LogOut, User, Languages, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -12,11 +12,15 @@ interface LayoutProps { children: ReactNode; }
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
+  const [isMobileVotingOpen, setIsMobileVotingOpen] = useState(false);
+  const [isDesktopMoreOpen, setIsDesktopMoreOpen] = useState(false);
+  const [isDesktopVotingOpen, setIsDesktopVotingOpen] = useState(false);
   const [googleStatus, setGoogleStatus] = useState<string | null>(null);
   const { user, logout, isAdmin } = useAuth();
   const { language, setLanguage, isEnglish } = useLanguage();
 
-  const navLinks = isEnglish
+  const allNavLinks = isEnglish
     ? [
         { href: "/", label: "Home" },
         { href: "/members", label: "Member States" },
@@ -26,6 +30,8 @@ export function Layout({ children }: LayoutProps) {
         { href: "/attendance", label: "Attendance" },
         { href: "/regulations", label: "Regulations" },
         { href: "/charter", label: "Charter" },
+        { href: "/partners", label: "Partner Organizations" },
+        { href: "/acknowledgements", label: "Acknowledgements" },
       ]
     : [
         { href: "/", label: "首頁" },
@@ -36,7 +42,28 @@ export function Layout({ children }: LayoutProps) {
         { href: "/attendance", label: "出席簽到" },
         { href: "/regulations", label: "法規" },
         { href: "/charter", label: "憲章" },
+        { href: "/partners", label: "合作組織" },
+        { href: "/acknowledgements", label: "致謝名單" },
       ];
+  const morePaths = new Set(["/staff", "/partners", "/acknowledgements", "/regulations", "/charter"]);
+  const votingSubPaths = new Set(["/vote-records", "/attendance"]);
+  const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href) && !votingSubPaths.has(link.href));
+  const moreNavLinks = allNavLinks.filter((link) => morePaths.has(link.href));
+  const votingNavLinks = allNavLinks.filter((link) => votingSubPaths.has(link.href));
+  const footerGroups = [
+    {
+      title: isEnglish ? "Main pages" : "主要頁面",
+      links: allNavLinks.filter((link) => ["/", "/members", "/staff", "/partners", "/acknowledgements"].includes(link.href)),
+    },
+    {
+      title: isEnglish ? "Voting" : "投票相關",
+      links: allNavLinks.filter((link) => ["/votes", "/vote-records", "/attendance"].includes(link.href)),
+    },
+    {
+      title: isEnglish ? "Organization" : "組織資訊",
+      links: allNavLinks.filter((link) => ["/regulations", "/charter"].includes(link.href)),
+    },
+  ];
 
   const adminLevelLabel = (level: number) => {
     if (level >= 9) return isEnglish ? "Super Admin" : "最高管理員";
@@ -46,8 +73,20 @@ export function Layout({ children }: LayoutProps) {
   };
 
   const switchLanguage = () => setLanguage(language === "zh" ? "en" : "zh");
-  const closeMenu = () => setIsMobileMenuOpen(false);
+  const closeMenu = () => {
+    setIsMobileMenuOpen(false);
+    setIsMobileMoreOpen(false);
+    setIsMobileVotingOpen(false);
+    setIsDesktopMoreOpen(false);
+    setIsDesktopVotingOpen(false);
+  };
   const connectGoogle = () => window.location.assign(googleOAuthStartUrl("link"));
+  useEffect(() => {
+    setIsDesktopMoreOpen(false);
+    setIsDesktopVotingOpen(false);
+    setIsMobileMoreOpen(false);
+    setIsMobileVotingOpen(false);
+  }, [location]);
   useEffect(() => {
     const url = new URL(window.location.href);
     const status = url.searchParams.get("google");
@@ -90,12 +129,79 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-5 flex-1 justify-center" aria-label={isEnglish ? "Main navigation" : "主要導覽"}>
-            {navLinks.map((link) => (
+          <nav className="hidden lg:flex min-w-0 flex-1 items-center justify-center gap-4 xl:gap-5" aria-label={isEnglish ? "Main navigation" : "主要導覽"}>
+            {navLinks.map((link) => link.href === "/votes" ? (
+              <div
+                key={link.href}
+                className="relative flex h-full items-center"
+                onMouseEnter={() => setIsDesktopVotingOpen(true)}
+                onMouseLeave={() => setIsDesktopVotingOpen(false)}
+                onFocusCapture={() => setIsDesktopVotingOpen(true)}
+                onBlur={(event) => {
+                  const nextTarget = event.relatedTarget;
+                  if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) setIsDesktopVotingOpen(false);
+                }}
+              >
+                <Link href={link.href} className={`flex items-center gap-1 text-sm font-medium transition-colors hover:text-secondary ${location === link.href || votingSubPaths.has(location) ? "text-secondary font-bold" : "text-foreground/80"}`}>
+                  {link.label}
+                  {isDesktopVotingOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
+                </Link>
+                <div className={`absolute left-0 top-full z-50 min-w-44 pt-2 transition-opacity duration-150 ${isDesktopVotingOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
+                  <div role="menu" aria-label={isEnglish ? "Voting pages" : "投票頁面"} className="rounded-md border border-border bg-background p-2 shadow-lg">
+                    {votingNavLinks.map((subLink) => (
+                      <Link key={subLink.href} href={subLink.href} role="menuitem" onClick={() => setIsDesktopVotingOpen(false)} className={`block rounded-sm px-3 py-2 text-sm transition-colors hover:bg-muted hover:text-secondary ${location === subLink.href ? "font-semibold text-secondary" : "text-foreground/80"}`}>
+                        {subLink.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
               <Link key={link.href} href={link.href} className={`text-sm font-medium transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>
                 {link.label}
               </Link>
             ))}
+            <div
+              className="relative flex h-full items-center"
+              onMouseEnter={() => setIsDesktopMoreOpen(true)}
+              onMouseLeave={() => setIsDesktopMoreOpen(false)}
+              onFocusCapture={() => setIsDesktopMoreOpen(true)}
+              onBlur={(event) => {
+                const nextTarget = event.relatedTarget;
+                if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) setIsDesktopMoreOpen(false);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setIsDesktopMoreOpen(false);
+              }}
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-haspopup="menu"
+                aria-expanded={isDesktopMoreOpen}
+                onClick={() => setIsDesktopMoreOpen(true)}
+                className={`h-auto gap-1 whitespace-nowrap px-0 py-0 text-sm font-medium leading-5 ${moreNavLinks.some((link) => location === link.href) ? "text-secondary font-bold" : "text-foreground/80"}`}
+              >
+                {isEnglish ? "More" : "更多"}
+                {isDesktopMoreOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
+              </Button>
+              <div className={`absolute right-0 top-full z-50 min-w-52 pt-2 transition-opacity duration-150 ${isDesktopMoreOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
+                <div role="menu" aria-label={isEnglish ? "More pages" : "更多頁面"} className="rounded-md border border-border bg-background p-2 shadow-lg">
+                  {moreNavLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      role="menuitem"
+                      onClick={() => setIsDesktopMoreOpen(false)}
+                      className={`block rounded-sm px-3 py-2 text-sm transition-colors hover:bg-muted hover:text-secondary ${location === link.href ? "font-semibold text-secondary" : "text-foreground/80"}`}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
           </nav>
 
           <div className="hidden lg:flex items-center gap-2 shrink-0">
@@ -117,14 +223,55 @@ export function Layout({ children }: LayoutProps) {
             )}
           </div>
 
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label={isEnglish ? "Open menu" : "開啟選單"}>
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => isMobileMenuOpen ? closeMenu() : setIsMobileMenuOpen(true)} aria-label={isEnglish ? "Open menu" : "開啟選單"}>
             {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
 
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-border bg-background py-4 px-4 flex flex-col gap-3 shadow-lg absolute w-full">
-            {navLinks.map((link) => <Link key={link.href} href={link.href} onClick={closeMenu} className={`text-sm font-medium py-2 transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>{link.label}</Link>)}
+            {navLinks.map((link) => link.href === "/votes" ? (
+              <div key={link.href} className="border-y border-border py-1.5">
+                <div className="flex items-center gap-2">
+                  <Link href={link.href} onClick={closeMenu} className={`flex-1 py-2 text-sm font-medium transition-colors hover:text-secondary ${location === link.href || votingSubPaths.has(location) ? "text-secondary font-bold" : "text-foreground/80"}`}>{link.label}</Link>
+                  <Button type="button" variant="ghost" size="sm" aria-label={isEnglish ? "Toggle voting pages" : "展開或收合投票頁面"} aria-expanded={isMobileVotingOpen} onClick={() => setIsMobileVotingOpen((open) => !open)} className="px-2">
+                    {isMobileVotingOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
+                  </Button>
+                </div>
+                {isMobileVotingOpen && (
+                  <div className="ml-2 flex flex-col border-l border-border pl-4 pt-1">
+                    {votingNavLinks.map((subLink) => (
+                      <Link key={subLink.href} href={subLink.href} onClick={closeMenu} className={`py-2 text-sm transition-colors hover:text-secondary ${location === subLink.href ? "font-bold text-secondary" : "text-foreground/80"}`}>{subLink.label}</Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link key={link.href} href={link.href} onClick={closeMenu} className={`text-sm font-medium py-2 transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>{link.label}</Link>
+            ))}
+            <div className="border-y border-border py-1.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-expanded={isMobileMoreOpen}
+                onClick={() => setIsMobileMoreOpen((open) => !open)}
+                aria-label={isEnglish ? "Toggle more pages" : "展開或收合其他頁面"}
+                className="h-auto w-full items-center justify-between px-0 py-2 text-sm font-medium leading-5"
+              >
+                <span>{isEnglish ? "More" : "更多"}</span>
+                {isMobileMoreOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
+              </Button>
+              {isMobileMoreOpen && (
+                <div className="ml-2 flex flex-col border-l border-border pl-4 pt-1">
+                  {moreNavLinks.map((link) => (
+                    <Link key={link.href} href={link.href} onClick={closeMenu} className={`py-2 text-sm transition-colors hover:text-secondary ${location === link.href ? "font-bold text-secondary" : "text-foreground/80"}`}>
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
             <Button variant="outline" size="sm" onClick={() => { switchLanguage(); closeMenu(); }} className="justify-start gap-2"><Languages className="w-4 h-4" />{isEnglish ? "繁體中文" : "English"}</Button>
             <div className="border-t border-border pt-3 flex flex-col gap-2">
               {user ? <>
@@ -148,13 +295,44 @@ export function Layout({ children }: LayoutProps) {
       {googleStatus && <div className="container mx-auto px-4 pt-3"><div className={`flex items-start justify-between gap-3 rounded-md border p-3 text-sm ${googleStatus === "connected" || googleStatus === "login" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`} role={googleStatus === "connected" || googleStatus === "login" ? "status" : "alert"}><span>{googleStatusText(googleStatus)}</span><button type="button" onClick={() => setGoogleStatus(null)} aria-label={isEnglish ? "Dismiss" : "關閉提示"} className="shrink-0 font-bold">×</button></div></div>}
       <main className="flex-1 w-full">{children}</main>
 
-      <footer className="bg-primary text-primary-foreground border-t border-primary/20 py-12 mt-auto">
-        <div className="container mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div><div className="flex items-center gap-3 mb-4"><img src="/fumo-flag.png" alt="FUMO Flag" className="h-8 w-8 object-contain" /><h3 className="font-bold text-lg">Federation of United Micronations Organisation</h3></div><p className="text-primary-foreground/70 text-sm max-w-xs">{isEnglish ? "United in determination, advancing together." : "眾志成城，攜手共進。"}</p></div>
-          <div><h4 className="font-bold mb-4 text-secondary">{isEnglish ? "Quick links" : "快速連結"}</h4><div className="flex flex-col gap-2">{navLinks.map((link) => <Link key={link.href} href={link.href} className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">{link.label}</Link>)}<Link href="/admin" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit flex items-center gap-1"><Shield className="w-3 h-3" />{isEnglish ? "Admin panel" : "管理面板"}</Link></div></div>
-          <div><h4 className="font-bold mb-4 text-secondary">{isEnglish ? "Official resources" : "官方資源"}</h4><div className="flex flex-col gap-2"><a href="https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/HJeBOxjctGl" target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">{isEnglish ? "Regulations directory" : "法規目錄"}</a><a href={isEnglish ? charterUrlEn : charterUrlZh} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">{isEnglish ? "Charter" : "憲章"}</a><Link href="/privacy" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">{isEnglish ? "Privacy policy" : "隱私權政策"}</Link><Link href="/terms" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors w-fit">{isEnglish ? "Terms of use" : "使用條款"}</Link></div></div>
+      <footer className="bg-primary text-primary-foreground border-t border-primary/20 py-10 mt-auto">
+        <div className="container mx-auto max-w-6xl px-4">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-[1.2fr_1fr_1fr] md:gap-10">
+            <div>
+              <div className="flex items-center gap-3 mb-3"><img src="/fumo-flag.png" alt="FUMO Flag" className="h-9 w-9 rounded-sm object-contain shadow-sm" /><div><h3 className="font-bold text-lg leading-tight">聯微 FUMO</h3><p className="text-xs text-primary-foreground/60">Federation of United Micronations Organisation</p></div></div>
+              <p className="text-primary-foreground/70 text-sm max-w-sm leading-6">{isEnglish ? "United in determination, advancing together." : "眾志成城，攜手共進。"}</p>
+            </div>
+            <div>
+              <h4 className="font-bold mb-3 text-secondary">{isEnglish ? "Site navigation" : "網站導覽"}</h4>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-4">
+                {footerGroups.map((group) => (
+                  <div key={group.title}>
+                    <h5 className="mb-2 text-xs font-semibold tracking-wide text-primary-foreground/55">{group.title}</h5>
+                    <div className="flex flex-col gap-2">{group.links.map((link) => <Link key={link.href} href={link.href} className="text-sm text-primary-foreground/80 transition-colors hover:text-secondary">{link.label}</Link>)}</div>
+                  </div>
+                ))}
+                <Link href="/admin" className="text-sm text-primary-foreground/80 transition-colors hover:text-secondary sm:col-span-3 sm:mt-1 flex items-center gap-1"><Shield className="h-3 w-3" />{isEnglish ? "Admin panel" : "管理面板"}</Link>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-bold mb-3 text-secondary">{isEnglish ? "Official resources" : "官方資源"}</h4>
+              <div className="grid grid-cols-1 gap-2"><a href="https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/HJeBOxjctGl" target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Regulations directory" : "法規目錄"}</a><a href={isEnglish ? charterUrlEn : charterUrlZh} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Charter" : "憲章"}</a><Link href="/privacy" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Privacy policy" : "隱私權政策"}</Link><Link href="/terms" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Terms of use" : "使用條款"}</Link></div>
+            </div>
+          </div>
+          <div className="mt-8 rounded-xl border border-primary-foreground/10 bg-primary-foreground/[0.04] px-4 py-4 shadow-inner sm:px-5">
+            <div className="flex flex-col gap-3 text-xs text-primary-foreground/65 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="font-semibold text-primary-foreground/85">© {new Date().getFullYear()} FUMO</span>
+                <span className="hidden text-primary-foreground/30 sm:inline" aria-hidden="true">•</span>
+                <span>{isEnglish ? "All rights reserved." : "所有權利保留。"}</span>
+              </div>
+              <a href="https://damcurryrice.com" target="_blank" rel="noopener noreferrer" aria-label={isEnglish ? "Visit Dam Curry Rice website" : "前往蛋包咖哩飯網站"} className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary-foreground/15 px-3 py-1.5 font-medium text-primary-foreground/80 transition-colors hover:border-secondary/60 hover:bg-secondary/10 hover:text-secondary">
+                <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{isEnglish ? "Website by FUMO & Dam Curry Rice" : "FUMO × 蛋包咖哩飯"}</span>
+              </a>
+            </div>
+          </div>
         </div>
-        <div className="container mx-auto px-4 mt-8 pt-8 border-t border-primary-foreground/10 text-center text-sm text-primary-foreground/60"><p>© {new Date().getFullYear()} FUMO. {isEnglish ? "All rights reserved." : "所有權利保留。"}</p><a href="damcurryrice.com" target="_blank" rel="noopener noreferrer" className="inline-block mt-2 hover:text-secondary transition-colors"></a>蛋包咖哩飯與貓娘秘書長</div>
       </footer>
     </div>
   );

@@ -11,9 +11,9 @@ interface MemberState {
   status: "member" | "observer";
 }
 
-const SHEET_ID = "1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0";
-const MEMBER_GID = "643747757";
-const OBSERVER_GID = "1983936747";
+const SHEET_ID = "1ebE_1cZa2nqcdPwrFq_60wmElO1GDNtoG8zFPciqHFo";
+const MEMBER_GID = "1958346154";
+const OBSERVER_GID = "1711083489";
 
 async function fetchSheet(gid: string): Promise<string> {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
@@ -161,7 +161,7 @@ router.get("/members", async (_req, res) => {
       memberStates: data.memberStates,
       observerStates: data.observerStates,
       allStates: data.allStates,
-      source: "https://docs.google.com/spreadsheets/d/1Iw5EY1LfFF-Ig9tJGVyWNBON20t9oE-0iFVFPPgsjk0/edit",
+      source: "https://docs.google.com/spreadsheets/d/1ebE_1cZa2nqcdPwrFq_60wmElO1GDNtoG8zFPciqHFo/edit",
       cached: cachedData ? Date.now() - cachedData.timestamp > CACHE_TTL_MS : false,
       lastUpdated: cachedData ? new Date(cachedData.timestamp).toISOString() : null,
     });
