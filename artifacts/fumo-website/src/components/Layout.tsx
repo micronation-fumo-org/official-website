@@ -13,7 +13,9 @@ export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
+  const [isMobileVotingOpen, setIsMobileVotingOpen] = useState(false);
   const [isDesktopMoreOpen, setIsDesktopMoreOpen] = useState(false);
+  const [isDesktopVotingOpen, setIsDesktopVotingOpen] = useState(false);
   const [googleStatus, setGoogleStatus] = useState<string | null>(null);
   const { user, logout, isAdmin } = useAuth();
   const { language, setLanguage, isEnglish } = useLanguage();
@@ -43,8 +45,10 @@ export function Layout({ children }: LayoutProps) {
         { href: "/partners", label: "合作組織" },
         { href: "/acknowledgements", label: "致謝名單" },
       ];
+  const votingPaths = new Set(["/vote-records", "/attendance", "/votes"]);
   const morePaths = new Set(["/staff", "/partners", "/acknowledgements", "/regulations", "/charter"]);
-  const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href));
+  const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href) && !votingPaths.has(link.href));
+  const votingNavLinks = allNavLinks.filter((link) => votingPaths.has(link.href));
   const moreNavLinks = allNavLinks.filter((link) => morePaths.has(link.href));
   const footerGroups = [
     {
@@ -72,12 +76,16 @@ export function Layout({ children }: LayoutProps) {
   const closeMenu = () => {
     setIsMobileMenuOpen(false);
     setIsMobileMoreOpen(false);
+    setIsMobileVotingOpen(false);
     setIsDesktopMoreOpen(false);
+    setIsDesktopVotingOpen(false);
   };
   const connectGoogle = () => window.location.assign(googleOAuthStartUrl("link"));
   useEffect(() => {
     setIsDesktopMoreOpen(false);
+    setIsDesktopVotingOpen(false);
     setIsMobileMoreOpen(false);
+    setIsMobileVotingOpen(false);
   }, [location]);
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -127,6 +135,47 @@ export function Layout({ children }: LayoutProps) {
                 {link.label}
               </Link>
             ))}
+            <div
+              className="relative flex h-full items-center"
+              onMouseEnter={() => setIsDesktopVotingOpen(true)}
+              onMouseLeave={() => setIsDesktopVotingOpen(false)}
+              onFocusCapture={() => setIsDesktopVotingOpen(true)}
+              onBlur={(event) => {
+                const nextTarget = event.relatedTarget;
+                if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) setIsDesktopVotingOpen(false);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setIsDesktopVotingOpen(false);
+              }}
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-haspopup="menu"
+                aria-expanded={isDesktopVotingOpen}
+                onClick={() => setIsDesktopVotingOpen(true)}
+                className={`h-auto gap-1 whitespace-nowrap px-0 py-0 text-sm font-medium leading-5 ${votingNavLinks.some((link) => location === link.href) ? "text-secondary font-bold" : "text-foreground/80"}`}
+              >
+                {isEnglish ? "Voting pages" : "投票相關"}
+                {isDesktopVotingOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
+              </Button>
+              <div className={`absolute right-0 top-full z-50 min-w-52 pt-2 transition-opacity duration-150 ${isDesktopVotingOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
+                <div role="menu" aria-label={isEnglish ? "Voting pages" : "投票相關頁面"} className="rounded-md border border-border bg-background p-2 shadow-lg">
+                  {votingNavLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      role="menuitem"
+                      onClick={() => setIsDesktopVotingOpen(false)}
+                      className={`block rounded-sm px-3 py-2 text-sm transition-colors hover:bg-muted hover:text-secondary ${location === link.href ? "font-semibold text-secondary" : "text-foreground/80"}`}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
             <div
               className="relative flex h-full items-center"
               onMouseEnter={() => setIsDesktopMoreOpen(true)}
@@ -199,6 +248,30 @@ export function Layout({ children }: LayoutProps) {
             {navLinks.map((link) => (
               <Link key={link.href} href={link.href} onClick={closeMenu} className={`text-sm font-medium py-2 transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>{link.label}</Link>
             ))}
+            <div className="border-y border-border py-1.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-haspopup="menu"
+                aria-expanded={isMobileVotingOpen}
+                onClick={() => setIsMobileVotingOpen((open) => !open)}
+                aria-label={isEnglish ? "Toggle voting pages" : "展開或收合投票相關頁面"}
+                className="h-auto w-full items-center justify-between px-0 py-2 text-sm font-medium leading-5"
+              >
+                <span>{isEnglish ? "Voting pages" : "投票相關"}</span>
+                {isMobileVotingOpen ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronRight className="h-4 w-4" aria-hidden="true" />}
+              </Button>
+              {isMobileVotingOpen && (
+                <div role="menu" aria-label={isEnglish ? "Voting pages" : "投票相關頁面"} className="ml-2 flex flex-col border-l border-border pl-4 pt-1">
+                  {votingNavLinks.map((link) => (
+                    <Link key={link.href} href={link.href} role="menuitem" onClick={closeMenu} className={`py-2 text-sm transition-colors hover:text-secondary ${location === link.href ? "font-bold text-secondary" : "text-foreground/80"}`}>
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="border-y border-border py-1.5">
               <Button
                 type="button"
