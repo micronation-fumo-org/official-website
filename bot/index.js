@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { startWebhookRelay } from "./webhookRelay.js";
 import {
   Client,
   GatewayIntentBits,
@@ -31,6 +32,10 @@ const MEMBER_ROLE_ID = process.env.FUMO_MEMBER_ROLE_ID || "1248257759195955343";
 const OBSERVER_ROLE_ID = process.env.FUMO_OBSERVER_ROLE_ID || "1249238458699092049";
 const SECRETARIAT_ROLE_ID = process.env.FUMO_SECRETARIAT_ROLE_ID || "1540730174302191666";
 const COUNCIL_ROLE_ID = process.env.FUMO_COUNCIL_ROLE_ID || "1540730860624547920";
+const WEBHOOK_SECRET = process.env.FUMO_WEBHOOK_SECRET || "";
+const WEBHOOK_PATH = process.env.FUMO_WEBHOOK_PATH || "/fumo/webhook";
+const BOT_HTTP_PORT = Number(process.env.PORT || process.env.BOT_HTTP_PORT || 3000);
+const BOT_MENTION_EVENTS = (process.env.FUMO_BOT_MENTION_EVENTS || "vote.created,vote.published,vote.started,vote.closing_soon,vote.closed").split(",").map(value => value.trim()).filter(Boolean);
 
 const commands = [
   new SlashCommandBuilder()
@@ -167,6 +172,7 @@ async function handleInteraction(interaction) {
 
 client.once("ready", readyClient => {
   console.log(`Logged in as ${readyClient.user.tag}`);
+  startWebhookRelay({ client, channelId: ANNOUNCEMENT_CHANNEL_ID, websiteUrl: WEBSITE_URL, secret: WEBHOOK_SECRET, path: WEBHOOK_PATH, port: BOT_HTTP_PORT, mentionRoleId: ANNOUNCEMENT_ROLE_ID, mentionEvents: BOT_MENTION_EVENTS });
   registerCommands().catch(error => { console.error("Command registration failed", error); process.exitCode = 1; });
 });
 client.on("interactionCreate", interaction => handleInteraction(interaction).catch(error => console.error("Interaction failed", error)));

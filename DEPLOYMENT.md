@@ -97,4 +97,6 @@ cd /home/container/bot && npm ci --omit=dev && exec node index.js
 
 若只上傳 `bot/` 內容到 `/home/container`，才使用 `npm ci --omit=dev && exec node index.js`。並在 Wispbyte Startup → Environment variables 設定 `BOT_TOKEN`、`DISCORD_APPLICATION_ID`、`DISCORD_GUILD_ID`、`ANNOUNCEMENT_CHANNEL_ID`、`FUMO_API_BASE_URL` 等變數。不要上傳 `bot/.env` 或把 Bot Token 寫入 Git。
 
+Bot 也提供 `/fumo/webhook` 網站事件入口。可在網站 Webhook 管理功能新增 `https://<Wispbyte 公開網址>/fumo/webhook`，讓投票事件由 Bot 身分發送到 Discord；`FUMO_WEBHOOK_SECRET` 可留空，代表不啟用簽名驗證，若 endpoint 對外公開，建議之後再設定 Secret。
+
 第一次啟動前，請在 Discord Developer Portal 啟用 Server Members Intent；`/身分組檢查` 會用它讀取 Server 成員。Bot 至少需要公告頻道的 View Channel、Send Messages、Embed Links 與 Read Message History 權限。現階段身分組功能只做比對，不會自動修改成員角色。
