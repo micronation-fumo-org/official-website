@@ -39,6 +39,7 @@ const BOT_MENTION_EVENTS = (process.env.FUMO_BOT_MENTION_EVENTS || "vote.created
 const ANNOUNCEMENT_AUTHOR = process.env.FUMO_ANNOUNCEMENT_AUTHOR || "FUMO 官方網站 Bot";
 const PROPOSAL_CHANNEL_ID = process.env.FUMO_PROPOSAL_CHANNEL_ID || "1414537668406149140";
 const ADMISSION_CHANNEL_ID = process.env.FUMO_ADMISSION_CHANNEL_ID || PROPOSAL_CHANNEL_ID;
+const WELCOME_CHANNEL_ID = process.env.FUMO_WELCOME_CHANNEL_ID || ANNOUNCEMENT_CHANNEL_ID;
 
 function logAction(action, details = {}) {
   console.log(`[BOT_ACTION] ${JSON.stringify({ at: new Date().toISOString(), action, ...details })}`);
@@ -58,6 +59,9 @@ const commands = [
   new SlashCommandBuilder()
     .setName("投票狀態")
     .setDescription("查看 FUMO 官方網站 API 狀態"),
+  new SlashCommandBuilder()
+    .setName("驗證")
+    .setDescription("對照 FUMO 註冊名單並取得對應身分組"),
   new SlashCommandBuilder()
     .setName("整理提案")
     .setDescription("整理議事中心例行大會串文中的提案")
@@ -147,6 +151,30 @@ async function compareRoles(guild) {
   }
   const topRoles = [...roleCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, count]) => `${name}: ${count}`).join("\n") || "（沒有可統計的身分組）";
   return { registeredCount: registered.size, serverMemberCount: members.length, registeredMembers, unregisteredMembers, absentMembers, missingExpectedRoles, secretariatMembers, councilMembers, topRoles };
+}
+
+async function verifyMember(member) {
+  const voters = await fumoFetch("/api/voters");
+  const registration = (Array.isArray(voters) ? voters : []).flatMap(voter => (voter.reps || []).map(rep => ({ ...rep, countryName: voter.countryName }))).find(rep => rep.id === member.id);
+  if (!registration) return { ok: false, reason: "not_registered" };
+  const memberData = await fumoFetch("/api/members");
+  const memberCountries = new Set((memberData.memberStates || []).map(country => country.fullName));
+  const observerCountries = new Set((memberData.observerStates || []).map(country => country.fullName));
+  const roleId = memberCountries.has(registration.countryName) ? MEMBER_ROLE_ID : observerCountries.has(registration.countryName) ? OBSERVER_ROLE_ID : "";
+  if (!roleId) return { ok: false, reason: "country_role_missing", countryName: registration.countryName };
+  const role = member.guild.roles.cache.get(roleId) || await member.guild.roles.fetch(roleId).catch(() => null);
+  if (!role) return { ok: false, reason: "role_not_found", roleId, countryName: registration.countryName };
+  await member.roles.add(role, "FUMO Discord 驗證");
+  return { ok: true, countryName: registration.countryName, roleName: role.name };
+}
+
+async function sendWelcomeMessage(member, joined) {
+  const channel = await client.channels.fetch(WELCOME_CHANNEL_ID);
+  if (!channel?.isTextBased() || !channel.isSendable()) throw new Error("歡迎頻道不可發送訊息");
+  const content = joined
+    ? `歡迎 <@${member.id}> 加入聯合微國家組織 F.U.M.O.！\n請使用 /驗證 對照官方註冊名單並取得對應身分組。`
+    : `${member.user?.username || member.user?.tag || "成員"} 已離開聯合微國家組織 F.U.M.O.。`;
+  return channel.send({ content, allowedMentions: joined ? { users: [member.id] } : { parse: [] } });
 }
 
 function normalizeText(value) {
@@ -331,6 +359,25 @@ async function handleInteraction(interaction) {
     }
     return;
   }
+  if (interaction.commandName === "驗證") {
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      const member = interaction.member;
+      if (!member || !member.roles?.add) throw new Error("只能在 Server 頻道使用驗證指令");
+      const result = await verifyMember(member);
+      logAction(result.ok ? "member.verified" : "member.verification_failed", { userId: interaction.user.id, guildId: interaction.guildId, countryName: result.countryName || null, roleName: result.roleName || null, reason: result.reason || null });
+      if (result.ok) await interaction.editReply(`驗證成功！已為你加入「${result.roleName}」身分組（${result.countryName}）。`);
+      else if (result.reason === "not_registered") await interaction.editReply("驗證失敗：你的 Discord ID 不在 FUMO 官方註冊名單中，請先完成網站註冊或聯絡管理員。");
+      else if (result.reason === "country_role_missing") await interaction.editReply(`驗證失敗：找不到「${result.countryName}」對應的成員國／觀察國資料。`);
+      else if (result.reason === "role_not_found") await interaction.editReply("驗證失敗：伺服器尚未設定對應身分組，請聯絡管理員。");
+      else await interaction.editReply("驗證失敗，請稍後再試或聯絡管理員。");
+    } catch (error) {
+      console.error("Member verification failed", error?.stack || error);
+      logAction("member.verification_error", { userId: interaction.user.id, guildId: interaction.guildId, error: String(error) });
+      await interaction.editReply("驗證失敗：Bot 可能缺少 Manage Roles 權限，或目前無法連線到 FUMO 官方網站。");
+    }
+    return;
+  }
   if (!canManage(interaction)) {
     logAction("command.denied", { command: interaction.commandName, userId: interaction.user.id, channelId: interaction.channelId });
     await interaction.reply({ content: "只有 FUMO 管理員或具備管理伺服器權限的成員可以使用此指令。", ephemeral: true });
@@ -427,6 +474,16 @@ client.once("ready", readyClient => {
   logAction("bot.ready", { botUserId: readyClient.user.id, guildId: GUILD_ID || null, port: BOT_HTTP_PORT });
   startWebhookRelay({ client, guildId: GUILD_ID, channelId: ANNOUNCEMENT_CHANNEL_ID, websiteUrl: WEBSITE_URL, secret: WEBHOOK_SECRET, path: WEBHOOK_PATH, port: BOT_HTTP_PORT, mentionRoleId: ANNOUNCEMENT_ROLE_ID, mentionEvents: BOT_MENTION_EVENTS, defaultAuthor: ANNOUNCEMENT_AUTHOR, logAction });
   registerCommands().catch(error => { console.error("Command registration failed", error); process.exitCode = 1; });
+});
+client.on("guildMemberAdd", member => {
+  sendWelcomeMessage(member, true)
+    .then(message => logAction("member.welcome_sent", { userId: member.id, guildId: member.guild.id, channelId: message.channelId, messageId: message.id }))
+    .catch(error => { console.error("Welcome message failed", error); logAction("member.welcome_failed", { userId: member.id, guildId: member.guild.id, error: String(error) }); });
+});
+client.on("guildMemberRemove", member => {
+  sendWelcomeMessage(member, false)
+    .then(message => logAction("member.farewell_sent", { userId: member.id, guildId: member.guild.id, channelId: message.channelId, messageId: message.id }))
+    .catch(error => { console.error("Farewell message failed", error); logAction("member.farewell_failed", { userId: member.id, guildId: member.guild.id, error: String(error) }); });
 });
 client.on("interactionCreate", interaction => handleInteraction(interaction).catch(error => console.error("Interaction failed", error)));
 client.on("error", error => console.error("Discord client error", error));
