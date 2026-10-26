@@ -33,6 +33,15 @@ main{min-width:0}.topbar{height:60px;border-bottom:1px solid var(--line);backgro
 </style>
 </head>
 <body>
+<section class="workspace-boot" id="workspaceBoot" aria-live="polite" aria-busy="true">
+  <div class="workspace-boot-card">
+    <div class="brand"><div class="brand-mark"><img src="/fumo-badge.webp" alt="FUMO 徽章"></div><div><div class="brand-name">FUMO 文件工作區</div><div class="brand-sub">FEDERATION OF UNITED MICRONATIONS</div></div></div>
+    <h1 id="workspaceBootTitle">正在載入文件工作區</h1>
+    <p id="workspaceBootDetail">正在確認登入狀態與文件權限，請稍候。</p>
+    <div class="workspace-boot-actions"><a class="btn btn-primary" href="/documents/">重新載入</a><a class="btn" href="/">回到官網</a></div>
+    <noscript><p>文件工作區需要 JavaScript。請啟用 JavaScript 後重新載入。</p></noscript>
+  </div>
+</section>
 <div class="shell hidden">
   <div class="mobile-backdrop" id="mobileBackdrop" aria-hidden="true"></div>
   <aside class="sidebar" id="sidebar">

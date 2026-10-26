@@ -41,6 +41,25 @@
   };
   const loginUrl = () => `/login?next=${encodeURIComponent(location.pathname + location.search + location.hash)}`;
 
+  async function requestWorkspaceJson(url, options = {}, timeoutMs = 15000) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { credentials: "same-origin", cache: "no-store", ...options, signal: controller.signal });
+      const data = response.ok ? await response.json() : null;
+      return { response, data };
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
+  function setBootStatus(title, detail, failed = false) {
+    $("workspaceBoot").hidden = false;
+    $("workspaceBoot").setAttribute("aria-busy", String(!failed));
+    $("workspaceBootTitle").textContent = title;
+    $("workspaceBootDetail").textContent = detail;
+  }
+
   function setAccessMode(user, allowEdits = Number(user?.adminLevel) >= 2) {
     currentUser = user || null;
     canEdit = Boolean(allowEdits);
@@ -49,7 +68,7 @@
     const level = Number(currentUser?.adminLevel) || 0;
     $("profileName").textContent = currentUser?.voterName || "FUMO 成員";
     $("profileRole").textContent = level >= 9
-      ? "最高管理員 · 可編輯"
+      ? (canEdit ? "最高管理員 · 可編輯" : "最高管理員 · 唯讀")
       : level >= 2
         ? (canEdit ? "二級管理員 · 可編輯" : "二級管理員 · 唯讀")
         : level >= 1
@@ -168,12 +187,12 @@
       const pending = docs.filter(doc => signature(doc) !== syncedSignatures.get(doc.id)).map(doc => ({ ...doc }));
       if (!pending.length) return true;
       $("saveStatus").textContent = "同步中…";
-      const response = await fetch("/api/documents", {
+      const { response, data: result } = await requestWorkspaceJson("/api/documents", {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ documents: pending })
-      });
+      }, 30000);
       if (response.status === 401) {
         location.replace(loginUrl());
         throw new Error("unauthorized");
@@ -184,7 +203,6 @@
         throw new Error("admin_required");
       }
       if (!response.ok) throw new Error("document_sync_failed");
-      const result = await response.json();
       const saved = Array.isArray(result.documents) ? result.documents : pending;
       for (const doc of saved) {
         const savedDoc = pending.find(item => item.id === doc.id);
@@ -538,19 +556,23 @@
     const publicRoute = location.pathname.startsWith("/share/") || location.pathname === "/share-legacy" || location.hash.startsWith("#public=");
     if (publicRoute) {
       document.querySelector(".shell")?.classList.add("hidden");
+      $("workspaceBoot").hidden = true;
       return;
     }
     document.querySelector(".shell")?.classList.add("hidden");
+    let stage = "登入驗證";
+    setBootStatus("正在載入文件工作區", "正在確認登入狀態與文件權限，請稍候。");
     try {
-      const authResponse = await fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
-      if (!authResponse.ok) { location.replace(loginUrl()); return; }
-      const user = await authResponse.json();
+      const { response: authResponse, data: user } = await requestWorkspaceJson("/api/auth/me");
+      if (authResponse.status === 401 || authResponse.status === 403) { location.replace(loginUrl()); return; }
+      if (!authResponse.ok) throw new Error("authentication_service_unavailable");
       authenticated = true;
       setAccessMode(user);
-      const response = await fetch("/api/documents", { credentials: "same-origin", cache: "no-store" });
+      stage = "共用文件讀取";
+      setBootStatus("正在讀取共用文件", "登入已確認，正在從 FUMO 共用 D1 載入文件。");
+      const { response, data: result } = await requestWorkspaceJson("/api/documents");
       if (response.status === 401) { location.replace(loginUrl()); return; }
       if (!response.ok) throw new Error("document_load_failed");
-      const result = await response.json();
       const remoteDocs = Array.isArray(result.documents) ? result.documents.map(normalizeDocument) : [];
       if (remoteDocs.length) {
         docs = remoteDocs;
@@ -564,15 +586,19 @@
       renderList();
       if (activeId) selectDoc(activeId);
       else showEmptyWorkspace();
-      if (!remoteDocs.length && canEdit) await persist();
+      $("workspaceBoot").hidden = true;
+      document.querySelector(".shell")?.classList.remove("hidden");
+      // A write must never block the authenticated reader/editor from rendering.
+      if (!remoteDocs.length && canEdit) void persist();
       else $("saveStatus").textContent = remoteDocs.length ? "已同步至 FUMO 共用 D1" : "目前尚無共用文件，等待二級管理員建立";
-      document.querySelector(".shell")?.classList.remove("hidden");
       window.setInterval(() => { void refreshDocuments(); }, 15000);
-    } catch (_) {
-      document.querySelector(".shell")?.classList.remove("hidden");
-      $("docTitle").textContent = "共用工作區暫時無法載入";
-      $("saveStatus").textContent = "無法連線至共用工作區，請重新整理或稍後重試";
-      toast("文件載入失敗，請確認登入狀態與網路連線");
+    } catch (error) {
+      revokeEditAccess();
+      const timedOut = error.name === "AbortError";
+      setBootStatus(timedOut ? "文件工作區載入逾時" : "文件工作區暫時無法載入", timedOut
+        ? `${stage}超過 15 秒仍未完成。請重新載入；不會跳過登入或權限驗證。`
+        : `${stage}未完成，請重新載入或稍後重試。`, true);
+      console.error("FUMO workspace initialization failed", { stage, error: error.name, message: error.message });
     }
   }
 

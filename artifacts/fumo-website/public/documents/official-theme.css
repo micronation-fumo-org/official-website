@@ -21,6 +21,15 @@ button, input, textarea { font: inherit; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid rgba(217, 175, 83, .38); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
+.workspace-boot { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.workspace-boot-card { width: 100%; max-width: 520px; padding: clamp(22px, 5vw, 36px); border: 1px solid rgba(0, 51, 77, .13); border-top: 3px solid var(--gold); border-radius: 4px; background: var(--paper); box-shadow: var(--shadow); }
+.workspace-boot .brand { padding: 0 0 22px; }
+.workspace-boot h1 { margin: 0 0 12px; color: var(--ink); font: 700 25px/1.4 "Playfair Display", Georgia, "Noto Serif TC", serif; }
+.workspace-boot p { margin: 0 0 20px; color: var(--muted); font-size: 14px; line-height: 1.8; }
+.workspace-boot-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.workspace-boot-actions a { text-decoration: none; }
+body.public-mode .workspace-boot { display: none; }
+
 .sidebar { background: #fff; border-right-color: rgba(0, 51, 77, .12); }
 .brand { padding-bottom: 21px; }
 .brand-mark, .public-mark { width: 40px; height: 40px; border: 1px solid rgba(0, 51, 77, .12); border-radius: 4px; background: #00334d; box-shadow: 0 2px 8px rgba(0, 51, 77, .12); }
