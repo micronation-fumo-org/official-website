@@ -60,7 +60,8 @@ const commands = [
     .addStringOption(option => option.setName("會期").setDescription("例如 2026/11；留空則整理最新一期").setRequired(false).setMaxLength(20)),
   new SlashCommandBuilder()
     .setName("整理入聯")
-    .setDescription("整理 Forum 頻道中的入聯申請資料"),
+    .setDescription("整理議事中心入聯提案申請串文中的國家資料")
+    .addStringOption(option => option.setName("會期").setDescription("例如 2026/11；留空則整理最新一期").setRequired(false).setMaxLength(20)),
 ].map(command => command.toJSON());
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
@@ -155,6 +156,11 @@ function isSeatChange(title) {
   return /^🔸/.test(title.trim()) || /(升格|降格|取消席次|席位更動|席位变动|入聯|退聯|入联|退联)/i.test(title);
 }
 
+function admissionPeriod(threadName) {
+  const period = threadName.match(/第.+?次\s*議事中心\s*入聯提案申請\s*[-－–—]\s*(\d{4})[/／-](\d{1,2})/i);
+  return period ? `${period[1]}/${period[2].padStart(2, "0")}` : "";
+}
+
 function admissionFromMessage(content) {
   const name = getProposalField(content, ["貴國國號（中/英）", "貴國國號(中/英)", "Name of Your Nation \\(ZN/EN\\)", "Name of Your Nation"]);
   const flag = getProposalField(content, ["貴國國旗", "National Flag of Your Country"]);
@@ -168,10 +174,10 @@ function admissionFromMessage(content) {
   return { name: name || "未填寫", flag: flag || "未提供文字（請查看附件）", code: code || "未填寫", role: role || "未填寫", links: links || "未填寫", locations: locations || "未填寫", introduction: introduction || "未填寫", reasons: reasons || "未填寫" };
 }
 
-async function collectAdmissionDigest(channel) {
+async function collectAdmissionDigest(channel, requestedPeriod) {
   if (channel.isThread?.() && channel.parentId) {
     const parent = await client.channels.fetch(channel.parentId);
-    if (parent?.threads) return collectAdmissionDigest(parent);
+    if (parent?.threads) return collectAdmissionDigest(parent, requestedPeriod);
   }
   if (!channel?.threads) throw new Error(`ID ${ADMISSION_CHANNEL_ID} 不是可讀取串文的 Forum／文字頻道（type ${channel?.type ?? "unknown"}）。`);
   const threads = new Map();
@@ -185,36 +191,26 @@ async function collectAdmissionDigest(channel) {
     if (!archived.hasMore || !archived.threads.size) break;
     before = archived.threads.last().id;
   }
+  const matchingThreads = [...threads.values()]
+    .filter(thread => admissionPeriod(thread.name) && (!requestedPeriod || admissionPeriod(thread.name) === requestedPeriod))
+    .sort((a, b) => admissionPeriod(b.name).localeCompare(admissionPeriod(a.name)) || b.createdTimestamp - a.createdTimestamp);
+  const targetThread = matchingThreads[0];
+  if (!targetThread) throw new Error(`找不到符合「第 N 次議事中心入聯提案申請-YYYY/MM」格式的串文${requestedPeriod ? `（${requestedPeriod}）` : ""}。`);
   const applications = [];
-  for (const thread of [...threads.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp)) {
+  for (const thread of [targetThread]) {
     const messages = await thread.messages.fetch({ limit: 100 });
     for (const message of messages.values()) {
       const admission = admissionFromMessage(message.content || "");
       if (admission) { applications.push({ thread, admission }); break; }
     }
   }
-  if (!applications.length) throw new Error(`在 ${threads.size} 個串文中找不到符合入聯表格欄位的申請。`);
-  return applications;
+  if (!applications.length) throw new Error(`在串文「${targetThread.name}」中找不到符合入聯表格欄位的申請。`);
+  return { period: admissionPeriod(targetThread.name), thread: targetThread, applications };
 }
 
-function formatAdmissionDigest(applications) {
-  return applications.map(({ thread, admission }, index) => [
-    `## ${index + 1}. ${admission.name}`,
-    `來源串文：${thread.name}`,
-    "",
-    "I. Basic Information of the Applicant Nation",
-    "一、國家基本資訊",
-    `◆ 貴國國號（中/英）：${admission.name}`,
-    `◆ 貴國國旗：${admission.flag}`,
-    `◆ 貴國國家代碼：${admission.code}`,
-    `◆ 申請者於貴國身分：${admission.role}`,
-    `◆ 國家相關連結：${admission.links}`,
-    `◆ 貴國主要活躍地點：${admission.locations}`,
-    "",
-    `II. Introduction to Your Nation\n二、貴國國情介紹：${admission.introduction}`,
-    "",
-    `III. Reasons for Applying for Membership\n三、申請入聯緣由：${admission.reasons}`,
-  ].join("\n")).join("\n\n──────────\n\n");
+function formatAdmissionDigest(period, applications, threadName) {
+  const rows = applications.map(({ admission }, index) => `${index + 1}. ${admission.name}｜${admission.role}｜${admission.links}`);
+  return `${period} 入聯提案整理\n\n來源串文：${threadName}\n\n國家｜最高領導人｜貴國連結\n${rows.join("\n")}`;
 }
 
 async function collectProposalDigest(channel, requestedPeriod) {
@@ -297,8 +293,8 @@ async function handleInteraction(interaction) {
     try {
       const channel = await client.channels.fetch(ADMISSION_CHANNEL_ID);
       if (!channel || (!channel.isTextBased() && !channel.threads)) throw new Error(`無法讀取入聯頻道 ${ADMISSION_CHANNEL_ID}（type ${channel?.type ?? "unknown"}）。`);
-      const applications = await collectAdmissionDigest(channel);
-      await sendLongReply(interaction, `**FUMO 入聯申請整理**\n\n${formatAdmissionDigest(applications)}`);
+      const result = await collectAdmissionDigest(channel, interaction.options.getString("會期"));
+      await sendLongReply(interaction, `**FUMO 入聯申請整理**\n\n${formatAdmissionDigest(result.period, result.applications, result.thread.name)}`);
     } catch (error) {
       console.error("Admission digest failed", error?.stack || error);
       const reason = error instanceof Error ? error.message : String(error);
