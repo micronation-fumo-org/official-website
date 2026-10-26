@@ -15,6 +15,7 @@ import Attendance from "@/pages/Attendance";
 import VoteDetail from "@/pages/VoteDetail";
 import CreateVote from "@/pages/CreateVote";
 import Admin from "@/pages/Admin";
+import BotAdmin from "@/pages/BotAdmin";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Privacy from "@/pages/Privacy";
@@ -59,6 +60,7 @@ function Router() {
         <Route path="/votes/create" component={CreateVote} />
         <Route path="/votes/:id" component={VoteDetail} />
         <Route path="/admin" component={Admin} />
+        <Route path="/bot-admin" component={BotAdmin} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
         <Route path="/privacy" component={Privacy} />

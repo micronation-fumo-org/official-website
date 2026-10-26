@@ -99,4 +99,6 @@ cd /home/container/bot && npm ci --omit=dev && exec node index.js
 
 Bot 也提供 `/fumo/webhook` 網站事件入口。可在網站 Webhook 管理功能新增 `https://<Wispbyte 公開網址>/fumo/webhook`，讓投票事件由 Bot 身分發送到 Discord；`FUMO_WEBHOOK_SECRET` 可留空，代表不啟用簽名驗證，若 endpoint 對外公開，建議之後再設定 Secret。
 
+網站 `/bot-admin` 後台會透過 Worker 讀取 Bot 頻道並發布公告；部署 Worker 前請在 `wrangler.toml` 的 `[vars]` 加入 `BOT_API_URL = "https://<Wispbyte 公開網址>"`。只有已登入的 FUMO 管理員可以呼叫 `/api/admin/bot/*`，後台可以選擇 Discord 頻道、預覽並發布 Embed 公告。
+
 第一次啟動前，請在 Discord Developer Portal 啟用 Server Members Intent；`/身分組檢查` 會用它讀取 Server 成員。Bot 至少需要公告頻道的 View Channel、Send Messages、Embed Links 與 Read Message History 權限。現階段身分組功能只做比對，不會自動修改成員角色。

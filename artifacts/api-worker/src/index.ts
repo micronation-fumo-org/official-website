@@ -15,6 +15,7 @@ interface Env {
   DISCORD_CLIENT_ID?: string;
   DISCORD_CLIENT_SECRET?: string;
   DISCORD_REDIRECT_URI?: string;
+  BOT_API_URL?: string;
 }
 type Variables = { account: Account | null };
 type App = Hono<{ Bindings: Env; Variables: Variables }>;
@@ -84,6 +85,20 @@ const DISCORD_STATE_COOKIE = "fumo_discord_oauth_state";
 const DEFAULT_DISCORD_REDIRECT_URI = "https://www.micronationfumo.org/api/auth/discord/callback";
 
 const json = (value: unknown, status = 200, headers: HeadersInit = {}) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json", ...headers } });
+function botApiUrl(env: Env, path: string) {
+  const base = env.BOT_API_URL?.trim().replace(/\/$/, "");
+  if (!base) return null;
+  try { const url = new URL(`${base}${path}`); return url.protocol === "https:" ? url.toString() : null; } catch { return null; }
+}
+async function botApiJson(env: Env, path: string, init: RequestInit = {}) {
+  const url = botApiUrl(env, path);
+  if (!url) return { ok: false, status: 503, data: { error: "Bot API 尚未設定或網址不安全。" } };
+  try {
+    const response = await fetch(url, { ...init, headers: { Accept: "application/json", "Content-Type": "application/json", ...(init.headers || {}) } });
+    const data = await response.json().catch(() => ({}));
+    return { ok: response.ok, status: response.status, data };
+  } catch { return { ok: false, status: 502, data: { error: "無法連線到 Wispbyte Bot。" } }; }
+}
 const parseJson = async (c: any) => { try { return await c.req.json(); } catch { return null; } };
 const account = async (db: D1Database, voterId: string) => (await db.prepare("SELECT * FROM voter_accounts WHERE voter_id = ?").bind(voterId).first<Account>()) ?? null;
 const jsonArray = <T>(value: string): T[] => { try { return JSON.parse(value) as T[]; } catch { return []; } };
@@ -757,6 +772,27 @@ app.post("/api/auth/logout", async c => { const token = cookieValue(c, SESSION_C
 app.post("/api/auth/change-password", async c => { const body = z.object({ oldPassword: z.string().min(1), newPassword: z.string().min(4) }).safeParse(await parseJson(c)); if (!body.success) return c.json({ error: "Invalid input" }, 400); const a = await currentAccount(c); if (!a || !(await verifyPassword(body.data.oldPassword, a.password_hash))) return c.json({ error: "Incorrect current password." }, 403); await c.env.DB.prepare("UPDATE voter_accounts SET password_hash = ?, updated_at = datetime('now') WHERE voter_id = ?").bind(await hashPassword(body.data.newPassword), a.voter_id).run(); return c.json({ success: true }); });
 
 async function requireAdmin(db: D1Database, voterId: string, level: number) { const a = await account(db, voterId); return a && a.admin_level >= level ? a : null; }
+app.get("/api/admin/bot/status", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
+  const result = await botApiJson(c.env, "/healthz");
+  return c.json(result.data, (result.ok ? 200 : result.status) as any);
+});
+app.get("/api/admin/bot/channels", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
+  const result = await botApiJson(c.env, "/channels");
+  return c.json(result.data, (result.ok ? 200 : result.status) as any);
+});
+app.post("/api/admin/bot/announce", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
+  const body = z.object({ channelId: z.string().regex(/^\d{15,25}$/), title: z.string().trim().min(1).max(256), content: z.string().trim().min(1).max(1900), roleId: z.string().regex(/^\d{17,20}$/).optional().or(z.literal("")) }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "公告標題、內容或頻道格式不正確。" }, 400);
+  const result = await botApiJson(c.env, "/announce", { method: "POST", body: JSON.stringify({ ...body.data, author: actor.voter_name }) });
+  if (result.ok) background(c, auditStatement(c.env.DB, actor, "discord.announce", "discord_channel", body.data.channelId, { title: body.data.title }).run());
+  return c.json(result.data, (result.ok ? 200 : result.status) as any);
+});
  app.get("/api/admin/accounts", async c => { const a = await ((await currentAccount(c))?.admin_level ?? 0) >= ADMIN_TIER1 ? await currentAccount(c) : null; if (!a) return c.json({ error: "管理員權限不足。" }, 403); const rows = await c.env.DB.prepare("SELECT a.voter_id, a.voter_name, a.country_name, a.admin_level, a.created_at, g.google_email FROM voter_accounts a LEFT JOIN google_account_links g ON g.voter_id = a.voter_id ORDER BY a.created_at ASC").all(); return c.json((rows.results ?? []).map((row: any) => ({ voterId: row.voter_id, voterName: row.voter_name, countryName: row.country_name, googleEmail: row.google_email || null, adminLevel: row.admin_level, createdAt: row.created_at }))); });
 app.post("/api/admin/accounts", async c => {
   const actor = await currentAccount(c);

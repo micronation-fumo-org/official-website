@@ -44,12 +44,44 @@ function buildEmbed(payload, event, websiteUrl) {
   };
 }
 
-export function startWebhookRelay({ client, channelId, websiteUrl, secret, path, port, mentionRoleId, mentionEvents }) {
+export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secret, path, port, mentionRoleId, mentionEvents }) {
   const events = new Set(mentionEvents);
   const server = createServer(async (request, response) => {
     if (request.method === "GET" && request.url === "/healthz") {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ ok: true, bot: client.isReady() }));
+      return;
+    }
+    if (request.method === "GET" && request.url === "/channels") {
+      const guild = guildId ? client.guilds.cache.get(guildId) : null;
+      if (!guild) { response.writeHead(404); response.end("Guild not found"); return; }
+      const channels = [...guild.channels.cache.values()]
+        .filter(channel => channel.isTextBased() && channel.isSendable())
+        .map(channel => ({ id: channel.id, name: channel.name, type: channel.type }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ guildId, channels }));
+      return;
+    }
+    if (request.method === "POST" && request.url === "/announce") {
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      try {
+        const data = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        const target = await client.channels.fetch(typeof data.channelId === "string" ? data.channelId : channelId);
+        if (!target?.isTextBased() || !target.isSendable()) throw new Error("Channel is not writable");
+        const title = typeof data.title === "string" ? data.title.trim().slice(0, 256) : "";
+        const content = typeof data.content === "string" ? data.content.trim().slice(0, 1900) : "";
+        if (!title || !content) { response.writeHead(400); response.end("Title and content are required"); return; }
+        const roleId = typeof data.roleId === "string" && /^\d{17,20}$/.test(data.roleId) ? data.roleId : "";
+        const mention = roleId ? `<@&${roleId}>` : "";
+        const message = await target.send({ content: mention, embeds: [{ title: `📢 ${title}`, description: content, color: 0x5865f2, url: websiteUrl, footer: { text: "FUMO 官方網站 Bot" }, timestamp: new Date().toISOString() }], allowedMentions: roleId ? { roles: [roleId] } : { parse: [] } });
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ ok: true, messageUrl: message.url }));
+      } catch (error) {
+        console.error("Admin announcement failed", error);
+        response.writeHead(500); response.end("Announcement failed");
+      }
       return;
     }
     if (request.method !== "POST" || request.url !== path) {
