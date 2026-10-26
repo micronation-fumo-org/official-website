@@ -1,4 +1,4 @@
-import "dotenv/config";
+import dotenv from "dotenv";
 import {
   Client,
   GatewayIntentBits,
@@ -7,6 +7,12 @@ import {
   Routes,
   SlashCommandBuilder,
 } from "discord.js";
+
+// Wispbyte may create the managed .env at /home/container or inside /bot.
+// Load both locations without printing any secret values.
+dotenv.config({ path: "/home/container/.env" });
+dotenv.config({ path: "/home/container/bot/.env" });
+dotenv.config();
 
 const required = ["BOT_TOKEN", "DISCORD_APPLICATION_ID", "ANNOUNCEMENT_CHANNEL_ID", "FUMO_API_BASE_URL"];
 for (const name of required) {
