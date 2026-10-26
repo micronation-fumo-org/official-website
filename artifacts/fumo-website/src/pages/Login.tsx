@@ -60,8 +60,26 @@ export default function Login() {
           : discordResult ? (isEnglish ? "Discord sign-in failed. Please try again." : "Discord 登入失敗，請再試一次。") : null;
 
   useEffect(() => {
-    if (!authLoading && user && discordResult === "login") window.location.assign(returnTo);
-  }, [authLoading, discordResult, returnTo, user]);
+    if (authLoading || discordResult !== "login") return;
+    if (user) {
+      window.location.assign(returnTo);
+      return;
+    }
+    let active = true;
+    apiFetch("/api/auth/me").then(async response => {
+      if (!active) return;
+      if (!response.ok) {
+        setError(isEnglish ? "Discord authorization succeeded, but the website session was not created. Please try again." : "Discord 授權成功，但網站 session 尚未建立，請再試一次。");
+        return;
+      }
+      const data = await response.json();
+      login({ voterId: data.voterId, voterName: data.voterName, countryName: data.countryName, adminLevel: data.adminLevel ?? 0 });
+      window.location.assign(returnTo);
+    }).catch(() => {
+      if (active) setError(isEnglish ? "Could not confirm the Discord session." : "無法確認 Discord 登入狀態。");
+    });
+    return () => { active = false; };
+  }, [authLoading, discordResult, isEnglish, login, returnTo, user]);
 
   const startGoogle = () => window.location.assign(googleOAuthStartUrl(user ? "link" : "login", user ? undefined : returnTo));
   const startDiscord = () => window.location.assign(discordOAuthStartUrl(user ? "link" : "login"));
