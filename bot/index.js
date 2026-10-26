@@ -43,6 +43,7 @@ const ANNOUNCEMENT_AUTHOR = process.env.FUMO_ANNOUNCEMENT_AUTHOR || "FUMO 官方
 const PROPOSAL_CHANNEL_ID = process.env.FUMO_PROPOSAL_CHANNEL_ID || "1414537668406149140";
 const ADMISSION_CHANNEL_ID = process.env.FUMO_ADMISSION_CHANNEL_ID || PROPOSAL_CHANNEL_ID;
 const WELCOME_CHANNEL_ID = process.env.FUMO_WELCOME_CHANNEL_ID || ANNOUNCEMENT_CHANNEL_ID;
+const FAREWELL_CHANNEL_ID = process.env.FUMO_FAREWELL_CHANNEL_ID || ANNOUNCEMENT_CHANNEL_ID;
 const VERIFIED_ROLE_ID = process.env.FUMO_VERIFIED_ROLE_ID || "1249427737081286687";
 
 function logAction(action, details = {}) {
@@ -176,8 +177,8 @@ async function verifyMember(member) {
 }
 
 async function sendWelcomeMessage(member, joined) {
-  const channel = await client.channels.fetch(WELCOME_CHANNEL_ID);
-  if (!channel?.isTextBased() || !channel.isSendable()) throw new Error("歡迎頻道不可發送訊息");
+  const channel = await client.channels.fetch(joined ? WELCOME_CHANNEL_ID : FAREWELL_CHANNEL_ID);
+  if (!channel?.isTextBased() || !channel.isSendable()) throw new Error(joined ? "歡迎頻道不可發送訊息" : "歡送頻道不可發送訊息");
   const content = joined
     ? `隆重歡迎 <@${member.id}> 造訪聯合微國家組織\nWarmly welcome <@${member.id}> to visit the Federation of United Micronation Organization.`
     : `<@${member.id}>\n☆ *　. 　☆　　 　 　   賽\n　. ∧＿∧　∩　* ☆ 　 優\n☆ ( ・∀・)/ .　　　      那\n. ⊂　　 ノ* ☆ 　　   　拉\n☆ * (つ ノ .☆ 　　　   　！\n　　 (ノ`;
