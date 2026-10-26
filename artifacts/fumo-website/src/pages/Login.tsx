@@ -18,6 +18,17 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const query = new URLSearchParams(location.split("?")[1] || "");
+  const requestedNext = query.get("next");
+  const returnTo = requestedNext && requestedNext.startsWith("/") && !requestedNext.startsWith("//") && !requestedNext.includes("\\")
+    ? (() => {
+        try {
+          const target = new URL(requestedNext, window.location.origin);
+          return target.origin === window.location.origin ? `${target.pathname}${target.search}${target.hash}` : "/votes";
+        } catch {
+          return "/votes";
+        }
+      })()
+    : "/votes";
   const googleResult = query.get("google");
   const registered = query.get("registered") === "1";
   const googleMessage = googleResult === "email_not_allowed"
@@ -34,7 +45,7 @@ export default function Login() {
               ? (isEnglish ? "Google sign-in failed. Please try again." : "Google 登入失敗，請再試一次。")
               : null;
 
-  const startGoogle = () => window.location.assign(googleOAuthStartUrl(user ? "link" : "login"));
+  const startGoogle = () => window.location.assign(googleOAuthStartUrl(user ? "link" : "login", user ? undefined : returnTo));
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -57,7 +68,8 @@ export default function Login() {
         return;
       }
       login({ voterId: data.voterId, voterName: data.voterName, countryName: data.countryName, adminLevel: data.adminLevel ?? 0 });
-      setLocation("/votes");
+      if (returnTo === "/documents" || returnTo.startsWith("/documents/")) window.location.assign(returnTo);
+      else setLocation(returnTo);
     } catch {
       setError(isEnglish ? "Connection error. Please try again." : "連線錯誤，請稍後再試。");
     } finally {

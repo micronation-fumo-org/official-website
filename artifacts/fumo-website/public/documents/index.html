@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f5f7fb">
+<meta name="description" content="FUMO 成員文件工作區：以 Markdown 編寫、整理與預覽組織文件。">
+<link rel="icon" href="/fumo-badge.webp" type="image/webp">
+<title>FUMO 文件工作區</title>
+<style>
+:root{--ink:#17253d;--muted:#7b8799;--line:#e7ebf1;--paper:#fff;--canvas:#f5f7fb;--blue:#2563eb;--blue-soft:#eef4ff;--green:#1d8a70;--green-soft:#e9f7f2;--gold:#c48b31;--shadow:0 12px 36px rgba(28,47,79,.08);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;color:var(--ink)}
+*{box-sizing:border-box}body{margin:0;background:var(--canvas);min-height:100vh}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid rgba(37,99,235,.22);outline-offset:2px}.shell{min-height:100vh;display:grid;grid-template-columns:248px minmax(0,1fr)}
+.sidebar{background:#fff;border-right:1px solid var(--line);padding:22px 16px 18px;display:flex;flex-direction:column;min-height:100vh;position:sticky;top:0;height:100vh;overflow:auto}.brand{display:flex;align-items:center;gap:11px;padding:0 8px 23px}.brand-mark{width:39px;height:39px;border-radius:13px;background:linear-gradient(145deg,#284d88,#1d8a70);color:white;display:grid;place-items:center;font-weight:800;font-family:Georgia,serif;font-size:21px;box-shadow:0 5px 12px #1d52702b}.brand-name{font-size:15px;font-weight:750;letter-spacing:.01em}.brand-sub{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.09em}.workspace-switch{border:1px solid var(--line);background:#fbfcfe;border-radius:11px;padding:10px 11px;margin-bottom:22px;display:flex;align-items:center;justify-content:space-between;text-align:left;color:var(--ink)}.workspace-kicker{font-size:10px;color:var(--muted);margin-bottom:3px}.workspace-name{font-size:12px;font-weight:680}.chevron{color:#929bad;font-size:14px}.nav-label{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:#98a2b1;padding:0 10px;margin:0 0 7px}.nav{display:grid;gap:3px;margin-bottom:22px}.nav-btn{border:0;background:transparent;color:#617087;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;text-align:left;font-size:12px;transition:.15s}.nav-btn:hover{background:#f5f7fa;color:var(--ink)}.nav-btn.active{background:var(--blue-soft);color:var(--blue);font-weight:680}.nav-icon{width:17px;text-align:center;font-size:14px;opacity:.86}.nav-count{margin-left:auto;font-size:10px;color:#8a95a6}.side-divider{height:1px;background:var(--line);margin:2px 3px 19px}.doc-list{display:grid;gap:3px}.doc-link{width:100%;border:0;background:transparent;padding:8px 9px;display:flex;align-items:center;gap:9px;text-align:left;color:#647087;border-radius:8px;font-size:11px}.doc-link:hover{background:#f5f7fa}.doc-link.selected{background:#f0f5ff;color:#235bbb;font-weight:650}.doc-dot{width:7px;height:7px;border-radius:3px;background:#7c94b7;flex:0 0 auto}.doc-link:nth-child(2) .doc-dot{background:#39a788}.doc-link:nth-child(3) .doc-dot{background:#e4a94f}.doc-link:nth-child(4) .doc-dot{background:#8e7ad2}.doc-link:nth-child(5) .doc-dot{background:#df7a77}.doc-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.add-doc{border:1px dashed #cbd4e0;background:transparent;border-radius:8px;padding:8px 9px;color:#607089;text-align:left;font-size:11px;margin-top:7px}.add-doc:hover{border-color:#7ca4ec;color:var(--blue);background:#f8faff}.side-bottom{margin-top:auto;padding:17px 7px 0}.local-note{background:#f6f8fb;border:1px solid #edf0f5;border-radius:10px;padding:10px;color:#758196;font-size:10px;line-height:1.55}.local-note strong{display:block;color:#52627a;font-size:10px;margin-bottom:3px}.profile{display:flex;align-items:center;gap:9px;padding:15px 5px 0}.avatar{width:29px;height:29px;background:#e7efff;color:#315ea8;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:750}.profile-name{font-size:11px;font-weight:650}.profile-role{font-size:9px;color:var(--muted);margin-top:2px}
+main{min-width:0}.topbar{height:60px;border-bottom:1px solid var(--line);background:#ffffffd9;backdrop-filter:blur(12px);display:flex;align-items:center;padding:0 30px;gap:17px;position:sticky;top:0;z-index:5}.mobile-menu{display:none;border:0;background:transparent;font-size:20px;color:#647087;padding:5px}.crumb{font-size:11px;color:#8994a5}.crumb b{color:#53627a;font-weight:580}.top-spacer{flex:1}.search{position:relative;max-width:235px;width:100%}.search input{width:100%;border:1px solid #e8edf3;background:#f9fafc;padding:8px 30px 8px 31px;border-radius:9px;font-size:11px;color:var(--ink)}.search-icon{position:absolute;left:11px;top:7px;color:#9ba6b5;font-size:14px}.shortcut{position:absolute;right:8px;top:7px;font-size:9px;color:#a0a9b6;background:#fff;border:1px solid #e8edf3;border-radius:4px;padding:1px 4px}.top-action{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;background:white;color:#718097}.online{width:8px;height:8px;border-radius:50%;background:#32aa81;box-shadow:0 0 0 3px #e6f6ef}
+.content{max-width:1530px;margin:0 auto;padding:31px 34px 55px}.eyebrow{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:#7591bd;font-weight:700;display:flex;align-items:center;gap:8px}.eyebrow-dot{width:6px;height:6px;border-radius:50%;background:#55a78d}.doc-heading{display:flex;align-items:flex-start;gap:14px;margin:10px 0 22px}.doc-title-wrap{min-width:0;flex:1}.doc-title{margin:0;font-size:27px;line-height:1.28;letter-spacing:-.025em;font-weight:730;color:#1b2d4a}.doc-meta{display:flex;align-items:center;gap:11px;color:#8691a1;font-size:10px;margin-top:9px;flex-wrap:wrap}.meta-sep{color:#c1c8d2}.saved-indicator{display:inline-flex;align-items:center;gap:5px;color:#32826e}.saved-indicator i{width:6px;height:6px;background:#4aad8d;border-radius:50%;display:inline-block}.heading-actions{display:flex;align-items:center;gap:8px;padding-top:3px}.btn{border:1px solid #e3e8ef;background:#fff;color:#596a83;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}.btn:hover{background:#f9fbff;border-color:#cbd8ea}.btn-primary{background:#285fc3;border-color:#285fc3;color:white;box-shadow:0 4px 10px #285fc326}.btn-primary:hover{background:#1f53ad;border-color:#1f53ad}.btn .btn-icon{font-size:13px}.context-banner{border:1px solid #dce8f4;background:linear-gradient(110deg,#f4f8ff,#f5fbf8);border-radius:11px;padding:12px 15px;display:flex;align-items:center;gap:11px;margin-bottom:19px}.banner-icon{width:27px;height:27px;border-radius:8px;background:#e1ecff;display:grid;place-items:center;color:#3a68af;font-size:14px;flex:0 0 auto}.banner-copy{font-size:10px;color:#667890;line-height:1.55}.banner-copy strong{color:#344a68;font-size:10px}.banner-link{margin-left:auto;font-size:10px;color:#3968b7;text-decoration:none;white-space:nowrap}.banner-link:hover{text-decoration:underline}.editor-card{border:1px solid #e5eaf0;border-radius:13px;background:#fff;box-shadow:var(--shadow);overflow:hidden}.editor-toolbar{min-height:48px;border-bottom:1px solid #edf0f4;display:flex;align-items:center;padding:0 16px;gap:6px}.tool-label{font-size:10px;color:#8792a2;margin-right:10px}.tool-btn{border:0;background:transparent;color:#8090a5;border-radius:6px;min-width:27px;height:27px;padding:0 7px;font-size:11px}.tool-btn:hover{background:#f0f4f9;color:#355477}.tool-sep{height:17px;width:1px;background:#e9edf2;margin:0 4px}.toolbar-spacer{flex:1}.view-mode{display:flex;align-items:center;gap:3px;background:#f3f5f8;padding:3px;border-radius:7px}.view-mode button{border:0;background:transparent;color:#7d899a;padding:5px 9px;border-radius:5px;font-size:10px}.view-mode button.active{background:white;color:#315fa9;box-shadow:0 1px 3px #1c2c421c;font-weight:650}.editor-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:435px}.editor-pane{border-right:1px solid #edf0f4;display:flex;flex-direction:column;min-width:0}.pane-head{height:37px;display:flex;align-items:center;justify-content:space-between;padding:0 17px;border-bottom:1px solid #f1f3f6;color:#98a2b1;font-size:9px;letter-spacing:.08em}.pane-head span:last-child{letter-spacing:0;color:#a1aab7}.markdown-input{border:0;resize:vertical;outline:none!important;box-shadow:none!important;border-radius:0;padding:19px 20px;min-height:395px;width:100%;font:12px/1.82 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;color:#53657f;background:#fff;tab-size:2}.preview-pane{min-width:0;display:flex;flex-direction:column}.preview-body{padding:20px 23px 28px;min-height:395px;color:#34455e;font-size:12px;line-height:1.83;overflow-wrap:anywhere}.preview-body h1,.preview-body h2,.preview-body h3{color:#1c3150;line-height:1.4}.preview-body h1{font-size:21px;margin:0 0 13px;letter-spacing:-.02em}.preview-body h2{font-size:15px;margin:23px 0 8px;padding-bottom:6px;border-bottom:1px solid #edf0f4}.preview-body h3{font-size:13px;margin:18px 0 6px}.preview-body p{margin:8px 0}.preview-body ul,.preview-body ol{padding-left:21px;margin:8px 0}.preview-body li{padding-left:2px;margin:5px 0}.preview-body blockquote{margin:12px 0;padding:10px 13px;border-left:3px solid #79a0df;background:#f5f8fd;color:#5b6e89;border-radius:0 7px 7px 0}.preview-body code{font:11px ui-monospace,monospace;background:#f1f4f8;padding:2px 4px;border-radius:4px;color:#425a7d}.preview-body strong{color:#263f63}.preview-body hr{border:0;border-top:1px solid #e9edf2;margin:17px 0}.editor-footer{height:37px;border-top:1px solid #edf0f4;display:flex;align-items:center;justify-content:space-between;padding:0 15px;color:#98a2b1;font-size:9px}.editor-footer span{display:flex;align-items:center;gap:6px}.footer-mark{width:5px;height:5px;border-radius:50%;background:#45a98a}.bottom-grid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;margin-top:17px}.info-card{background:#fff;border:1px solid #e8edf2;border-radius:11px;padding:15px 17px}.info-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.info-title{font-size:11px;font-weight:700;color:#344761}.info-subtle{font-size:9px;color:#9ba5b2}.activity-row{display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid #f1f3f6}.activity-row:first-of-type{border-top:0}.activity-mini{width:24px;height:24px;border-radius:7px;background:#f0f4fb;color:#5b79a7;display:grid;place-items:center;font-size:10px}.activity-text{min-width:0;flex:1}.activity-main{font-size:10px;color:#55657b}.activity-time{font-size:9px;color:#9ca5b1;margin-top:2px}.activity-chip{font-size:9px;color:#39836f;background:#edf8f4;border-radius:5px;padding:3px 6px}.shortcut-list{display:grid;gap:8px}.shortcut-row{display:flex;align-items:center;gap:8px;font-size:10px;color:#64738a}.shortcut-row .key{margin-left:auto;color:#8d99aa;border:1px solid #e8edf2;background:#fafbfd;border-radius:4px;padding:2px 5px;font-size:9px}.toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,15px);background:#1e2d46;color:#fff;padding:10px 15px;border-radius:8px;font-size:11px;box-shadow:0 8px 22px #1c2b4333;opacity:0;pointer-events:none;transition:.22s;z-index:20}.toast.show{opacity:1;transform:translate(-50%,0)}.empty-state{padding:18px 10px;color:#909bab;font-size:10px;text-align:center;line-height:1.7}.hidden{display:none!important}
+@media(max-width:1120px){.bottom-grid{grid-template-columns:1fr}.side-bottom{padding-top:15px}.editor-body{min-height:400px}}
+@media(max-width:850px){.shell{grid-template-columns:1fr}.sidebar{position:fixed;left:0;top:0;z-index:10;width:250px;transform:translateX(-102%);transition:transform .2s;box-shadow:12px 0 32px #1b2b431a}.sidebar.open{transform:translateX(0)}.mobile-menu{display:block}.topbar{padding:0 15px;gap:9px}.crumb{display:none}.content{padding:24px 17px 42px}.doc-title{font-size:23px}.doc-heading{flex-wrap:wrap}.heading-actions{width:100%;padding:0}.editor-body{grid-template-columns:1fr}.editor-pane{border-right:0;border-bottom:1px solid #edf0f4}.markdown-input{min-height:300px}.preview-body{min-height:300px}.editor-body.preview-only .editor-pane{display:none}.editor-body.edit-only .preview-pane{display:none}.context-banner{align-items:flex-start}.banner-link{display:none}.search{max-width:190px}.top-action{display:none}}
+@media(max-width:540px){.topbar{height:54px}.content{padding:19px 12px 32px}.doc-title{font-size:21px}.heading-actions .btn{padding:8px 9px;font-size:10px}.search{max-width:150px}.search input{font-size:10px}.editor-toolbar{padding:0 9px}.tool-label{margin-right:3px}.view-mode button{padding:5px 7px}.preview-body{padding:17px}.markdown-input{padding:15px;font-size:11px}.bottom-grid{gap:10px}.info-card{padding:13px}}
+</style>
+<style>
+.editor-body.preview-only,.editor-body.edit-only{grid-template-columns:minmax(0,1fr)}
+.editor-body.preview-only .editor-pane,.editor-body.edit-only .preview-pane{display:none}
+.editor-body.edit-only .editor-pane{border-right:0}
+.table-scroll{overflow:auto;margin:12px 0}.preview-body table{border-collapse:collapse;width:100%;font-size:11px;min-width:240px}.preview-body th,.preview-body td{border:1px solid #e5ebf2;padding:7px 9px;text-align:left}.preview-body th{background:#f5f8fc;color:#3d5577;font-weight:650}.preview-body tr:nth-child(even) td{background:#fbfcfe}.preview-body pre{background:#f2f5fa;border:1px solid #e6ebf2;border-radius:8px;padding:12px;overflow:auto}.preview-body pre code{background:none;padding:0;white-space:pre;font-size:11px}.preview-body .task-item{list-style:none;margin-left:-20px;display:flex;align-items:baseline;gap:7px}.task-check{display:inline-block;width:12px;height:12px;border:1px solid #b7c5d8;border-radius:3px;line-height:10px;text-align:center;font-size:9px;color:#3673ba;flex:0 0 auto}
+</style>
+<link rel="stylesheet" href="/documents/mobile-enhancements.css">
+<style>
+.brand-mark,.public-mark{overflow:hidden;padding:0;background:none!important}.brand-mark img,.public-mark img{display:block;width:100%;height:100%;object-fit:cover}.btn-danger{color:#b34c4c;border-color:#f0d9d9}.btn-danger:hover{color:#983737;border-color:#e7bcbc;background:#fff8f8}.logout-btn{margin:10px 5px 0;border:0;background:transparent;color:#8290a2;font:inherit;font-size:10px;text-align:left;padding:5px 0}.logout-btn:hover{color:#b34c4c}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="mobile-backdrop" id="mobileBackdrop" aria-hidden="true"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brand-mark"><img src="/fumo-badge.webp" alt="FUMO 徽章"></div><div><div class="brand-name">FUMO 文件工作區</div><div class="brand-sub">FEDERATION OF UNITED MICRONATIONS</div></div></div>
+    <button class="workspace-switch" type="button" aria-label="目前工作區"><span><span class="workspace-kicker">工作區</span><span class="workspace-name">聯合微國家組織 FUMO</span></span><span class="chevron">⌄</span></button>
+    <div class="nav-label">工作區</div>
+    <nav class="nav" aria-label="主要導覽">
+      <button class="nav-btn active" data-section="recent"><span class="nav-icon">◷</span>最近使用<span class="nav-count">6</span></button>
+      <button class="nav-btn" data-section="all"><span class="nav-icon">▤</span>所有文件</button>
+      <button class="nav-btn" data-section="starred"><span class="nav-icon">☆</span>已加星號</button>
+      <button class="nav-btn" data-section="templates"><span class="nav-icon">▧</span>文件範本</button>
+    </nav>
+    <div class="side-divider"></div>
+    <div class="nav-label">文件目錄</div>
+    <div class="doc-list" id="docList"></div>
+    <button class="add-doc" id="newDoc">＋　新增 Markdown 文件</button>
+    <button class="add-doc" id="importDocBtn" type="button">↑　匯入 .md / .txt 檔案</button>
+    <input id="importDocInput" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" multiple hidden aria-label="選取要匯入的 Markdown 或純文字檔案">
+    <div class="side-bottom">
+      <div class="local-note"><strong>FUMO 成員共用工作區</strong>文件會同步至官方網站的 Cloudflare D1，所有登入成員皆可編輯。公開分享為唯讀快照；任何持有連結者都能閱讀。</div>
+      <div class="profile"><div class="avatar">F</div><div><div class="profile-name">FUMO 成員</div><div class="profile-role">成員工作區</div></div></div><button class="logout-btn" id="logoutBtn" type="button">登出此工作區</button>
+    </div>
+  </aside>
+  <main>
+    <header class="topbar">
+      <button class="mobile-menu" id="mobileMenu" aria-label="開啟導覽" aria-controls="sidebar" aria-expanded="false">☰</button>
+      <div class="crumb">聯合微國家組織　/　<b>成員文件</b></div>
+      <div class="top-spacer"></div>
+      <label class="search"><span class="search-icon">⌕</span><input id="search" type="search" placeholder="搜尋文件…" aria-label="搜尋文件"><span class="shortcut">/</span></label>
+      <button class="top-action" id="themeHint" title="文件工作區">⌘</button>
+      <span class="online" title="本機工作區"></span>
+    </header>
+    <section class="content">
+      <div class="eyebrow"><span class="eyebrow-dot"></span>FUMO MEMBER WORKSPACE</div>
+      <div class="doc-heading">
+        <div class="doc-title-wrap"><h1 class="doc-title" id="docTitle">FUMO 成員工作手冊</h1><div class="doc-meta"><span>Markdown 文件</span><span class="meta-sep">·</span><span id="updatedAt">最近編輯：剛剛</span><span class="meta-sep">·</span><span class="saved-indicator"><i></i><span id="saveStatus">正在連線至共用工作區…</span></span></div></div>
+        <div class="heading-actions"><button class="btn" id="downloadBtn"><span class="btn-icon">↓</span>匯出 .md</button><button class="btn btn-danger" id="deleteDocBtn" type="button"><span class="btn-icon">⌫</span>刪除文件</button><button class="btn" id="previewBtn"><span class="btn-icon">◉</span>預覽</button><button class="btn" id="editBtn"><span class="btn-icon">✎</span>編輯文件</button><button class="btn btn-primary" id="sharePublicBtn"><span class="btn-icon">↗</span>公開分享</button></div>
+      </div>
+      <div class="context-banner"><div class="banner-icon">✦</div><div class="banner-copy"><strong>為 FUMO 成員整理共用文件的起點。</strong>　以 Markdown 記錄議案、會議、法規與組織工作；編輯後可建立唯讀公開短連結。</div><a class="banner-link" href="https://www.micronationfumo.org/" target="_blank" rel="noreferrer">瀏覽 FUMO 官方網站 ↗</a></div>
+      <section class="editor-card" aria-label="Markdown 編輯器">
+        <div class="editor-toolbar">
+          <span class="tool-label">格式</span>
+          <button class="tool-btn" data-wrap="**" title="粗體"><b>B</b></button><button class="tool-btn" data-wrap="*" title="斜體"><i>I</i></button><button class="tool-btn" data-prefix="# " title="標題">H</button><button class="tool-btn" data-prefix="- " title="項目清單">☷</button><button class="tool-btn" data-prefix="1. " title="編號清單">1.</button><button class="tool-btn" data-prefix="> " title="引用">❞</button><span class="tool-sep"></span><button class="tool-btn" data-wrap="`" title="行內程式碼">&lt;/&gt;</button>
+          <div class="toolbar-spacer"></div>
+          <div class="view-mode" role="group" aria-label="文件檢視模式"><button id="splitMode" class="active">編輯＋預覽</button><button id="editMode">編輯</button><button id="readMode">閱讀</button></div>
+        </div>
+        <div class="editor-body" id="editorBody">
+          <div class="editor-pane"><div class="pane-head"><span>MARKDOWN</span><span>純文字編輯</span></div><textarea class="markdown-input" id="markdownInput" spellcheck="false" aria-label="Markdown 內容編輯器"></textarea></div>
+          <div class="preview-pane"><div class="pane-head"><span>預覽</span><span>即時更新</span></div><article class="preview-body" id="previewBody"></article></div>
+        </div>
+        <div class="editor-footer"><span><i class="footer-mark"></i>Markdown　·　自動同步至共用 D1</span><span id="wordCount">0 字</span></div>
+      </section>
+      <div class="bottom-grid">
+        <section class="info-card"><div class="info-head"><div class="info-title">工作區導覽</div><div class="info-subtle">依 FUMO 公開導覽整理</div></div>
+          <div class="activity-row"><div class="activity-mini">§</div><div class="activity-text"><div class="activity-main">憲章與法規</div><div class="activity-time">整理制度文件、條文修訂與參考資料</div></div><span class="activity-chip">治理</span></div>
+          <div class="activity-row"><div class="activity-mini">☷</div><div class="activity-text"><div class="activity-main">投票提案與紀錄</div><div class="activity-time">記錄提案內容、表決結果與議事脈絡</div></div><span class="activity-chip">議事</span></div>
+          <div class="activity-row"><div class="activity-mini">◷</div><div class="activity-text"><div class="activity-main">出席簽到與職位報告</div><div class="activity-time">彙整會議出席及各職位工作報告</div></div><span class="activity-chip">行政</span></div>
+        </section>
+        <section class="info-card"><div class="info-head"><div class="info-title">快速操作</div><div class="info-subtle">小提示</div></div><div class="shortcut-list"><div class="shortcut-row">搜尋文件<span class="key">/</span></div><div class="shortcut-row">儲存草稿<span class="key">⌘ / Ctrl + S</span></div><div class="shortcut-row">匯出 Markdown<span class="key">.md</span></div></div></section>
+      </div>
+      <p style="text-align:center;font-size:9px;color:#a0a9b5;margin:21px 0 0">組織背景與導覽參考：<a href="https://www.micronationfumo.org/" target="_blank" rel="noreferrer" style="color:#7184a0">FUMO 官方網站</a>　·　文件同步至 FUMO 共用 D1；公開分享會保存唯讀快照</p>
+    </section>
+  </main>
+</div>
+<main class="public-page hidden" id="publicPage">
+  <header class="public-bar">
+    <a class="public-brand" href="/" id="backToWorkspace"><span class="public-mark"><img src="/fumo-badge.webp" alt="FUMO 徽章"></span><span>FUMO 文件工作區</span></a>
+    <span class="public-label">唯讀公開頁面</span>
+    <span class="public-bar-spacer"></span>
+    <button class="btn" id="publicCopyBtn" type="button">複製連結</button>
+  </header>
+  <section class="public-content">
+    <div class="public-heading" id="publicHeading"><div class="eyebrow"><span class="eyebrow-dot"></span>FUMO PUBLIC DOCUMENT</div><h1 id="publicTitle"></h1><div class="public-meta" id="publicMeta"></div></div>
+    <div class="public-notice">這是保存於雲端的唯讀快照。任何持有此連結的人都可以查看；若原文件有修改，請重新產生分享連結。</div>
+    <article class="public-document" id="publicDocument"><div class="preview-body" id="publicArticle"></div><footer class="public-footer">由 FUMO 文件工作區分享 · Markdown 唯讀檢視</footer></article>
+    <div class="public-error hidden" id="publicError" role="alert"></div>
+  </section>
+</main>
+<dialog class="share-dialog" id="shareDialog" aria-labelledby="shareDialogTitle">
+  <div class="share-dialog-inner">
+    <h2 id="shareDialogTitle">建立唯讀公開短連結</h2>
+    <p>這個連結會開啟文件快照，訪客只能閱讀，不能修改 FUMO 成員共用文件。</p>
+    <div class="share-warning">建立分享時會將文件快照保存至 Cloudflare。任何取得連結的人都能閱讀；文件修改後需重新產生連結。</div>
+    <label for="shareSlug" class="pane-head" style="height:auto;padding:0 0 7px;border:0;letter-spacing:0;color:#64738a">自訂網址尾碼（選填）</label>
+    <div class="share-slug-composer"><span class="share-slug-prefix">/share/</span><input class="share-slug" id="shareSlug" type="text" maxlength="48" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="meeting-notes" aria-label="自訂網址尾碼"></div>
+    <p class="share-hint">僅限 3–48 個小寫英數字與連字號，例如 <code>meeting-notes</code>；留空則使用隨機代號。</p>
+    <label for="shareUrl" class="pane-head" style="height:auto;padding:0 0 7px;border:0;letter-spacing:0;color:#64738a">唯讀分享短連結</label>
+    <textarea class="share-url" id="shareUrl" readonly aria-label="唯讀分享連結"></textarea>
+    <div class="share-dialog-actions">
+      <form method="dialog"><button class="btn" type="submit">關閉</button></form>
+      <button class="btn btn-primary" id="createShareBtn" type="button">建立短連結</button>
+      <button class="btn" id="openShareBtn" type="button">開啟預覽</button>
+      <button class="btn" id="copyShareBtn" type="button">複製連結</button>
+    </div>
+    <p class="share-feedback" id="shareFeedback" aria-live="polite"></p>
+  </div>
+</dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/documents/workspace.js"></script>
+<script src="/documents/public-share.js"></script>
+</body>
+</html>

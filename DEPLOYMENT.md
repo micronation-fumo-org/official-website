@@ -62,16 +62,19 @@ pnpm --filter @workspace/fumo-website run build
 
 Cloudflare Pages 設定建議：
 
-- Root directory：`artifacts/fumo-website`
-- Build command：`pnpm install --frozen-lockfile && pnpm run build`
-- Build output directory：`dist/public`
+- Root directory：`/`（repository root）
+- Build command：`pnpm install --frozen-lockfile && PORT=4173 BASE_PATH=/ pnpm --filter @workspace/fumo-website run build`
+- Build output directory：`artifacts/fumo-website/dist/public`
 - Production branch：`main`
+
+Pages Functions 必須放在 repository root 的 `functions/` 目錄，而非前端靜態輸出目錄；新增路由需與既有 `functions/api/` 同層。
 
 前端 build 會在 Vite 打包後，產生繁體中文公開頁面的可索引 HTML、`sitemap.xml` 與 `llms.txt`。建置階段會嘗試從公開 API 取得最新會員國、職位及投票摘要；若 API 暫時無法連線，仍會輸出安全的說明頁與 sitemap，不會因此使建置失敗。可透過 `VITE_API_BASE_URL` 指定建置期公開 API。
 
 ## 注意事項
 
 - D1 migrations 會建立投票、選票、帳戶、登入 session 與管理操作紀錄資料表；新增 Worker 功能前應先套用相應 migration。
+- 文件工作區需先套用 `artifacts/api-worker/migrations/0013_fumo_document_workspace.sql`，再部署 Worker；此 migration 只新增文件與分享資料表。主站 `/documents/` 會使用既有 FUMO session，公開 `/share/:id` 頁面不要求登入。
 - Worker 使用 Web Crypto PBKDF2 儲存密碼雜湊，不依賴 Node.js native module。
 - 第一次部署後請立即修改預設超級管理員密碼；預設帳號仍沿用既有 Discord ID，密碼為 `changeme`。
 - 成員與投票資格資料仍由公開 Google Sheet 讀取；投票與帳戶資料則完全寫入 D1。

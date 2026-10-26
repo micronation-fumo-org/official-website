@@ -32,6 +32,7 @@ export function Layout({ children }: LayoutProps) {
         { href: "/charter", label: "Charter" },
         { href: "/partners", label: "Partner Organizations" },
         { href: "/acknowledgements", label: "Acknowledgements" },
+        { href: "/documents", label: "Member documents" },
       ]
     : [
         { href: "/", label: "首頁" },
@@ -44,9 +45,10 @@ export function Layout({ children }: LayoutProps) {
         { href: "/charter", label: "憲章" },
         { href: "/partners", label: "合作組織" },
         { href: "/acknowledgements", label: "致謝名單" },
+        { href: "/documents", label: "文件工作區" },
       ];
   const votingPaths = new Set(["/vote-records", "/attendance", "/votes"]);
-  const morePaths = new Set(["/staff", "/partners", "/acknowledgements", "/regulations", "/charter"]);
+  const morePaths = new Set(["/staff", "/partners", "/acknowledgements", "/regulations", "/charter", "/documents"]);
   const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href) && !votingPaths.has(link.href));
   const votingNavLinks = allNavLinks.filter((link) => votingPaths.has(link.href));
   const discordInviteUrl = "https://discord.com/invite/MuSM3yXrQh";
@@ -54,7 +56,7 @@ export function Layout({ children }: LayoutProps) {
   const footerGroups = [
     {
       title: isEnglish ? "Main pages" : "主要頁面",
-      links: allNavLinks.filter((link) => ["/", "/members", "/staff", "/partners", "/acknowledgements"].includes(link.href)),
+      links: allNavLinks.filter((link) => ["/", "/members", "/staff", "/partners", "/acknowledgements", "/documents"].includes(link.href)),
     },
     {
       title: isEnglish ? "Voting" : "投票相關",
@@ -213,15 +215,19 @@ export function Layout({ children }: LayoutProps) {
               <div className={`absolute right-0 top-full z-50 min-w-52 pt-2 transition-opacity duration-150 ${isDesktopMoreOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
                 <div role="menu" aria-label={isEnglish ? "More pages" : "更多頁面"} className="rounded-md border border-border bg-background p-2 shadow-lg">
                   {moreNavLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      role="menuitem"
-                      onClick={() => setIsDesktopMoreOpen(false)}
-                      className={`block rounded-sm px-3 py-2 text-sm transition-colors hover:bg-muted hover:text-secondary ${location === link.href ? "font-semibold text-secondary" : "text-foreground/80"}`}
-                    >
-                      {link.label}
-                    </Link>
+                    link.href === "/documents" ? (
+                      <a key={link.href} href="/documents/" role="menuitem" onClick={() => setIsDesktopMoreOpen(false)} className="block rounded-sm px-3 py-2 text-sm text-foreground/80 transition-colors hover:bg-muted hover:text-secondary">{link.label}</a>
+                    ) : (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        role="menuitem"
+                        onClick={() => setIsDesktopMoreOpen(false)}
+                        className={`block rounded-sm px-3 py-2 text-sm transition-colors hover:bg-muted hover:text-secondary ${location === link.href ? "font-semibold text-secondary" : "text-foreground/80"}`}
+                      >
+                        {link.label}
+                      </Link>
+                    )
                   ))}
                 </div>
               </div>
@@ -299,7 +305,9 @@ export function Layout({ children }: LayoutProps) {
               </Button>
               {isMobileMoreOpen && (
                 <div className="ml-2 flex flex-col border-l border-border pl-4 pt-1">
-                  {moreNavLinks.map((link) => (
+                  {moreNavLinks.map((link) => link.href === "/documents" ? (
+                    <a key={link.href} href="/documents/" onClick={closeMenu} className="py-2 text-sm text-foreground/80 transition-colors hover:text-secondary">{link.label}</a>
+                  ) : (
                     <Link key={link.href} href={link.href} onClick={closeMenu} className={`py-2 text-sm transition-colors hover:text-secondary ${location === link.href ? "font-bold text-secondary" : "text-foreground/80"}`}>
                       {link.label}
                     </Link>
@@ -343,7 +351,7 @@ export function Layout({ children }: LayoutProps) {
                 {footerGroups.map((group) => (
                   <div key={group.title}>
                     <h5 className="mb-2 text-xs font-semibold tracking-wide text-primary-foreground/55">{group.title}</h5>
-                    <div className="flex flex-col gap-2">{group.links.map((link) => <Link key={link.href} href={link.href} className="text-sm text-primary-foreground/80 transition-colors hover:text-secondary">{link.label}</Link>)}</div>
+                    <div className="flex flex-col gap-2">{group.links.map((link) => link.href === "/documents" ? <a key={link.href} href="/documents/" className="text-sm text-primary-foreground/80 transition-colors hover:text-secondary">{link.label}</a> : <Link key={link.href} href={link.href} className="text-sm text-primary-foreground/80 transition-colors hover:text-secondary">{link.label}</Link>)}</div>
                   </div>
                 ))}
                 <Link href="/admin" className="text-sm text-primary-foreground/80 transition-colors hover:text-secondary sm:col-span-3 sm:mt-1 flex items-center gap-1"><Shield className="h-3 w-3" />{isEnglish ? "Admin panel" : "管理面板"}</Link>

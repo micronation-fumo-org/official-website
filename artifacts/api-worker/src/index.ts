@@ -70,6 +70,10 @@ const ADMIN_SUPER = 9;
 const PBKDF2_ITERATIONS = 100000;
 const SESSION_COOKIE = "fumo_session";
 const SESSION_TTL_DAYS = 7;
+const DOCUMENT_ID_RE = /^[A-Za-z0-9_-]{1,48}$/;
+const DOCUMENT_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const MAX_DOCUMENT_CHARS = 200000;
+const MAX_SHARE_CHARS = 24000;
 const GOOGLE_STATE_COOKIE = "fumo_google_oauth_state";
 const DEFAULT_GOOGLE_REDIRECT_URI = "https://www.micronationfumo.org/api/auth/google/callback";
 
@@ -325,7 +329,8 @@ app.get("/api/auth/google/start", async c => {
   const state = randomToken();
   const verifier = randomToken();
   const stateHash = await sessionHash(state);
-  const returnTo = flow === "link" ? "/login" : "/votes";
+  const requestedReturnTo = c.req.query("next");
+  const returnTo = flow === "link" ? "/login" : (requestedReturnTo === "/documents" || requestedReturnTo === "/documents/" ? requestedReturnTo : "/votes");
   await c.env.DB.prepare("DELETE FROM google_oauth_states WHERE expires_at <= datetime('now')").run();
   await c.env.DB.prepare("INSERT INTO google_oauth_states (state_hash, flow, voter_id, return_to, code_verifier, expires_at) VALUES (?, ?, ?, ?, ?, datetime('now', '+10 minutes'))")
     .bind(stateHash, flow, actor?.voter_id ?? null, returnTo, verifier).run();
@@ -348,7 +353,7 @@ app.get("/api/auth/google/callback", async c => {
   if (!oauthState) return googleResultResponse("/login", "invalid_state", redirectUri, [clearCookie]);
   await c.env.DB.prepare("DELETE FROM google_oauth_states WHERE state_hash = ?").bind(stateHash).run();
 
-  const returnTo = oauthState.return_to === "/votes" ? "/votes" : "/login";
+  const returnTo = ["/votes", "/documents", "/documents/"].includes(oauthState.return_to) ? oauthState.return_to : "/login";
   const googleError = c.req.query("error");
   if (googleError) return googleResultResponse("/login", googleError === "access_denied" ? "denied" : "failed", redirectUri, [clearCookie]);
 
@@ -889,6 +894,136 @@ app.delete("/api/admin/webhooks/:id", async c => {
   await auditWebhook(c.env.DB, actor, "webhook.delete", existing.id, { name: existing.name, endpointHost: new URL(existing.url).host });
   return c.json({ success: true });
 });
+function documentMutationOriginAllowed(c: any) {
+  const origin = c.req.header("Origin");
+  if (!origin) return true;
+  const allowedOrigins = (c.env.CORS_ORIGIN || "").split(",").map((value: string) => value.trim()).filter(Boolean);
+  return allowedOrigins.length === 0 || allowedOrigins.includes(origin);
+}
+
+function newDocumentId() {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+}
+
+function documentResponse(row: any) {
+  return {
+    id: row.id,
+    title: row.title,
+    kind: row.kind,
+    starred: Boolean(row.starred),
+    content: row.content,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+const documentInputSchema = z.object({
+  id: z.string().regex(DOCUMENT_ID_RE).optional(),
+  title: z.string().trim().min(1).max(200),
+  kind: z.string().trim().max(40).optional(),
+  starred: z.boolean().optional(),
+  content: z.string().max(MAX_DOCUMENT_CHARS),
+});
+
+app.get("/api/documents", async c => {
+  const actor = await currentAccount(c);
+  if (!actor) return c.json({ error: "unauthorized" }, 401, { "Cache-Control": "no-store" });
+  try {
+    const rows = await c.env.DB.prepare("SELECT id, title, kind, starred, content, created_at, updated_at FROM fumo_workspace_documents ORDER BY updated_at DESC, id ASC LIMIT 500").all();
+    return c.json({ documents: (rows.results ?? []).map(documentResponse) }, 200, { "Cache-Control": "no-store" });
+  } catch {
+    return c.json({ error: "storage_unavailable" }, 503, { "Cache-Control": "no-store" });
+  }
+});
+
+app.post("/api/documents", async c => {
+  const actor = await currentAccount(c);
+  if (!actor) return c.json({ error: "unauthorized" }, 401);
+  if (!documentMutationOriginAllowed(c)) return c.json({ error: "forbidden" }, 403);
+  const contentLength = Number(c.req.header("Content-Length") || 0);
+  if (contentLength > 850000) return c.json({ error: "payload_too_large" }, 413);
+  const body = z.object({ documents: z.array(documentInputSchema).min(1).max(100) }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "invalid_payload", details: body.error.issues }, 400);
+  if (new Set(body.data.documents.map(document => document.id).filter(Boolean)).size !== body.data.documents.filter(document => document.id).length) {
+    return c.json({ error: "duplicate_document_id" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const normalized = body.data.documents.map(document => ({
+    id: document.id || newDocumentId(),
+    title: document.title,
+    kind: document.kind || "文件",
+    starred: document.starred ? 1 : 0,
+    content: document.content,
+  }));
+  if (normalized.some(document => !DOCUMENT_ID_RE.test(document.id))) return c.json({ error: "invalid_id" }, 400);
+
+  try {
+    const statements = normalized.map(document => c.env.DB.prepare(
+      "INSERT INTO fumo_workspace_documents (id, title, kind, starred, content, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET title = excluded.title, kind = excluded.kind, starred = excluded.starred, content = excluded.content, updated_by = excluded.updated_by, updated_at = excluded.updated_at"
+    ).bind(document.id, document.title, document.kind, document.starred, document.content, actor.voter_id, actor.voter_id, now, now));
+    const results = await c.env.DB.batch(statements);
+    if (results.some(result => !result.success)) return c.json({ error: "storage_unavailable" }, 503);
+    return c.json({ documents: normalized.map(document => ({ ...document, starred: Boolean(document.starred), createdAt: now, updatedAt: now })) }, 200, { "Cache-Control": "no-store" });
+  } catch {
+    return c.json({ error: "storage_unavailable" }, 503);
+  }
+});
+
+app.delete("/api/documents/:id", async c => {
+  const actor = await currentAccount(c);
+  if (!actor) return c.json({ error: "unauthorized" }, 401);
+  if (!documentMutationOriginAllowed(c)) return c.json({ error: "forbidden" }, 403);
+  const id = c.req.param("id");
+  if (!DOCUMENT_ID_RE.test(id)) return c.json({ error: "invalid_id" }, 400);
+  try {
+    const result = await c.env.DB.prepare("DELETE FROM fumo_workspace_documents WHERE id = ?").bind(id).run();
+    return c.json({ deleted: Number(result.meta?.changes || 0) > 0 });
+  } catch {
+    return c.json({ error: "storage_unavailable" }, 503);
+  }
+});
+
+app.post("/api/shares", async c => {
+  const actor = await currentAccount(c);
+  if (!actor) return c.json({ error: "unauthorized" }, 401);
+  if (!documentMutationOriginAllowed(c)) return c.json({ error: "forbidden" }, 403);
+  const contentLength = Number(c.req.header("Content-Length") || 0);
+  if (contentLength > 65000) return c.json({ error: "payload_too_large" }, 413);
+  const body = z.object({
+    title: z.string().trim().min(1).max(200),
+    content: z.string().max(MAX_SHARE_CHARS),
+    documentId: z.string().regex(DOCUMENT_ID_RE).optional(),
+    slug: z.string().trim().min(3).max(48).regex(DOCUMENT_SLUG_RE).optional(),
+  }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "invalid_payload" }, 400);
+
+  const id = body.data.slug || newDocumentId();
+  const created = new Date().toISOString();
+  try {
+    const inserted = await c.env.DB.prepare("INSERT INTO fumo_workspace_shares (id, document_id, title, content, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(id, body.data.documentId || null, body.data.title, body.data.content, actor.voter_id, created).run();
+    if (!inserted.success) return c.json({ error: "storage_unavailable" }, 503);
+    return c.json({ id }, 201, { "Cache-Control": "no-store" });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (body.data.slug && /UNIQUE constraint failed/i.test(errorMessage)) return c.json({ error: "slug_taken" }, 409);
+    return c.json({ error: "storage_unavailable" }, 503);
+  }
+});
+
+app.get("/api/shares/:id", async c => {
+  const id = c.req.param("id");
+  if (!DOCUMENT_ID_RE.test(id)) return c.json({ error: "not_found" }, 404);
+  try {
+    const row = await c.env.DB.prepare("SELECT title, content, created_at FROM fumo_workspace_shares WHERE id = ? LIMIT 1").bind(id).first<any>();
+    if (!row) return c.json({ error: "not_found" }, 404);
+    return c.json({ title: row.title, content: row.content, created: row.created_at }, 200, { "Cache-Control": "public, max-age=300" });
+  } catch {
+    return c.json({ error: "storage_unavailable" }, 503, { "Cache-Control": "no-store" });
+  }
+});
+
 app.notFound(c => c.json({ error: "Not found" }, 404));
 app.onError((err, c) => { console.error(err); return c.json({ error: "Internal server error" }, 500); });
 export default {

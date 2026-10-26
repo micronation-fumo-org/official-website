@@ -5,7 +5,7 @@
 Google Sheet 與 Cloudflare D1 分開使用：
 
 - **Google Sheet**：使用使用者指定的「FUMO 官方網站資料 Sheet 模板」，管理國家、代表、註冊白名單、秘書處名冊、合作組織及歷史投票檔案。
-- **Cloudflare D1**：管理網站帳號、密碼雜湊、管理員權限、投票項目及投票紀錄。
+- **Cloudflare D1**：管理網站帳號、密碼雜湊、管理員權限、投票項目、投票紀錄，以及 FUMO 成員共用文件與公開分享快照。
 - **Cloudflare Pages**：託管 React/Vite 前端。
 - **Cloudflare Workers**：提供獨立 API，連接 Google Sheet 與 D1。
 
@@ -30,7 +30,7 @@ flowchart TD
 |---|---|---|
 | Cloudflare Pages | 前端畫面、路由、表單、API 呼叫 | 不直接連接 D1、不保存密碼 |
 | Cloudflare Worker | API、權限檢查、資料整合、CORS | 不把 Google Sheet 名冊複製到 D1 |
-| Cloudflare D1 | 帳戶、投票、投票紀錄、管理員權限 | 不保存國家名冊的主要來源 |
+| Cloudflare D1 | 帳戶、投票、投票紀錄、管理員權限、共用文件與分享快照 | 不保存國家名冊的主要來源 |
 | Google Sheet | 公開名冊、註冊白名單、合作組織與歷史投票檔案 | 不保存網站密碼；即時網站投票仍由 D1 管理 |
 
 ## 3. Google Sheet 分頁
@@ -87,6 +87,10 @@ Worker 會在記憶體中快取資料約 5 分鐘，減少對 Google Sheet 的�
 - 國家名稱
 - 選擇的選項
 - 投票時間
+
+### `fumo_workspace_documents` 與 `fumo_workspace_shares`
+
+`fumo_workspace_documents` 保存所有已登入 FUMO 成員共用的文件標題、類別、Markdown 內容與更新時間；`fumo_workspace_shares` 保存建立分享時的唯讀內容快照。兩者以獨立資料表儲存，不修改既有帳戶、投票或選票資料。
 
 ## 5. 主要資料流程
 
@@ -148,6 +152,11 @@ Worker 會在記憶體中快取資料約 5 分鐘，減少對 Google Sheet 的�
 | `POST /api/auth/register` | Google Sheet + D1 | 註冊帳戶 |
 | `POST /api/auth/login` | D1 | 登入 |
 | `POST /api/auth/change-password` | D1 | 修改密碼 |
+| `GET /api/documents` | D1 + FUMO session | 列出所有成員共用文件 |
+| `POST /api/documents` | D1 + FUMO session | 新增或更新共用文件 |
+| `DELETE /api/documents/:id` | D1 + FUMO session | 刪除共用文件 |
+| `POST /api/shares` | D1 + FUMO session | 建立唯讀公開快照，可自訂網址尾碼 |
+| `GET /api/shares/:id` | D1 | 免登入讀取公開快照 |
 
 ## 7. 部署架構
 
@@ -198,6 +207,8 @@ Worker binding: DB
 5. Worker 驗證已註冊帳戶、密碼及投票紀錄時，以 D1 為準。
 6. Google Sheet 內容更新後，Worker 最多約 5 分鐘會讀到新資料，因為 Worker 有快取。
 7. 若要完全避免名冊被公開讀取，應改用受保護的 Google Sheets API；目前架構使用公開 CSV 匯出，因此該分頁必須允許公開讀取。
+8. 文件編輯頁 `/documents/` 由 Pages Function 檢查現有 FUMO session；文件讀寫與刪除 API 也會再次驗證 session，不能只靠前端隱藏介面。
+9. `/share/:id` 與 `GET /api/shares/:id` 保持公開唯讀；分享建立時保存不可變快照，不公開來源文件的編輯權限。
 
 ## 9. 一句話總結
 
