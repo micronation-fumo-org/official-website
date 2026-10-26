@@ -129,7 +129,7 @@ function normalizeText(value) {
 }
 
 function getProposalField(content, labels) {
-  const match = normalizeText(content).match(new RegExp(`(?:^|\\n)\\s*(?:◆\\s*\\|?\\s*)?(?:${labels.join("|")})\\s*:?\\s*(.+?)(?=\\n\\s*(?:◆|🔹|🔸)|$)`, "i"));
+  const match = normalizeText(content).match(new RegExp(`(?:^|\\n)\\s*(?:◆\\s*[|｜]?\\s*)?(?:${labels.join("|")})\\s*:?\\s*(.+?)(?=\\n\\s*(?:◆|🔹|🔸)|$)`, "i"));
   return match?.[1]?.trim().replace(/\n+/g, " ") || "";
 }
 
@@ -143,7 +143,8 @@ function proposalFromMessage(content) {
 }
 
 function proposalPeriod(threadName) {
-  return threadName.match(/第[^\s]+次(?:議事中心|議會中心)決議提案申請[-－](\d{4}\/\d{1,2})/i)?.[1] || "";
+  const period = threadName.match(/第.+?次\s*(?:議事中心|議會中心)\s*決議提案申請\s*[-－–—]\s*(\d{4})[/／-](\d{1,2})/i);
+  return period ? `${period[1]}/${period[2].padStart(2, "0")}` : "";
 }
 
 function isSeatChange(title) {
@@ -165,7 +166,10 @@ async function collectProposalDigest(channel, requestedPeriod) {
   const matches = [...threads.values()].filter(thread => proposalPeriod(thread.name) && (!requestedPeriod || proposalPeriod(thread.name) === requestedPeriod));
   matches.sort((a, b) => proposalPeriod(b.name).localeCompare(proposalPeriod(a.name)) || b.createdTimestamp - a.createdTimestamp);
   const thread = matches[0];
-  if (!thread) throw new Error("找不到符合格式的例行大會串文");
+  if (!thread) {
+    const available = [...threads.values()].map(item => item.name).filter(Boolean).slice(0, 8);
+    throw new Error(`找不到符合格式的例行大會串文；頻道目前讀到 ${threads.size} 個串文${available.length ? `：${available.join("、")}` : "。"}`);
+  }
   const messages = await thread.messages.fetch({ limit: 100 });
   const unique = new Map();
   for (const message of messages.values()) {
@@ -214,8 +218,9 @@ async function handleInteraction(interaction) {
       const result = await collectProposalDigest(channel, interaction.options.getString("會期"));
       await sendLongReply(interaction, `**${result.thread.name}**\n${formatProposalDigest(result.period, result.proposals)}`);
     } catch (error) {
-      console.error("Proposal digest failed", error);
-      await interaction.editReply("議案整理失敗：請確認 Bot 已啟用 Message Content Intent，並擁有議事中心頻道的 View Channel、Read Message History 權限；串文標題需符合「第 N 次議事中心決議提案申請-YYYY/MM」。");
+      console.error("Proposal digest failed", error?.stack || error);
+      const reason = error instanceof Error ? error.message : String(error);
+      await interaction.editReply(`議案整理失敗：${reason.slice(0, 1500)}\n\n請確認 Bot 已啟用 Message Content Intent，並擁有議事中心頻道的 View Channel、Read Message History 權限；串文標題需符合「第 N 次議事中心決議提案申請-YYYY/MM」。`);
     }
     return;
   }
