@@ -939,6 +939,7 @@ app.get("/api/documents", async c => {
 app.post("/api/documents", async c => {
   const actor = await currentAccount(c);
   if (!actor) return c.json({ error: "unauthorized" }, 401);
+  if (actor.admin_level < ADMIN_TIER2) return c.json({ error: "admin_level_required", requiredAdminLevel: ADMIN_TIER2 }, 403);
   if (!documentMutationOriginAllowed(c)) return c.json({ error: "forbidden" }, 403);
   const contentLength = Number(c.req.header("Content-Length") || 0);
   if (contentLength > 850000) return c.json({ error: "payload_too_large" }, 413);
@@ -973,6 +974,7 @@ app.post("/api/documents", async c => {
 app.delete("/api/documents/:id", async c => {
   const actor = await currentAccount(c);
   if (!actor) return c.json({ error: "unauthorized" }, 401);
+  if (actor.admin_level < ADMIN_TIER2) return c.json({ error: "admin_level_required", requiredAdminLevel: ADMIN_TIER2 }, 403);
   if (!documentMutationOriginAllowed(c)) return c.json({ error: "forbidden" }, 403);
   const id = c.req.param("id");
   if (!DOCUMENT_ID_RE.test(id)) return c.json({ error: "invalid_id" }, 400);
@@ -987,6 +989,7 @@ app.delete("/api/documents/:id", async c => {
 app.post("/api/shares", async c => {
   const actor = await currentAccount(c);
   if (!actor) return c.json({ error: "unauthorized" }, 401);
+  if (actor.admin_level < ADMIN_TIER2) return c.json({ error: "admin_level_required", requiredAdminLevel: ADMIN_TIER2 }, 403);
   if (!documentMutationOriginAllowed(c)) return c.json({ error: "forbidden" }, 403);
   const contentLength = Number(c.req.header("Content-Length") || 0);
   if (contentLength > 65000) return c.json({ error: "payload_too_large" }, 413);

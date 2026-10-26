@@ -100,6 +100,7 @@
   }
 
   $('sharePublicBtn').addEventListener('click', () => {
+    if (!window.FUMO_CAN_EDIT_DOCUMENTS) return;
     const doc = window.FUMO_GET_ACTIVE_DOCUMENT();
     if (!doc) return;
     shareUrl.value = '';
@@ -119,6 +120,10 @@
   });
 
   createShareBtn.addEventListener('click', async () => {
+    if (!window.FUMO_CAN_EDIT_DOCUMENTS) {
+      feedback.textContent = '需要二級管理員以上權限才能建立公開分享。';
+      return;
+    }
     const doc = window.FUMO_GET_ACTIVE_DOCUMENT();
     if (!doc) return;
     if (doc.content.length > PAGE_LIMIT) {
@@ -152,6 +157,11 @@
       if (response.status === 400) {
         feedback.textContent = '尾碼格式無效，請使用 3–48 個小寫英數字或連字號。';
         slugInput.focus();
+        return;
+      }
+      if (response.status === 403) {
+        window.FUMO_REVOKE_DOCUMENT_EDIT?.();
+        feedback.textContent = '需要二級管理員以上權限才能建立公開分享。';
         return;
       }
       if (!response.ok) throw new Error('share creation failed');

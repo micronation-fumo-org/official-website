@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#f5f7fb">
 <meta name="description" content="FUMO 成員文件工作區：以 Markdown 編寫、整理與預覽組織文件。">
 <link rel="icon" href="/fumo-badge.webp" type="image/webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
 <title>FUMO 文件工作區</title>
 <style>
 :root{--ink:#17253d;--muted:#7b8799;--line:#e7ebf1;--paper:#fff;--canvas:#f5f7fb;--blue:#2563eb;--blue-soft:#eef4ff;--green:#1d8a70;--green-soft:#e9f7f2;--gold:#c48b31;--shadow:0 12px 36px rgba(28,47,79,.08);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;color:var(--ink)}
@@ -24,12 +27,13 @@ main{min-width:0}.topbar{height:60px;border-bottom:1px solid var(--line);backgro
 .table-scroll{overflow:auto;margin:12px 0}.preview-body table{border-collapse:collapse;width:100%;font-size:11px;min-width:240px}.preview-body th,.preview-body td{border:1px solid #e5ebf2;padding:7px 9px;text-align:left}.preview-body th{background:#f5f8fc;color:#3d5577;font-weight:650}.preview-body tr:nth-child(even) td{background:#fbfcfe}.preview-body pre{background:#f2f5fa;border:1px solid #e6ebf2;border-radius:8px;padding:12px;overflow:auto}.preview-body pre code{background:none;padding:0;white-space:pre;font-size:11px}.preview-body .task-item{list-style:none;margin-left:-20px;display:flex;align-items:baseline;gap:7px}.task-check{display:inline-block;width:12px;height:12px;border:1px solid #b7c5d8;border-radius:3px;line-height:10px;text-align:center;font-size:9px;color:#3673ba;flex:0 0 auto}
 </style>
 <link rel="stylesheet" href="/documents/mobile-enhancements.css">
+<link rel="stylesheet" href="/documents/official-theme.css">
 <style>
 .brand-mark,.public-mark{overflow:hidden;padding:0;background:none!important}.brand-mark img,.public-mark img{display:block;width:100%;height:100%;object-fit:cover}.btn-danger{color:#b34c4c;border-color:#f0d9d9}.btn-danger:hover{color:#983737;border-color:#e7bcbc;background:#fff8f8}.logout-btn{margin:10px 5px 0;border:0;background:transparent;color:#8290a2;font:inherit;font-size:10px;text-align:left;padding:5px 0}.logout-btn:hover{color:#b34c4c}
 </style>
 </head>
 <body>
-<div class="shell">
+<div class="shell hidden">
   <div class="mobile-backdrop" id="mobileBackdrop" aria-hidden="true"></div>
   <aside class="sidebar" id="sidebar">
     <div class="brand"><div class="brand-mark"><img src="/fumo-badge.webp" alt="FUMO 徽章"></div><div><div class="brand-name">FUMO 文件工作區</div><div class="brand-sub">FEDERATION OF UNITED MICRONATIONS</div></div></div>
@@ -44,12 +48,12 @@ main{min-width:0}.topbar{height:60px;border-bottom:1px solid var(--line);backgro
     <div class="side-divider"></div>
     <div class="nav-label">文件目錄</div>
     <div class="doc-list" id="docList"></div>
-    <button class="add-doc" id="newDoc">＋　新增 Markdown 文件</button>
-    <button class="add-doc" id="importDocBtn" type="button">↑　匯入 .md / .txt 檔案</button>
+    <button class="add-doc" id="newDoc" hidden>＋　新增 Markdown 文件</button>
+    <button class="add-doc" id="importDocBtn" type="button" hidden>↑　匯入 .md / .txt 檔案</button>
     <input id="importDocInput" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" multiple hidden aria-label="選取要匯入的 Markdown 或純文字檔案">
     <div class="side-bottom">
-      <div class="local-note"><strong>FUMO 成員共用工作區</strong>文件會同步至官方網站的 Cloudflare D1，所有登入成員皆可編輯。公開分享為唯讀快照；任何持有連結者都能閱讀。</div>
-      <div class="profile"><div class="avatar">F</div><div><div class="profile-name">FUMO 成員</div><div class="profile-role">成員工作區</div></div></div><button class="logout-btn" id="logoutBtn" type="button">登出此工作區</button>
+      <div class="local-note"><strong>FUMO 成員共用工作區</strong>所有登入成員皆可檢視；僅二級管理員以上可建立、編輯、匯入、刪除文件或建立公開分享。公開分享為唯讀快照，任何持有連結者都能閱讀。</div>
+      <div class="profile"><div class="avatar">F</div><div><div class="profile-name" id="profileName">FUMO 成員</div><div class="profile-role" id="profileRole">確認帳戶權限中…</div></div></div><button class="logout-btn" id="logoutBtn" type="button">登出此工作區</button>
     </div>
   </aside>
   <main>
@@ -64,8 +68,8 @@ main{min-width:0}.topbar{height:60px;border-bottom:1px solid var(--line);backgro
     <section class="content">
       <div class="eyebrow"><span class="eyebrow-dot"></span>FUMO MEMBER WORKSPACE</div>
       <div class="doc-heading">
-        <div class="doc-title-wrap"><h1 class="doc-title" id="docTitle">FUMO 成員工作手冊</h1><div class="doc-meta"><span>Markdown 文件</span><span class="meta-sep">·</span><span id="updatedAt">最近編輯：剛剛</span><span class="meta-sep">·</span><span class="saved-indicator"><i></i><span id="saveStatus">正在連線至共用工作區…</span></span></div></div>
-        <div class="heading-actions"><button class="btn" id="downloadBtn"><span class="btn-icon">↓</span>匯出 .md</button><button class="btn btn-danger" id="deleteDocBtn" type="button"><span class="btn-icon">⌫</span>刪除文件</button><button class="btn" id="previewBtn"><span class="btn-icon">◉</span>預覽</button><button class="btn" id="editBtn"><span class="btn-icon">✎</span>編輯文件</button><button class="btn btn-primary" id="sharePublicBtn"><span class="btn-icon">↗</span>公開分享</button></div>
+      <div class="doc-title-wrap"><h1 class="doc-title" id="docTitle">FUMO 成員文件</h1><div class="doc-meta"><span id="docTypeLabel">Markdown 文件</span><span class="meta-sep">·</span><span id="updatedAt">最近編輯：剛剛</span><span class="meta-sep">·</span><span class="saved-indicator"><i></i><span id="saveStatus">正在連線至共用工作區…</span></span></div></div>
+        <div class="heading-actions"><button class="btn" id="downloadBtn"><span class="btn-icon">↓</span>匯出 .md</button><button class="btn btn-danger" id="deleteDocBtn" type="button" hidden><span class="btn-icon">⌫</span>刪除文件</button><button class="btn" id="previewBtn"><span class="btn-icon">◉</span>預覽</button><button class="btn" id="editBtn" hidden><span class="btn-icon">✎</span>編輯文件</button><button class="btn btn-primary" id="sharePublicBtn" hidden><span class="btn-icon">↗</span>公開分享</button></div>
       </div>
       <div class="context-banner"><div class="banner-icon">✦</div><div class="banner-copy"><strong>為 FUMO 成員整理共用文件的起點。</strong>　以 Markdown 記錄議案、會議、法規與組織工作；編輯後可建立唯讀公開短連結。</div><a class="banner-link" href="https://www.micronationfumo.org/" target="_blank" rel="noreferrer">瀏覽 FUMO 官方網站 ↗</a></div>
       <section class="editor-card" aria-label="Markdown 編輯器">
@@ -76,10 +80,10 @@ main{min-width:0}.topbar{height:60px;border-bottom:1px solid var(--line);backgro
           <div class="view-mode" role="group" aria-label="文件檢視模式"><button id="splitMode" class="active">編輯＋預覽</button><button id="editMode">編輯</button><button id="readMode">閱讀</button></div>
         </div>
         <div class="editor-body" id="editorBody">
-          <div class="editor-pane"><div class="pane-head"><span>MARKDOWN</span><span>純文字編輯</span></div><textarea class="markdown-input" id="markdownInput" spellcheck="false" aria-label="Markdown 內容編輯器"></textarea></div>
+          <div class="editor-pane"><div class="pane-head"><span>MARKDOWN</span><span>純文字編輯</span></div><textarea class="markdown-input" id="markdownInput" spellcheck="false" readonly aria-label="Markdown 內容編輯器"></textarea></div>
           <div class="preview-pane"><div class="pane-head"><span>預覽</span><span>即時更新</span></div><article class="preview-body" id="previewBody"></article></div>
         </div>
-        <div class="editor-footer"><span><i class="footer-mark"></i>Markdown　·　自動同步至共用 D1</span><span id="wordCount">0 字</span></div>
+        <div class="editor-footer"><span><i class="footer-mark"></i><span id="syncLabel">Markdown　·　自動同步至共用 D1</span></span><span id="wordCount">0 字</span></div>
       </section>
       <div class="bottom-grid">
         <section class="info-card"><div class="info-head"><div class="info-title">工作區導覽</div><div class="info-subtle">依 FUMO 公開導覽整理</div></div>
@@ -87,7 +91,7 @@ main{min-width:0}.topbar{height:60px;border-bottom:1px solid var(--line);backgro
           <div class="activity-row"><div class="activity-mini">☷</div><div class="activity-text"><div class="activity-main">投票提案與紀錄</div><div class="activity-time">記錄提案內容、表決結果與議事脈絡</div></div><span class="activity-chip">議事</span></div>
           <div class="activity-row"><div class="activity-mini">◷</div><div class="activity-text"><div class="activity-main">出席簽到與職位報告</div><div class="activity-time">彙整會議出席及各職位工作報告</div></div><span class="activity-chip">行政</span></div>
         </section>
-        <section class="info-card"><div class="info-head"><div class="info-title">快速操作</div><div class="info-subtle">小提示</div></div><div class="shortcut-list"><div class="shortcut-row">搜尋文件<span class="key">/</span></div><div class="shortcut-row">儲存草稿<span class="key">⌘ / Ctrl + S</span></div><div class="shortcut-row">匯出 Markdown<span class="key">.md</span></div></div></section>
+        <section class="info-card"><div class="info-head"><div class="info-title">快速操作</div><div class="info-subtle">小提示</div></div><div class="shortcut-list"><div class="shortcut-row">搜尋文件<span class="key">/</span></div><div class="shortcut-row" id="saveShortcutRow">儲存草稿<span class="key">⌘ / Ctrl + S</span></div><div class="shortcut-row">匯出 Markdown<span class="key">.md</span></div></div></section>
       </div>
       <p style="text-align:center;font-size:9px;color:#a0a9b5;margin:21px 0 0">組織背景與導覽參考：<a href="https://www.micronationfumo.org/" target="_blank" rel="noreferrer" style="color:#7184a0">FUMO 官方網站</a>　·　文件同步至 FUMO 共用 D1；公開分享會保存唯讀快照</p>
     </section>

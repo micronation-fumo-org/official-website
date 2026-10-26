@@ -14,12 +14,15 @@
   const docList = $("docList");
   const editorBody = $("editorBody");
   const syncedSignatures = new Map();
-  let docs = seed.map(doc => ({ ...doc }));
-  let activeId = docs[0]?.id || "guide";
+  let docs = [];
+  let activeId = "";
   let filter = "recent";
   let query = "";
   let editorReady = false;
   let authenticated = false;
+  let canEdit = false;
+  let currentUser = null;
+  window.FUMO_CAN_EDIT_DOCUMENTS = false;
   let saveQueue = Promise.resolve();
 
   const safe = value => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -37,6 +40,34 @@
     return date && !Number.isNaN(date.valueOf()) ? date.toLocaleString("zh-TW") : (value || "剛剛");
   };
   const loginUrl = () => `/login?next=${encodeURIComponent(location.pathname + location.search + location.hash)}`;
+
+  function setAccessMode(user, allowEdits = Number(user?.adminLevel) >= 2) {
+    currentUser = user || null;
+    canEdit = Boolean(allowEdits);
+    window.FUMO_CAN_EDIT_DOCUMENTS = canEdit;
+    document.body.classList.toggle("read-only", !canEdit);
+    const level = Number(currentUser?.adminLevel) || 0;
+    $("profileName").textContent = currentUser?.voterName || "FUMO 成員";
+    $("profileRole").textContent = level >= 9
+      ? "最高管理員 · 可編輯"
+      : level >= 2
+        ? (canEdit ? "二級管理員 · 可編輯" : "二級管理員 · 唯讀")
+        : level >= 1
+          ? "一級管理員 · 唯讀"
+          : "一般成員 · 唯讀";
+    for (const id of ["newDoc", "importDocBtn", "deleteDocBtn", "editBtn", "sharePublicBtn"]) $(id).hidden = !canEdit;
+    $("saveShortcutRow").hidden = !canEdit;
+    $("syncLabel").textContent = canEdit ? "Markdown　·　自動同步至共用 D1" : "唯讀檢視　·　二級管理員以上可編輯";
+    input.readOnly = !canEdit;
+    document.querySelectorAll("[data-wrap], [data-prefix]").forEach(button => { button.disabled = !canEdit; });
+    if (!canEdit) $("docTitle").removeAttribute("contenteditable");
+  }
+
+  function revokeEditAccess() {
+    setAccessMode(currentUser, false);
+  }
+
+  window.FUMO_REVOKE_DOCUMENT_EDIT = revokeEditAccess;
 
   function inline(value) {
     let text = safe(value);
@@ -132,7 +163,7 @@
   }
 
   function persist() {
-    if (!authenticated) return Promise.resolve(false);
+    if (!authenticated || !canEdit) return Promise.resolve(false);
     const operation = saveQueue.then(async () => {
       const pending = docs.filter(doc => signature(doc) !== syncedSignatures.get(doc.id)).map(doc => ({ ...doc }));
       if (!pending.length) return true;
@@ -146,6 +177,11 @@
       if (response.status === 401) {
         location.replace(loginUrl());
         throw new Error("unauthorized");
+      }
+      if (response.status === 403) {
+        revokeEditAccess();
+        $("saveStatus").textContent = "需要二級管理員以上權限才能修改文件";
+        throw new Error("admin_required");
       }
       if (!response.ok) throw new Error("document_sync_failed");
       const result = await response.json();
@@ -165,7 +201,7 @@
     });
     saveQueue = operation.catch(() => false);
     return operation.catch(error => {
-      if (error.message !== "unauthorized") $("saveStatus").textContent = "同步失敗，請檢查網路後重試";
+      if (error.message !== "unauthorized" && error.message !== "admin_required") $("saveStatus").textContent = "同步失敗，請檢查網路後重試";
       return false;
     });
   }
@@ -181,7 +217,7 @@
     });
     if (filter === "recent") visible = visible.slice(0, 6);
     if (!visible.length) {
-      docList.innerHTML = '<div class="empty-state">沒有符合條件的文件</div>';
+      docList.innerHTML = docs.length ? '<div class="empty-state">沒有符合條件的文件</div>' : '<div class="empty-state">目前尚無共用文件</div>';
       return;
     }
     for (const doc of visible) {
@@ -196,7 +232,7 @@
 
   function selectDoc(id) {
     const current = active();
-    if (editorReady && current && input.value !== current.content) {
+    if (canEdit && editorReady && current && input.value !== current.content) {
       current.content = input.value;
       void persist();
     }
@@ -204,6 +240,7 @@
     const doc = active();
     if (!doc) return;
     $("docTitle").textContent = doc.title;
+    $("docTypeLabel").textContent = `${doc.kind} · Markdown 文件`;
     input.value = doc.content;
     editorReady = true;
     preview.innerHTML = renderMarkdown(doc.content);
@@ -211,6 +248,18 @@
     count();
     renderList();
     $("sidebar").classList.remove("open");
+  }
+
+  function showEmptyWorkspace() {
+    activeId = "";
+    editorReady = false;
+    $("docTitle").textContent = "尚無共用文件";
+    $("docTypeLabel").textContent = "文件工作區";
+    $("updatedAt").textContent = "等待文件建立";
+    input.value = "";
+    preview.innerHTML = '<p>目前尚無共用文件。二級管理員以上可新增或匯入文件。</p>';
+    count();
+    renderList();
   }
 
   function count() {
@@ -221,6 +270,7 @@
 
   let saveTimer;
   function update() {
+    if (!canEdit) return;
     const doc = active();
     if (!doc) return;
     doc.content = input.value;
@@ -254,6 +304,7 @@
   }));
 
   $("newDoc").onclick = () => {
+    if (!canEdit) return;
     const id = `doc-${crypto.randomUUID()}`;
     const doc = { id, title: "未命名文件", kind: "新文件", updated: "剛剛", starred: false, content: "# 未命名文件\n\n在此開始撰寫 Markdown…" };
     docs.unshift(doc);
@@ -267,6 +318,7 @@
 
   $("importDocBtn").onclick = () => $("importDocInput").click();
   $("importDocInput").addEventListener("change", async event => {
+    if (!canEdit) { event.target.value = ""; return; }
     const files = [...event.target.files];
     event.target.value = "";
     if (!files.length) return;
@@ -301,8 +353,9 @@
   });
 
   $("docTitle").addEventListener("blur", () => {
-    if (!$("docTitle").isContentEditable) return;
+    if (!canEdit || !$("docTitle").isContentEditable) return;
     const doc = active();
+    if (!doc) return;
     const name = $("docTitle").textContent.trim();
     if (name) doc.title = name.slice(0, 200);
     $("docTitle").removeAttribute("contenteditable");
@@ -327,6 +380,7 @@
   };
 
   $("deleteDocBtn").onclick = async () => {
+    if (!canEdit) return;
     const doc = active();
     if (!doc) return;
     if (!window.confirm(`確定要刪除「${doc.title}」嗎？這會從 FUMO 所有成員共用工作區刪除，且無法復原。`)) return;
@@ -335,6 +389,7 @@
     try {
       const response = await fetch(`/api/documents/${encodeURIComponent(doc.id)}`, { method: "DELETE", credentials: "same-origin" });
       if (response.status === 401) { location.replace(loginUrl()); return; }
+      if (response.status === 403) { revokeEditAccess(); throw new Error("admin_required"); }
       if (!response.ok) throw new Error("delete_failed");
       syncedSignatures.delete(doc.id);
       docs.splice(oldIndex, 1);
@@ -344,12 +399,13 @@
       await persist();
       selectDoc(activeId);
       toast("文件已從共用工作區刪除");
-    } catch (_) {
-      toast("刪除失敗，請檢查網路後重試");
+    } catch (error) {
+      toast(error.message === "admin_required" ? "需要二級管理員以上權限" : "刪除失敗，請檢查網路後重試");
     }
   };
 
   document.querySelectorAll("[data-wrap]").forEach(button => button.onclick = () => {
+    if (!canEdit) return;
     const mark = button.dataset.wrap;
     const start = input.selectionStart;
     const end = input.selectionEnd;
@@ -359,6 +415,7 @@
     input.focus();
   });
   document.querySelectorAll("[data-prefix]").forEach(button => button.onclick = () => {
+    if (!canEdit) return;
     const start = input.selectionStart;
     const lineStart = input.value.lastIndexOf("\n", start - 1) + 1;
     input.setRangeText(button.dataset.prefix, lineStart, lineStart, "end");
@@ -378,7 +435,7 @@
     if (window.innerWidth <= 850 && $("sidebar").classList.contains("open") && !$("sidebar").contains(event.target) && !$("mobileMenu").contains(event.target)) $("sidebar").classList.remove("open");
   });
   document.addEventListener("keydown", event => {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+    if (canEdit && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
       event.preventDefault();
       clearTimeout(saveTimer);
       void persist().then(ok => toast(ok ? "文件已同步至共用工作區" : "同步失敗，請稍後重試"));
@@ -397,8 +454,10 @@
   window.FUMO_GET_ACTIVE_DOCUMENT = () => {
     const doc = active();
     if (!doc) return null;
-    doc.content = input.value;
-    void persist();
+    if (canEdit) {
+      doc.content = input.value;
+      void persist();
+    }
     return { id: doc.id, title: doc.title, content: input.value };
   };
 
@@ -445,14 +504,20 @@
       if (changed) {
         docs.sort((left, right) => String(right.updated).localeCompare(String(left.updated)));
         if (!docs.length) {
-          const fresh = { id: `doc-${crypto.randomUUID()}`, title: "未命名文件", kind: "新文件", updated: "剛剛", starred: false, content: "# 未命名文件\n\n在此開始撰寫 Markdown…" };
-          docs.push(fresh);
-          activeId = fresh.id;
-          void persist();
+          if (canEdit) {
+            const fresh = { id: `doc-${crypto.randomUUID()}`, title: "未命名文件", kind: "新文件", updated: "剛剛", starred: false, content: "# 未命名文件\n\n在此開始撰寫 Markdown…" };
+            docs.push(fresh);
+            activeId = fresh.id;
+            void persist();
+          }
         }
         renderList();
-        if (!docs.some(doc => doc.id === activeId)) activeId = docs[0].id;
-        if (changedActive.has(activeId) || !editorReady) {
+        if (!docs.length) {
+          showEmptyWorkspace();
+        } else {
+          if (!docs.some(doc => doc.id === activeId)) activeId = docs[0].id;
+        }
+        if (docs.length && (changedActive.has(activeId) || !editorReady)) {
           const doc = active();
           $("docTitle").textContent = doc.title;
           input.value = doc.content;
@@ -462,10 +527,10 @@
           editorReady = true;
         }
       }
-      if (docs.some(doc => signature(doc) !== syncedSignatures.get(doc.id))) void persist();
-      else $("saveStatus").textContent = "已同步至 FUMO 共用 D1";
+      if (canEdit && docs.some(doc => signature(doc) !== syncedSignatures.get(doc.id))) void persist();
+      else $("saveStatus").textContent = docs.length ? "已同步至 FUMO 共用 D1" : "目前尚無共用文件";
     } catch (_) {
-      $("saveStatus").textContent = "暫時無法同步；本頁修改仍會重試";
+      $("saveStatus").textContent = canEdit ? "暫時無法同步；本頁修改仍會重試" : "目前無法載入共用文件，請稍後重試";
     }
   }
 
@@ -475,10 +540,13 @@
       document.querySelector(".shell")?.classList.add("hidden");
       return;
     }
+    document.querySelector(".shell")?.classList.add("hidden");
     try {
       const authResponse = await fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
       if (!authResponse.ok) { location.replace(loginUrl()); return; }
+      const user = await authResponse.json();
       authenticated = true;
+      setAccessMode(user);
       const response = await fetch("/api/documents", { credentials: "same-origin", cache: "no-store" });
       if (response.status === 401) { location.replace(loginUrl()); return; }
       if (!response.ok) throw new Error("document_load_failed");
@@ -487,16 +555,22 @@
       if (remoteDocs.length) {
         docs = remoteDocs;
         for (const doc of docs) syncedSignatures.set(doc.id, signature(doc));
-      } else {
+      } else if (canEdit) {
         docs = seed.map(doc => ({ ...doc }));
+      } else {
+        docs = [];
       }
-      activeId = docs[0]?.id || "guide";
+      activeId = docs[0]?.id || "";
       renderList();
-      selectDoc(activeId);
-      if (!remoteDocs.length) await persist();
-      else $("saveStatus").textContent = "已同步至 FUMO 共用 D1";
+      if (activeId) selectDoc(activeId);
+      else showEmptyWorkspace();
+      if (!remoteDocs.length && canEdit) await persist();
+      else $("saveStatus").textContent = remoteDocs.length ? "已同步至 FUMO 共用 D1" : "目前尚無共用文件，等待二級管理員建立";
+      document.querySelector(".shell")?.classList.remove("hidden");
       window.setInterval(() => { void refreshDocuments(); }, 15000);
     } catch (_) {
+      document.querySelector(".shell")?.classList.remove("hidden");
+      $("docTitle").textContent = "共用工作區暫時無法載入";
       $("saveStatus").textContent = "無法連線至共用工作區，請重新整理或稍後重試";
       toast("文件載入失敗，請確認登入狀態與網路連線");
     }
