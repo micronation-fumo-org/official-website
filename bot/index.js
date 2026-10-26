@@ -66,7 +66,7 @@ const commands = [
     .setName("說話")
     .setDescription("讓 FUMO Bot 發送文字訊息")
     .addStringOption(option => option.setName("內容").setDescription("Bot 要說的內容").setRequired(true).setMaxLength(1900))
-    .addStringOption(option => option.setName("頻道id").setDescription("可選；留空發到公告頻道").setRequired(false).setMaxLength(25)),
+    .addStringOption(option => option.setName("頻道id").setDescription("要發送訊息的 Discord 頻道 ID").setRequired(true).setMaxLength(25)),
 ].map(command => command.toJSON());
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
@@ -329,7 +329,7 @@ async function handleInteraction(interaction) {
     await interaction.deferReply({ ephemeral: true });
     try {
       const content = interaction.options.getString("內容", true).trim();
-      const channelId = interaction.options.getString("頻道id")?.trim() || ANNOUNCEMENT_CHANNEL_ID;
+      const channelId = interaction.options.getString("頻道id", true).trim();
       if (!/^\d{15,25}$/.test(channelId)) throw new Error("頻道 ID 格式不正確");
       const message = await postBotSpeech(content, channelId);
       await interaction.editReply(`Bot 已發言：${message.url}`);
