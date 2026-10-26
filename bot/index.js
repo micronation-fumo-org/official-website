@@ -50,6 +50,18 @@ function logAction(action, details = {}) {
   console.log(`[BOT_ACTION] ${JSON.stringify({ at: new Date().toISOString(), action, ...details })}`);
 }
 
+function normalizeCountryName(value) {
+  return String(value || "").replace(/[\u00a0\u3000]/g, " ").trim().replace(/\s+/g, " ");
+}
+
+function buildCountryStatusMap(memberData) {
+  const statusByCountry = new Map();
+  for (const country of memberData.memberStates || []) statusByCountry.set(normalizeCountryName(country.fullName), "member");
+  // 若同一國家同時出現在兩份資料，觀察國資料優先，避免誤套成員國。
+  for (const country of memberData.observerStates || []) statusByCountry.set(normalizeCountryName(country.fullName), "observer");
+  return statusByCountry;
+}
+
 const commands = [
   new SlashCommandBuilder()
     .setName("公告")
@@ -127,8 +139,7 @@ async function postBotSpeech(content, channel, replyId = "") {
 async function compareRoles(guild) {
   const voters = await fumoFetch("/api/voters");
   const memberData = await fumoFetch("/api/members");
-  const memberCountries = new Set((memberData.memberStates || []).map(country => country.fullName));
-  const observerCountries = new Set((memberData.observerStates || []).map(country => country.fullName));
+  const countryStatus = buildCountryStatusMap(memberData);
   const registered = new Map();
   for (const voter of Array.isArray(voters) ? voters : []) {
     for (const representative of voter.reps || []) {
@@ -142,7 +153,8 @@ async function compareRoles(guild) {
   const absentMembers = [...registered.entries()].filter(([id]) => !guild.members.cache.has(id));
   const missingExpectedRoles = registeredMembers.flatMap(member => {
     const registration = registered.get(member.id);
-    const expectedRole = memberCountries.has(registration.countryName) ? MEMBER_ROLE_ID : observerCountries.has(registration.countryName) ? OBSERVER_ROLE_ID : null;
+    const status = countryStatus.get(normalizeCountryName(registration.countryName));
+    const expectedRole = status === "member" ? MEMBER_ROLE_ID : status === "observer" ? OBSERVER_ROLE_ID : null;
     return expectedRole && !member.roles.cache.has(expectedRole) ? [{ member, registration, expectedRole }] : [];
   });
   const secretariatMembers = members.filter(member => member.roles.cache.has(SECRETARIAT_ROLE_ID));
@@ -163,9 +175,9 @@ async function verifyMember(member) {
   const registration = (Array.isArray(voters) ? voters : []).flatMap(voter => (voter.reps || []).map(rep => ({ ...rep, countryName: voter.countryName }))).find(rep => rep.id === member.id);
   if (!registration) return { ok: false, reason: "not_registered" };
   const memberData = await fumoFetch("/api/members");
-  const memberCountries = new Set((memberData.memberStates || []).map(country => country.fullName));
-  const observerCountries = new Set((memberData.observerStates || []).map(country => country.fullName));
-  const roleId = memberCountries.has(registration.countryName) ? MEMBER_ROLE_ID : observerCountries.has(registration.countryName) ? OBSERVER_ROLE_ID : "";
+  const countryStatus = buildCountryStatusMap(memberData);
+  const status = countryStatus.get(normalizeCountryName(registration.countryName));
+  const roleId = status === "member" ? MEMBER_ROLE_ID : status === "observer" ? OBSERVER_ROLE_ID : "";
   if (!roleId) return { ok: false, reason: "country_role_missing", countryName: registration.countryName };
   const role = member.guild.roles.cache.get(roleId) || await member.guild.roles.fetch(roleId).catch(() => null);
   if (!role) return { ok: false, reason: "role_not_found", roleId, countryName: registration.countryName };
