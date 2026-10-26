@@ -134,8 +134,34 @@ function normalizeText(value) {
 }
 
 function getProposalField(content, labels) {
-  const match = normalizeText(content).match(new RegExp(`(?:^|\\n)\\s*(?:◆\\s*[||]?\\s*)?(?:${labels.join("|")})\\s*:?\\s*(.+?)(?=\\n\\s*(?:◆|🔹|🔸)|$)`, "i"));
-  return match?.[1]?.trim().replace(/\n+/g, " ") || "";
+  const text = normalizeText(content).replace(/\*\*/g, "");
+  const lines = text.split("\n").map(line => line.trim());
+  const wanted = labels.map(label => label.toLowerCase());
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const lower = line.toLowerCase();
+    const label = wanted.find(candidate => lower.includes(candidate));
+    if (!label) continue;
+    let value = line.slice(lower.indexOf(label) + label.length).replace(/^[\s:|｜]+/, "").trim();
+    if (!value && lines[index + 1] && !/^(?:◆|🔹|🔸|I\.|II\.|III\.|一、|二、|三、)/i.test(lines[index + 1])) value = lines[index + 1].trim();
+    const continuation = [];
+    for (let next = index + 1; next < lines.length; next += 1) {
+      if (/^(?:◆|🔹|🔸|I\.|II\.|III\.|一、|二、|三、)/i.test(lines[next])) break;
+      if (value && lines[next]) continuation.push(lines[next]);
+    }
+    return [value, ...continuation].filter(Boolean).join(" ").trim();
+  }
+  return "";
+}
+
+function messageText(message) {
+  const parts = [message.content || ""];
+  for (const embed of message.embeds || []) {
+    if (embed.title) parts.push(embed.title);
+    if (embed.description) parts.push(embed.description);
+    for (const field of embed.fields || []) parts.push(`${field.name}\n${field.value}`);
+  }
+  return parts.filter(Boolean).join("\n");
 }
 
 function proposalFromMessage(content) {
@@ -200,7 +226,7 @@ async function collectAdmissionDigest(channel, requestedPeriod) {
   for (const thread of [targetThread]) {
     const messages = await thread.messages.fetch({ limit: 100 });
     for (const message of messages.values()) {
-      const admission = admissionFromMessage(message.content || "");
+      const admission = admissionFromMessage(messageText(message));
       if (admission) { applications.push({ thread, admission }); break; }
     }
   }
@@ -224,7 +250,7 @@ async function collectProposalDigest(channel, requestedPeriod) {
     const messages = await channel.messages.fetch({ limit: 100 });
     const unique = new Map();
     for (const message of messages.values()) {
-      const proposal = proposalFromMessage(message.content || "");
+      const proposal = proposalFromMessage(messageText(message));
       if (proposal) unique.set(`${proposal.country}|${proposal.representative}|${proposal.title}`, proposal);
     }
     return { thread: channel, period, proposals: [...unique.values()] };
@@ -251,7 +277,7 @@ async function collectProposalDigest(channel, requestedPeriod) {
   const messages = await thread.messages.fetch({ limit: 100 });
   const unique = new Map();
   for (const message of messages.values()) {
-    const proposal = proposalFromMessage(message.content || "");
+    const proposal = proposalFromMessage(messageText(message));
     if (proposal) unique.set(`${proposal.country}|${proposal.representative}|${proposal.title}`, proposal);
   }
   return { thread, period: proposalPeriod(thread.name), proposals: [...unique.values()] };
