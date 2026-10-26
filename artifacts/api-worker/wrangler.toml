@@ -11,6 +11,7 @@ migrations_dir = "migrations"
 [vars]
 CORS_ORIGIN = "https://www.micronationfumo.org,https://official-website-6q7.pages.dev"
 GOOGLE_REDIRECT_URI = "https://www.micronationfumo.org/api/auth/google/callback"
+DISCORD_CLIENT_ID = "1564180543887638580"
 DISCORD_REDIRECT_URI = "https://www.micronationfumo.org/api/auth/discord/callback"
 
 [observability]
