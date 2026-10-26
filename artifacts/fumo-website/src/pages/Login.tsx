@@ -1,6 +1,6 @@
 import { toChineseError } from "@/lib/errorMessage";
 import { apiFetch, discordOAuthStartUrl, googleOAuthStartUrl } from "@/lib/api";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Login() {
   const { isEnglish } = useLanguage();
-  const { login, user } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const [location, setLocation] = useLocation();
   const [voterId, setVoterId] = useState("");
   const [password, setPassword] = useState("");
@@ -58,6 +58,10 @@ export default function Login() {
         : discordResult === "denied"
           ? (isEnglish ? "Discord sign-in was cancelled." : "你已取消 Discord 登入。")
           : discordResult ? (isEnglish ? "Discord sign-in failed. Please try again." : "Discord 登入失敗，請再試一次。") : null;
+
+  useEffect(() => {
+    if (!authLoading && user && discordResult === "login") window.location.assign(returnTo);
+  }, [authLoading, discordResult, returnTo, user]);
 
   const startGoogle = () => window.location.assign(googleOAuthStartUrl(user ? "link" : "login", user ? undefined : returnTo));
   const startDiscord = () => window.location.assign(discordOAuthStartUrl(user ? "link" : "login"));
@@ -107,7 +111,7 @@ export default function Login() {
           <CardContent className="space-y-4">
             {registered && <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{isEnglish ? "ID registration successful. Sign in with your ID and password." : "ID 註冊成功，請使用 ID 與密碼登入。"}</div>}
             {googleMessage && <div className="flex items-start gap-2 text-red-600 bg-red-50 p-3 rounded-md" role="alert"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span className="text-sm">{googleMessage}</span></div>}
-            {discordMessage && <div className="flex items-start gap-2 text-red-600 bg-red-50 p-3 rounded-md" role="alert"><AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /><span className="text-sm">{discordMessage}</span></div>}
+            {discordMessage && <div className={`flex items-start gap-2 rounded-md p-3 ${discordResult === "login" || discordResult === "connected" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`} role="alert"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span className="text-sm">{discordMessage}</span></div>}
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label htmlFor="login-id" className="block text-sm font-medium mb-1">{isEnglish ? "Registration ID" : "註冊 ID（Discord ID）"}</label>
