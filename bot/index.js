@@ -40,6 +40,10 @@ const ANNOUNCEMENT_AUTHOR = process.env.FUMO_ANNOUNCEMENT_AUTHOR || "FUMO 官方
 const PROPOSAL_CHANNEL_ID = process.env.FUMO_PROPOSAL_CHANNEL_ID || "1414537668406149140";
 const ADMISSION_CHANNEL_ID = process.env.FUMO_ADMISSION_CHANNEL_ID || PROPOSAL_CHANNEL_ID;
 
+function logAction(action, details = {}) {
+  console.log(`[BOT_ACTION] ${JSON.stringify({ at: new Date().toISOString(), action, ...details })}`);
+}
+
 const commands = [
   new SlashCommandBuilder()
     .setName("公告")
@@ -316,6 +320,7 @@ async function sendLongReply(interaction, text) {
 
 async function handleInteraction(interaction) {
   if (!interaction.isChatInputCommand()) return;
+  logAction("command.received", { command: interaction.commandName, userId: interaction.user.id, username: interaction.user.username, guildId: interaction.guildId, channelId: interaction.channelId });
   if (interaction.commandName === "投票狀態") {
     await interaction.deferReply({ ephemeral: true });
     try {
@@ -327,6 +332,7 @@ async function handleInteraction(interaction) {
     return;
   }
   if (!canManage(interaction)) {
+    logAction("command.denied", { command: interaction.commandName, userId: interaction.user.id, channelId: interaction.channelId });
     await interaction.reply({ content: "只有 FUMO 管理員或具備管理伺服器權限的成員可以使用此指令。", ephemeral: true });
     return;
   }
@@ -336,9 +342,11 @@ async function handleInteraction(interaction) {
       const content = interaction.options.getString("內容", true).trim();
       const replyId = interaction.options.getString("回覆id")?.trim() || "";
       const message = await postBotSpeech(content, interaction.channel, replyId);
+      logAction("speech.sent", { userId: interaction.user.id, channelId: interaction.channelId, messageId: message.id, replyId: replyId || null, contentLength: content.length });
       await interaction.editReply(`Bot 已發言：${message.url}`);
     } catch (error) {
       console.error("Bot speech failed", error?.stack || error);
+      logAction("speech.failed", { userId: interaction.user.id, channelId: interaction.channelId, error: String(error) });
       await interaction.editReply("Bot 發言失敗，請確認頻道 ID 正確，並給予 Bot View Channel 與 Send Messages 權限。");
     }
     return;
@@ -349,9 +357,11 @@ async function handleInteraction(interaction) {
       const channel = await client.channels.fetch(ADMISSION_CHANNEL_ID);
       if (!channel || (!channel.isTextBased() && !channel.threads)) throw new Error(`無法讀取入聯頻道 ${ADMISSION_CHANNEL_ID}（type ${channel?.type ?? "unknown"}）。`);
       const result = await collectAdmissionDigest(channel, interaction.options.getString("會期"));
+      logAction("admission.digest", { userId: interaction.user.id, threadId: result.thread.id, period: result.period, applicationCount: result.applications.length });
       await sendLongReply(interaction, `**FUMO 入聯申請整理**\n\n${formatAdmissionDigest(result.period, result.applications, result.thread.name)}`);
     } catch (error) {
       console.error("Admission digest failed", error?.stack || error);
+      logAction("admission.digest.failed", { userId: interaction.user.id, error: String(error) });
       const reason = error instanceof Error ? error.message : String(error);
       await interaction.editReply(`入聯整理失敗：${reason.slice(0, 1500)}\n\n請確認 Bot 已啟用 Message Content Intent，並擁有入聯 Forum 頻道的 View Channel、Read Message History 權限。`);
     }
@@ -363,9 +373,11 @@ async function handleInteraction(interaction) {
       const channel = await client.channels.fetch(PROPOSAL_CHANNEL_ID);
       if (!channel || (!channel.isTextBased() && !channel.threads)) throw new Error(`無法讀取 ID ${PROPOSAL_CHANNEL_ID}：這不是文字或 Forum 頻道（type ${channel?.type ?? "unknown"}）。`);
       const result = await collectProposalDigest(channel, interaction.options.getString("會期"));
+      logAction("proposal.digest", { userId: interaction.user.id, threadId: result.thread.id, period: result.period, proposalCount: result.proposals.length });
       await sendLongReply(interaction, `**${result.thread.name}**\n${formatProposalDigest(result.period, result.proposals)}`);
     } catch (error) {
       console.error("Proposal digest failed", error?.stack || error);
+      logAction("proposal.digest.failed", { userId: interaction.user.id, error: String(error) });
       const reason = error instanceof Error ? error.message : String(error);
       await interaction.editReply(`議案整理失敗：${reason.slice(0, 1500)}\n\n請確認 Bot 已啟用 Message Content Intent，並擁有議事中心頻道的 View Channel、Read Message History 權限；串文標題需符合「第 N 次議事中心決議提案申請-YYYY/MM」。`);
     }
@@ -375,9 +387,11 @@ async function handleInteraction(interaction) {
     await interaction.deferReply({ ephemeral: true });
     try {
       const url = await postAnnouncement(interaction.options.getString("標題", true), interaction.options.getString("內容", true), interaction.user.username);
+      logAction("announcement.sent", { userId: interaction.user.id, channelId: ANNOUNCEMENT_CHANNEL_ID, messageUrl: url });
       await interaction.editReply(`公告已發布：${url}`);
     } catch (error) {
       console.error("Announcement failed", error);
+      logAction("announcement.failed", { userId: interaction.user.id, error: String(error) });
       await interaction.editReply("公告發布失敗，請確認 Bot 有公告頻道的 View Channel、Send Messages 與 Embed Links 權限。");
     }
     return;
@@ -386,6 +400,7 @@ async function handleInteraction(interaction) {
     await interaction.deferReply({ ephemeral: true });
     try {
       const result = await compareRoles(interaction.guild);
+      logAction("roles.compared", { userId: interaction.user.id, guildId: interaction.guildId, registeredCount: result.registeredCount, serverMemberCount: result.serverMemberCount });
       const unregistered = result.unregisteredMembers.slice(0, 15).map(member => `<@${member.id}>`).join(" ") || "無";
       const absent = result.absentMembers.slice(0, 15).map(([id, data]) => `${data.name || id} (${id})`).join("\n") || "無";
       await interaction.editReply({ content: [
@@ -409,7 +424,8 @@ async function handleInteraction(interaction) {
 
 client.once("ready", readyClient => {
   console.log(`Logged in as ${readyClient.user.tag}`);
-  startWebhookRelay({ client, guildId: GUILD_ID, channelId: ANNOUNCEMENT_CHANNEL_ID, websiteUrl: WEBSITE_URL, secret: WEBHOOK_SECRET, path: WEBHOOK_PATH, port: BOT_HTTP_PORT, mentionRoleId: ANNOUNCEMENT_ROLE_ID, mentionEvents: BOT_MENTION_EVENTS, defaultAuthor: ANNOUNCEMENT_AUTHOR });
+  logAction("bot.ready", { botUserId: readyClient.user.id, guildId: GUILD_ID || null, port: BOT_HTTP_PORT });
+  startWebhookRelay({ client, guildId: GUILD_ID, channelId: ANNOUNCEMENT_CHANNEL_ID, websiteUrl: WEBSITE_URL, secret: WEBHOOK_SECRET, path: WEBHOOK_PATH, port: BOT_HTTP_PORT, mentionRoleId: ANNOUNCEMENT_ROLE_ID, mentionEvents: BOT_MENTION_EVENTS, defaultAuthor: ANNOUNCEMENT_AUTHOR, logAction });
   registerCommands().catch(error => { console.error("Command registration failed", error); process.exitCode = 1; });
 });
 client.on("interactionCreate", interaction => handleInteraction(interaction).catch(error => console.error("Interaction failed", error)));
