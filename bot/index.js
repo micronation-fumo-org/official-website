@@ -3,6 +3,9 @@ import { startWebhookRelay } from "./webhookRelay.js";
 import {
   Client,
   GatewayIntentBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   PermissionFlagsBits,
   REST,
   Routes,
@@ -172,9 +175,16 @@ async function sendWelcomeMessage(member, joined) {
   const channel = await client.channels.fetch(WELCOME_CHANNEL_ID);
   if (!channel?.isTextBased() || !channel.isSendable()) throw new Error("歡迎頻道不可發送訊息");
   const content = joined
-    ? `歡迎 <@${member.id}> 加入聯合微國家組織 F.U.M.O.！\n請使用 /驗證 對照官方註冊名單並取得對應身分組。`
-    : `${member.user?.username || member.user?.tag || "成員"} 已離開聯合微國家組織 F.U.M.O.。`;
+    ? `隆重歡迎 <@${member.id}> 造訪聯合微國家組織\nWarmly welcome <@${member.id}> to visit the Federation of United Micronation Organization.`
+    : `<@${member.id}>\n☆ *　. 　☆　　 　 　   賽\n　. ∧＿∧　∩　* ☆ 　 優\n☆ ( ・∀・)/ .　　　      那\n. ⊂　　 ノ* ☆ 　　   　拉\n☆ * (つ ノ .☆ 　　　   　！\n　　 (ノ`;
   return channel.send({ content, allowedMentions: joined ? { users: [member.id] } : { parse: [] } });
+}
+
+async function sendVerificationDm(member) {
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId("fumo_verify_member").setLabel("開始驗證").setStyle(ButtonStyle.Primary),
+  );
+  return member.send({ content: "歡迎加入 F.U.M.O.！請按下按鈕，讓 Bot 對照官方註冊名單並加入對應身分組。", components: [row] });
 }
 
 function normalizeText(value) {
@@ -347,6 +357,24 @@ async function sendLongReply(interaction, text) {
 }
 
 async function handleInteraction(interaction) {
+  if (interaction.isButton() && interaction.customId === "fumo_verify_member") {
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      const guild = GUILD_ID ? client.guilds.cache.get(GUILD_ID) : null;
+      const member = guild ? await guild.members.fetch(interaction.user.id) : null;
+      if (!member) throw new Error("找不到目前 Server 成員");
+      const result = await verifyMember(member);
+      logAction(result.ok ? "member.verified_by_button" : "member.verification_button_failed", { userId: interaction.user.id, guildId: guild.id, countryName: result.countryName || null, roleName: result.roleName || null, reason: result.reason || null });
+      if (result.ok) await interaction.editReply(`驗證成功！已為你加入「${result.roleName}」身分組（${result.countryName}）。`);
+      else if (result.reason === "not_registered") await interaction.editReply("驗證失敗：你的 Discord ID 不在 FUMO 官方註冊名單中，請先完成網站註冊或聯絡管理員。");
+      else await interaction.editReply("驗證失敗：請聯絡 FUMO 管理員協助處理。");
+    } catch (error) {
+      console.error("Verification button failed", error?.stack || error);
+      logAction("member.verification_button_error", { userId: interaction.user.id, error: String(error) });
+      await interaction.editReply("驗證失敗，請確認你仍在 F.U.M.O. Server 中，或聯絡管理員。");
+    }
+    return;
+  }
   if (!interaction.isChatInputCommand()) return;
   logAction("command.received", { command: interaction.commandName, userId: interaction.user.id, username: interaction.user.username, guildId: interaction.guildId, channelId: interaction.channelId });
   if (interaction.commandName === "投票狀態") {
@@ -476,6 +504,9 @@ client.once("ready", readyClient => {
   registerCommands().catch(error => { console.error("Command registration failed", error); process.exitCode = 1; });
 });
 client.on("guildMemberAdd", member => {
+  sendVerificationDm(member)
+    .then(message => logAction("member.verification_dm_sent", { userId: member.id, guildId: member.guild.id, messageId: message.id }))
+    .catch(error => { console.error("Verification DM failed", error); logAction("member.verification_dm_failed", { userId: member.id, guildId: member.guild.id, error: String(error) }); });
   sendWelcomeMessage(member, true)
     .then(message => logAction("member.welcome_sent", { userId: member.id, guildId: member.guild.id, channelId: message.channelId, messageId: message.id }))
     .catch(error => { console.error("Welcome message failed", error); logAction("member.welcome_failed", { userId: member.id, guildId: member.guild.id, error: String(error) }); });
