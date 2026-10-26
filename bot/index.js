@@ -230,7 +230,7 @@ async function handleInteraction(interaction) {
     await interaction.deferReply();
     try {
       const channel = await client.channels.fetch(PROPOSAL_CHANNEL_ID);
-      if (!channel?.isTextBased()) throw new Error(`無法讀取 ID ${PROPOSAL_CHANNEL_ID}：這不是文字或 Forum 頻道（type ${channel?.type ?? "unknown"}）。`);
+      if (!channel || (!channel.isTextBased() && !channel.threads)) throw new Error(`無法讀取 ID ${PROPOSAL_CHANNEL_ID}：這不是文字或 Forum 頻道（type ${channel?.type ?? "unknown"}）。`);
       const result = await collectProposalDigest(channel, interaction.options.getString("會期"));
       await sendLongReply(interaction, `**${result.thread.name}**\n${formatProposalDigest(result.period, result.proposals)}`);
     } catch (error) {
