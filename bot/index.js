@@ -37,6 +37,7 @@ const WEBHOOK_PATH = process.env.FUMO_WEBHOOK_PATH || "/fumo/webhook";
 const BOT_HTTP_PORT = Number(process.env.PORT || process.env.BOT_HTTP_PORT || 3000);
 const BOT_MENTION_EVENTS = (process.env.FUMO_BOT_MENTION_EVENTS || "vote.created,vote.published,vote.started,vote.closing_soon,vote.closed").split(",").map(value => value.trim()).filter(Boolean);
 const ANNOUNCEMENT_AUTHOR = process.env.FUMO_ANNOUNCEMENT_AUTHOR || "FUMO 官方網站 Bot";
+const PROPOSAL_CHANNEL_ID = process.env.FUMO_PROPOSAL_CHANNEL_ID || "1414537668406149140";
 
 const commands = [
   new SlashCommandBuilder()
@@ -52,9 +53,13 @@ const commands = [
   new SlashCommandBuilder()
     .setName("投票狀態")
     .setDescription("查看 FUMO 官方網站 API 狀態"),
+  new SlashCommandBuilder()
+    .setName("整理提案")
+    .setDescription("整理議事中心例行大會串文中的提案")
+    .addStringOption(option => option.setName("會期").setDescription("例如 2026/11；留空則整理最新一期").setRequired(false).setMaxLength(20)),
 ].map(command => command.toJSON());
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 
 function canManage(interaction) {
   return ADMIN_IDS.has(interaction.user.id) || Boolean(interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild));
@@ -119,6 +124,72 @@ async function compareRoles(guild) {
   return { registeredCount: registered.size, serverMemberCount: members.length, registeredMembers, unregisteredMembers, absentMembers, missingExpectedRoles, secretariatMembers, councilMembers, topRoles };
 }
 
+function normalizeText(value) {
+  return value.replace(/[\u200b\r]/g, "").replace(/：/g, ":").trim();
+}
+
+function getProposalField(content, labels) {
+  const match = normalizeText(content).match(new RegExp(`(?:^|\\n)\\s*(?:◆\\s*\\|?\\s*)?(?:${labels.join("|")})\\s*:?\\s*(.+?)(?=\\n\\s*(?:◆|🔹|🔸)|$)`, "i"));
+  return match?.[1]?.trim().replace(/\n+/g, " ") || "";
+}
+
+function proposalFromMessage(content) {
+  const country = getProposalField(content, ["國家席位名稱 Proposal country", "国家席位名称 Proposal country"]);
+  const representative = getProposalField(content, ["提案代表 Proposal representative"]);
+  const title = getProposalField(content, ["提案標題 Proposal title", "提案标题 Proposal title"]);
+  const proposalContent = getProposalField(content, ["內容 Content", "内容 Content"]);
+  if ((!title && !proposalContent) || (!country && !representative && !title)) return null;
+  return { country: country || "未填寫", representative: representative || "未填寫", title: title || "未填寫", content: proposalContent || "未填寫" };
+}
+
+function proposalPeriod(threadName) {
+  return threadName.match(/第[^\s]+次(?:議事中心|議會中心)決議提案申請[-－](\d{4}\/\d{1,2})/i)?.[1] || "";
+}
+
+function isSeatChange(title) {
+  return /^🔸/.test(title.trim()) || /(升格|降格|取消席次|席位更動|席位变动|入聯|退聯|入联|退联)/i.test(title);
+}
+
+async function collectProposalDigest(channel, requestedPeriod) {
+  const threads = new Map();
+  for (const thread of channel.threads.cache.values()) threads.set(thread.id, thread);
+  const active = await channel.threads.fetchActive();
+  for (const thread of active.threads.values()) threads.set(thread.id, thread);
+  let before;
+  for (let page = 0; page < 10; page += 1) {
+    const archived = await channel.threads.fetchArchived({ limit: 100, ...(before ? { before } : {}) });
+    for (const thread of archived.threads.values()) threads.set(thread.id, thread);
+    if (!archived.hasMore || !archived.threads.size) break;
+    before = archived.threads.last().id;
+  }
+  const matches = [...threads.values()].filter(thread => proposalPeriod(thread.name) && (!requestedPeriod || proposalPeriod(thread.name) === requestedPeriod));
+  matches.sort((a, b) => proposalPeriod(b.name).localeCompare(proposalPeriod(a.name)) || b.createdTimestamp - a.createdTimestamp);
+  const thread = matches[0];
+  if (!thread) throw new Error("找不到符合格式的例行大會串文");
+  const messages = await thread.messages.fetch({ limit: 100 });
+  const unique = new Map();
+  for (const message of messages.values()) {
+    const proposal = proposalFromMessage(message.content || "");
+    if (proposal) unique.set(`${proposal.country}|${proposal.representative}|${proposal.title}`, proposal);
+  }
+  return { thread, period: proposalPeriod(thread.name), proposals: [...unique.values()] };
+}
+
+function formatProposalDigest(period, proposals) {
+  const seatChanges = proposals.filter(proposal => isSeatChange(proposal.title));
+  const general = proposals.filter(proposal => !isSeatChange(proposal.title));
+  const date = new Intl.DateTimeFormat("zh-TW", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()).replace(/\s/g, "").replace(/年|月/g, "/").replace(/日/g, "");
+  const render = proposal => `[[${proposal.title}]]`;
+  return `${date} 議案整理（${period}）\n\n席位更動案：\n${seatChanges.length ? seatChanges.map(render).join("\n") : "無"}\n\n一般提案：\n${general.length ? general.map(render).join("\n") : "無"}`;
+}
+
+async function sendLongReply(interaction, text) {
+  const chunks = [];
+  for (let index = 0; index < text.length; index += 1900) chunks.push(text.slice(index, index + 1900));
+  await interaction.editReply(chunks[0] || "沒有找到可整理的提案。");
+  for (const chunk of chunks.slice(1)) await interaction.followUp({ content: chunk });
+}
+
 async function handleInteraction(interaction) {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName === "投票狀態") {
@@ -133,6 +204,19 @@ async function handleInteraction(interaction) {
   }
   if (!canManage(interaction)) {
     await interaction.reply({ content: "只有 FUMO 管理員或具備管理伺服器權限的成員可以使用此指令。", ephemeral: true });
+    return;
+  }
+  if (interaction.commandName === "整理提案") {
+    await interaction.deferReply();
+    try {
+      const channel = await client.channels.fetch(PROPOSAL_CHANNEL_ID);
+      if (!channel?.isTextBased() || !channel.threads) throw new Error("提案頻道無法讀取串文");
+      const result = await collectProposalDigest(channel, interaction.options.getString("會期"));
+      await sendLongReply(interaction, `**${result.thread.name}**\n${formatProposalDigest(result.period, result.proposals)}`);
+    } catch (error) {
+      console.error("Proposal digest failed", error);
+      await interaction.editReply("議案整理失敗：請確認 Bot 已啟用 Message Content Intent，並擁有議事中心頻道的 View Channel、Read Message History 權限；串文標題需符合「第 N 次議事中心決議提案申請-YYYY/MM」。");
+    }
     return;
   }
   if (interaction.commandName === "公告") {
