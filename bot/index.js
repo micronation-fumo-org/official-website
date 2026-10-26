@@ -62,6 +62,11 @@ const commands = [
     .setName("整理入聯")
     .setDescription("整理議事中心入聯提案申請串文中的國家資料")
     .addStringOption(option => option.setName("會期").setDescription("例如 2026/11；留空則整理最新一期").setRequired(false).setMaxLength(20)),
+  new SlashCommandBuilder()
+    .setName("說話")
+    .setDescription("讓 FUMO Bot 發送文字訊息")
+    .addStringOption(option => option.setName("內容").setDescription("Bot 要說的內容").setRequired(true).setMaxLength(1900))
+    .addStringOption(option => option.setName("頻道id").setDescription("可選；留空發到公告頻道").setRequired(false).setMaxLength(25)),
 ].map(command => command.toJSON());
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
@@ -93,6 +98,12 @@ async function postAnnouncement(title, content, author) {
     allowedMentions: ANNOUNCEMENT_ROLE_ID ? { roles: [ANNOUNCEMENT_ROLE_ID] } : { parse: [] },
   });
   return message.url;
+}
+
+async function postBotSpeech(content, channelId) {
+  const channel = await client.channels.fetch(channelId || ANNOUNCEMENT_CHANNEL_ID);
+  if (!channel?.isTextBased() || !channel.isSendable()) throw new Error("指定頻道不可發送訊息");
+  return channel.send({ content, allowedMentions: { parse: [] } });
 }
 
 async function compareRoles(guild) {
@@ -312,6 +323,20 @@ async function handleInteraction(interaction) {
   }
   if (!canManage(interaction)) {
     await interaction.reply({ content: "只有 FUMO 管理員或具備管理伺服器權限的成員可以使用此指令。", ephemeral: true });
+    return;
+  }
+  if (interaction.commandName === "說話") {
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      const content = interaction.options.getString("內容", true).trim();
+      const channelId = interaction.options.getString("頻道id")?.trim() || ANNOUNCEMENT_CHANNEL_ID;
+      if (!/^\d{15,25}$/.test(channelId)) throw new Error("頻道 ID 格式不正確");
+      const message = await postBotSpeech(content, channelId);
+      await interaction.editReply(`Bot 已發言：${message.url}`);
+    } catch (error) {
+      console.error("Bot speech failed", error?.stack || error);
+      await interaction.editReply("Bot 發言失敗，請確認頻道 ID 正確，並給予 Bot View Channel 與 Send Messages 權限。");
+    }
     return;
   }
   if (interaction.commandName === "整理入聯") {
