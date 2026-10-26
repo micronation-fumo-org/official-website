@@ -228,6 +228,7 @@ export default function Admin() {
               </span>
             </div>
           </div>
+          <Link href="/bot-admin"><Button variant="outline">Discord Bot 後台</Button></Link>
         </div>
 
         {/* Permissions info */}

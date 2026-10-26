@@ -1,0 +1,162 @@
+/* FUMO official-site design tokens and component styling for the document workspace. */
+:root {
+  --ink: #00334d;
+  --muted: #64748b;
+  --line: hsl(214 32% 91%);
+  --paper: #fff;
+  --canvas: #fff;
+  --blue: #00334d;
+  --blue-soft: hsl(210 40% 96.1%);
+  --green: #2f7a62;
+  --green-soft: #edf6f2;
+  --gold: #d9af53;
+  --shadow: 0 8px 24px rgba(0, 51, 77, .08);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+  color: var(--ink);
+}
+
+* { box-sizing: border-box; }
+body { background: var(--canvas); color: var(--ink); font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; }
+button, input, textarea { font: inherit; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid rgba(217, 175, 83, .38); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+.workspace-boot { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.workspace-boot-card { width: 100%; max-width: 520px; padding: clamp(22px, 5vw, 36px); border: 1px solid rgba(0, 51, 77, .13); border-top: 3px solid var(--gold); border-radius: 4px; background: var(--paper); box-shadow: var(--shadow); }
+.workspace-boot .brand { padding: 0 0 22px; }
+.workspace-boot h1 { margin: 0 0 12px; color: var(--ink); font: 700 25px/1.4 "Playfair Display", Georgia, "Noto Serif TC", serif; }
+.workspace-boot p { margin: 0 0 20px; color: var(--muted); font-size: 14px; line-height: 1.8; }
+.workspace-boot-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.workspace-boot-actions a { text-decoration: none; }
+body.public-mode .workspace-boot { display: none; }
+
+.sidebar { background: #fff; border-right-color: rgba(0, 51, 77, .12); }
+.brand { padding-bottom: 21px; }
+.brand-mark, .public-mark { width: 40px; height: 40px; border: 1px solid rgba(0, 51, 77, .12); border-radius: 4px; background: #00334d; box-shadow: 0 2px 8px rgba(0, 51, 77, .12); }
+.brand-mark img, .public-mark img { object-fit: contain; }
+.brand-name { color: #00334d; font-family: "Playfair Display", Georgia, "Noto Serif TC", serif; font-size: 16px; font-weight: 700; letter-spacing: .01em; }
+.brand-sub { color: #64748b; font-size: 10px; letter-spacing: .06em; }
+.workspace-switch { color: #00334d; border-color: rgba(0, 51, 77, .14); border-radius: 4px; background: #fff; }
+.workspace-switch:hover { border-color: rgba(217, 175, 83, .7); background: #fffdf8; }
+.nav-label { color: #64748b; }
+.nav-btn, .doc-link { color: rgba(0, 51, 77, .74); border-radius: 4px; font-size: 13px; }
+.nav-btn:hover, .doc-link:hover { background: hsl(210 40% 96.1%); color: #00334d; }
+.nav-btn.active, .doc-link.selected { color: #00334d; background: rgba(217, 175, 83, .15); font-weight: 650; }
+.nav-btn.active { box-shadow: inset 3px 0 #d9af53; }
+.doc-dot { background: #d9af53 !important; }
+.add-doc { border-radius: 4px; border-color: rgba(0, 51, 77, .25); color: #00334d; font-size: 12px; }
+.add-doc:hover { border-color: #d9af53; color: #00334d; background: rgba(217, 175, 83, .1); }
+.local-note { border-color: rgba(0, 51, 77, .1); border-radius: 4px; background: hsl(210 40% 98%); color: #64748b; font-size: 11px; }
+.local-note strong { color: #00334d; font-size: 11px; }
+.profile-name { color: #00334d; font-size: 12px; }
+.profile-role { color: #64748b; font-size: 10px; }
+.avatar { border-radius: 4px; background: #00334d; color: #fff; }
+.logout-btn:hover { color: #00334d; }
+
+.topbar { min-height: 64px; height: 64px; padding-inline: clamp(16px, 3vw, 40px); border-color: rgba(0, 51, 77, .12); background: rgba(255, 255, 255, .96); }
+.crumb { color: #64748b; font-size: 13px; }
+.crumb b { color: #00334d; font-weight: 600; }
+.search input { min-height: 38px; border-color: rgba(0, 51, 77, .15); border-radius: 4px; background: #fff; color: #00334d; font-size: 13px; }
+.search input:focus { border-color: #d9af53; }
+.shortcut { color: #64748b; border-radius: 3px; }
+.top-action { border-radius: 4px; color: #00334d; }
+.online { background: #3e896f; box-shadow: 0 0 0 3px #edf6f2; }
+.mobile-menu { color: #00334d; }
+.mobile-menu:hover { background: hsl(210 40% 96.1%); }
+
+.content { max-width: 1280px; padding-top: 32px; }
+.eyebrow { color: #64748b; font-size: 11px; letter-spacing: .1em; }
+.eyebrow-dot { background: #d9af53; }
+.doc-title { color: #00334d; font-family: "Playfair Display", Georgia, "Noto Serif TC", serif; font-size: 30px; letter-spacing: -.015em; font-weight: 700; }
+.doc-meta { color: #64748b; font-size: 12px; }
+.saved-indicator { color: #2f7a62; }
+.saved-indicator i, .footer-mark { background: #3e896f; }
+.heading-actions .btn, .btn { min-height: 40px; border-color: rgba(0, 51, 77, .18); border-radius: 4px; color: #00334d; background: #fff; font-size: 12px; font-weight: 600; box-shadow: none; }
+.btn:hover { border-color: rgba(217, 175, 83, .8); color: #00334d; background: rgba(217, 175, 83, .08); }
+.btn-primary { border-color: #00334d; color: #fff; background: #00334d; }
+.btn-primary:hover { border-color: #004663; color: #fff; background: #004663; }
+.btn-danger { color: #9c3e3e; border-color: #e7caca; }
+.btn-danger:hover { color: #873333; border-color: #d9a9a9; background: #fff8f8; }
+.context-banner { border-color: rgba(217, 175, 83, .45); border-radius: 4px; background: linear-gradient(110deg, rgba(217, 175, 83, .10), rgba(0, 51, 77, .035)); }
+.banner-icon { border-radius: 4px; color: #00334d; background: rgba(217, 175, 83, .23); }
+.banner-copy { color: #52677a; font-size: 12px; }
+.banner-copy strong { color: #00334d; }
+.banner-link { color: #00334d; font-weight: 600; }
+
+.editor-card, .info-card, .public-document { border-color: rgba(0, 51, 77, .13); border-radius: 4px; background: #fff; box-shadow: 0 2px 10px rgba(0, 51, 77, .06); }
+.editor-toolbar, .pane-head, .editor-footer, .activity-row, .public-footer { border-color: rgba(0, 51, 77, .1); }
+.tool-label, .pane-head, .editor-footer, .info-subtle { color: #64748b; }
+.tool-btn { border-radius: 4px; color: #00334d; }
+.tool-btn:hover { color: #00334d; background: rgba(217, 175, 83, .16); }
+.tool-btn:disabled { opacity: .45; cursor: not-allowed; }
+.view-mode { border-radius: 4px; background: hsl(210 40% 96.1%); }
+.view-mode button { border-radius: 3px; color: #64748b; }
+.view-mode button.active { color: #00334d; box-shadow: 0 1px 3px rgba(0, 51, 77, .15); }
+.markdown-input { color: #334e61; font-size: 13px; }
+.markdown-input[readonly] { cursor: default; background: #fff; }
+.preview-body { color: #334e61; font-size: 14px; }
+.preview-body h1, .preview-body h2, .preview-body h3 { color: #00334d; font-family: "Playfair Display", Georgia, "Noto Serif TC", serif; }
+.preview-body h2 { border-color: rgba(0, 51, 77, .14); }
+.preview-body blockquote { border-left-color: #d9af53; background: rgba(217, 175, 83, .09); color: #52677a; }
+.preview-body code { color: #00334d; background: hsl(210 40% 96.1%); }
+.preview-body th { color: #00334d; background: hsl(210 40% 96.1%); }
+.preview-body td, .preview-body th { border-color: rgba(0, 51, 77, .16); }
+.preview-body pre { border-color: rgba(0, 51, 77, .14); background: hsl(210 40% 98%); }
+.info-title { color: #00334d; font-family: "Playfair Display", Georgia, "Noto Serif TC", serif; font-size: 13px; font-weight: 600; }
+.activity-mini { border-radius: 4px; color: #00334d; background: rgba(217, 175, 83, .15); }
+.activity-main { color: #00334d; font-size: 12px; }
+.activity-time, .info-subtle { font-size: 11px; }
+.activity-chip { color: #00334d; background: rgba(217, 175, 83, .17); }
+.shortcut-row { font-size: 12px; }
+.key { border-radius: 3px !important; }
+.toast { border-radius: 4px; background: #00334d; }
+.empty-state { color: #64748b; font-size: 12px; }
+
+.share-dialog { border-color: rgba(0, 51, 77, .18); border-radius: 4px; color: #00334d; }
+.share-dialog::backdrop { background: rgba(0, 34, 52, .46); }
+.share-dialog h2 { color: #00334d; }
+.share-dialog p { color: #52677a; }
+.share-dialog .share-warning { border-color: rgba(217, 175, 83, .38); border-radius: 4px; background: rgba(217, 175, 83, .1); color: #52677a; }
+.share-slug, .share-url { border-color: rgba(0, 51, 77, .17); border-radius: 4px; color: #00334d; }
+.share-slug:focus, .share-url:focus { border-color: #d9af53; }
+.share-dialog .share-hint code { color: #00334d; background: hsl(210 40% 96.1%); }
+.share-dialog .share-feedback { color: #2f7a62; }
+
+.public-page { background: #fff; color: #00334d; }
+.public-bar { border-color: rgba(0, 51, 77, .12); background: rgba(255, 255, 255, .97); }
+.public-brand { color: #00334d; }
+.public-label { border-color: rgba(217, 175, 83, .45); border-radius: 4px; color: #00334d; background: rgba(217, 175, 83, .13); }
+.public-heading h1 { color: #00334d; font-family: "Playfair Display", Georgia, "Noto Serif TC", serif; }
+.public-meta { color: #64748b; }
+.public-notice { border-color: rgba(217, 175, 83, .4); border-radius: 4px; color: #52677a; background: rgba(217, 175, 83, .09); }
+.public-document .preview-body { color: #334e61; }
+.public-footer { color: #64748b; }
+.public-error { border-radius: 4px; }
+body.read-only .editor-pane { display: none; }
+body.read-only .editor-body { grid-template-columns: minmax(0, 1fr); }
+body.read-only .editor-toolbar .tool-label,
+body.read-only .editor-toolbar .tool-btn,
+body.read-only .editor-toolbar .tool-sep,
+body.read-only .view-mode { display: none; }
+body.read-only .markdown-input { display: none; }
+body.read-only .editor-pane { display: none; }
+body.read-only .editor-footer span:first-child { font-size: 11px; }
+body.read-only .editor-footer .footer-mark { background: #d9af53; }
+
+@media (max-width: 850px) {
+  .topbar { min-height: 58px; height: auto; padding: 7px 14px; }
+  .content { padding: 23px 17px 40px; }
+  .doc-title { font-size: 26px; }
+  .heading-actions .btn { min-height: 42px; }
+  .public-bar { padding: 7px 14px; }
+}
+@media (max-width: 540px) {
+  .topbar { min-height: 54px; padding: 6px 10px; }
+  .content { padding: 19px 12px 32px; }
+  .doc-title { font-size: 22px; }
+  .heading-actions .btn { min-height: 42px; font-size: 11px; }
+  .public-content { padding: 22px 12px max(30px, env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+}

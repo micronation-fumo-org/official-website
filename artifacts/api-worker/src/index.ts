@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import { buildGoogleAuthorizationUrl, createPkceChallenge, fetchGoogleIdentity, randomToken } from "./googleOAuth";
+import { buildDiscordAuthorizationUrl, createPkceChallenge as createDiscordPkceChallenge, fetchDiscordIdentity, randomToken as randomDiscordToken } from "./discordOAuth";
 import { deliverWebhook, dispatchVoteEvent, DISCORD_ROLE_ID, normalizeDiscordRoleIds, normalizeWebhookEvents, runVoteNotificationSweep, validateWebhookUrl, voteWebhookPayload, webhookSecret, webhookSummary, WEBHOOK_EVENTS, type WebhookEvent, type WebhookRow } from "./voteWebhooks";
 
 interface Env {
@@ -11,6 +12,10 @@ interface Env {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GOOGLE_REDIRECT_URI?: string;
+  DISCORD_CLIENT_ID?: string;
+  DISCORD_CLIENT_SECRET?: string;
+  DISCORD_REDIRECT_URI?: string;
+  BOT_API_URL?: string;
 }
 type Variables = { account: Account | null };
 type App = Hono<{ Bindings: Env; Variables: Variables }>;
@@ -70,10 +75,30 @@ const ADMIN_SUPER = 9;
 const PBKDF2_ITERATIONS = 100000;
 const SESSION_COOKIE = "fumo_session";
 const SESSION_TTL_DAYS = 7;
+const DOCUMENT_ID_RE = /^[A-Za-z0-9_-]{1,48}$/;
+const DOCUMENT_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const MAX_DOCUMENT_CHARS = 200000;
+const MAX_SHARE_CHARS = 24000;
 const GOOGLE_STATE_COOKIE = "fumo_google_oauth_state";
 const DEFAULT_GOOGLE_REDIRECT_URI = "https://www.micronationfumo.org/api/auth/google/callback";
+const DISCORD_STATE_COOKIE = "fumo_discord_oauth_state";
+const DEFAULT_DISCORD_REDIRECT_URI = "https://www.micronationfumo.org/api/auth/discord/callback";
 
 const json = (value: unknown, status = 200, headers: HeadersInit = {}) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json", ...headers } });
+function botApiUrl(env: Env, path: string) {
+  const base = env.BOT_API_URL?.trim().replace(/\/$/, "");
+  if (!base) return null;
+  try { const url = new URL(`${base}${path}`); return url.protocol === "https:" ? url.toString() : null; } catch { return null; }
+}
+async function botApiJson(env: Env, path: string, init: RequestInit = {}) {
+  const url = botApiUrl(env, path);
+  if (!url) return { ok: false, status: 503, data: { error: "Bot API 尚未設定或網址不安全。" } };
+  try {
+    const response = await fetch(url, { ...init, headers: { Accept: "application/json", "Content-Type": "application/json", ...(init.headers || {}) } });
+    const data = await response.json().catch(() => ({}));
+    return { ok: response.ok, status: response.status, data };
+  } catch { return { ok: false, status: 502, data: { error: "無法連線到 Wispbyte Bot。" } }; }
+}
 const parseJson = async (c: any) => { try { return await c.req.json(); } catch { return null; } };
 const account = async (db: D1Database, voterId: string) => (await db.prepare("SELECT * FROM voter_accounts WHERE voter_id = ?").bind(voterId).first<Account>()) ?? null;
 const jsonArray = <T>(value: string): T[] => { try { return JSON.parse(value) as T[]; } catch { return []; } };
@@ -268,6 +293,25 @@ function googleResultResponse(path: string, result: string, redirectUri: string,
   for (const cookie of cookies) headers.append("Set-Cookie", cookie);
   return new Response(null, { status: 302, headers });
 }
+function discordRedirectUri(env: Env) {
+  const candidate = env.DISCORD_REDIRECT_URI?.trim() || DEFAULT_DISCORD_REDIRECT_URI;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "https:" || parsed.hostname !== "www.micronationfumo.org" || parsed.pathname !== "/api/auth/discord/callback" || parsed.search || parsed.hash) return DEFAULT_DISCORD_REDIRECT_URI;
+    return parsed.toString();
+  } catch {
+    return DEFAULT_DISCORD_REDIRECT_URI;
+  }
+}
+function discordStateCookie(state: string) { return `${DISCORD_STATE_COOKIE}=${encodeURIComponent(state)}; Max-Age=600; Path=/api/auth/discord/callback; HttpOnly; Secure; SameSite=Lax`; }
+function clearDiscordStateCookie() { return `${DISCORD_STATE_COOKIE}=; Max-Age=0; Path=/api/auth/discord/callback; HttpOnly; Secure; SameSite=Lax`; }
+function discordResultResponse(path: string, result: string, redirectUri: string, cookies: string[] = []) {
+  const destination = new URL(path, new URL(redirectUri).origin);
+  destination.searchParams.set("discord", result);
+  const headers = new Headers({ Location: destination.toString(), "Cache-Control": "no-store", Pragma: "no-cache" });
+  for (const cookie of cookies) headers.append("Set-Cookie", cookie);
+  return new Response(null, { status: 302, headers });
+}
 
 function background(c: any, promise: Promise<unknown>) {
   try { c.executionCtx.waitUntil(promise); } catch { void promise; }
@@ -325,7 +369,8 @@ app.get("/api/auth/google/start", async c => {
   const state = randomToken();
   const verifier = randomToken();
   const stateHash = await sessionHash(state);
-  const returnTo = flow === "link" ? "/login" : "/votes";
+  const requestedReturnTo = c.req.query("next");
+  const returnTo = flow === "link" ? "/login" : (requestedReturnTo === "/documents" || requestedReturnTo === "/documents/" ? requestedReturnTo : "/votes");
   await c.env.DB.prepare("DELETE FROM google_oauth_states WHERE expires_at <= datetime('now')").run();
   await c.env.DB.prepare("INSERT INTO google_oauth_states (state_hash, flow, voter_id, return_to, code_verifier, expires_at) VALUES (?, ?, ?, ?, ?, datetime('now', '+10 minutes'))")
     .bind(stateHash, flow, actor?.voter_id ?? null, returnTo, verifier).run();
@@ -348,7 +393,7 @@ app.get("/api/auth/google/callback", async c => {
   if (!oauthState) return googleResultResponse("/login", "invalid_state", redirectUri, [clearCookie]);
   await c.env.DB.prepare("DELETE FROM google_oauth_states WHERE state_hash = ?").bind(stateHash).run();
 
-  const returnTo = oauthState.return_to === "/votes" ? "/votes" : "/login";
+  const returnTo = ["/votes", "/documents", "/documents/"].includes(oauthState.return_to) ? oauthState.return_to : "/login";
   const googleError = c.req.query("error");
   if (googleError) return googleResultResponse("/login", googleError === "access_denied" ? "denied" : "failed", redirectUri, [clearCookie]);
 
@@ -409,6 +454,65 @@ app.get("/api/auth/google/callback", async c => {
   }
   const session = await createSession(c.env.DB, voterAccount.voter_id);
   return googleResultResponse(returnTo, "login", redirectUri, [sessionCookie(session.raw, session.maxAge), clearCookie]);
+});
+
+app.get("/api/auth/discord/start", async c => {
+  const clientId = c.env.DISCORD_CLIENT_ID?.trim();
+  const clientSecret = c.env.DISCORD_CLIENT_SECRET?.trim();
+  const redirectUri = discordRedirectUri(c.env);
+  if (!clientId || !clientSecret) return discordResultResponse("/login", "not_configured", redirectUri, [clearDiscordStateCookie()]);
+  const flow = c.req.query("mode") ?? "login";
+  if (flow !== "login" && flow !== "link") return discordResultResponse("/login", "failed", redirectUri, [clearDiscordStateCookie()]);
+  const actor = flow === "link" ? await currentAccount(c) : null;
+  if (flow === "link" && !actor) return discordResultResponse("/login", "sign_in_first", redirectUri, [clearDiscordStateCookie()]);
+  const state = randomDiscordToken();
+  const verifier = randomDiscordToken();
+  await c.env.DB.prepare("DELETE FROM discord_oauth_states WHERE expires_at <= datetime('now')").run();
+  await c.env.DB.prepare("INSERT INTO discord_oauth_states (state_hash, flow, voter_id, return_to, code_verifier, expires_at) VALUES (?, ?, ?, ?, ?, datetime('now', '+10 minutes'))")
+    .bind(await sessionHash(state), flow, actor?.voter_id ?? null, "/login", verifier).run();
+  const challenge = await createDiscordPkceChallenge(verifier);
+  return new Response(null, { status: 302, headers: { Location: buildDiscordAuthorizationUrl(clientId, redirectUri, state, challenge), "Set-Cookie": discordStateCookie(state), "Cache-Control": "no-store", Pragma: "no-cache" } });
+});
+
+app.get("/api/auth/discord/callback", async c => {
+  const redirectUri = discordRedirectUri(c.env);
+  const state = c.req.query("state");
+  const stateCookie = cookieValue(c, DISCORD_STATE_COOKIE);
+  const clearCookie = clearDiscordStateCookie();
+  if (!state || !stateCookie || state !== stateCookie) return discordResultResponse("/login", "invalid_state", redirectUri, [clearCookie]);
+  const oauthState = await c.env.DB.prepare("SELECT flow, voter_id, return_to, code_verifier FROM discord_oauth_states WHERE state_hash = ? AND expires_at > datetime('now')")
+    .bind(await sessionHash(state)).first<{ flow: "login" | "link"; voter_id: string | null; return_to: string; code_verifier: string }>();
+  if (!oauthState) return discordResultResponse("/login", "invalid_state", redirectUri, [clearCookie]);
+  await c.env.DB.prepare("DELETE FROM discord_oauth_states WHERE state_hash = ?").bind(await sessionHash(state)).run();
+  if (c.req.query("error")) return discordResultResponse("/login", c.req.query("error") === "access_denied" ? "denied" : "failed", redirectUri, [clearCookie]);
+  const clientId = c.env.DISCORD_CLIENT_ID?.trim();
+  const clientSecret = c.env.DISCORD_CLIENT_SECRET?.trim();
+  const code = c.req.query("code");
+  if (!clientId || !clientSecret) return discordResultResponse("/login", "not_configured", redirectUri, [clearCookie]);
+  if (!code || code.length > 2048) return discordResultResponse("/login", "failed", redirectUri, [clearCookie]);
+  if (oauthState.flow === "link") {
+    const actor = await currentAccount(c);
+    if (!actor || actor.voter_id !== oauthState.voter_id) return discordResultResponse("/login", "session_changed", redirectUri, [clearCookie]);
+  }
+  const identity = await fetchDiscordIdentity(code, oauthState.code_verifier, clientId, clientSecret, redirectUri);
+  if (!identity) return discordResultResponse("/login", "failed", redirectUri, [clearCookie]);
+  const registration = (await registrations()).find(r => r.id === identity.subject);
+  if (!registration) return discordResultResponse("/login", "id_not_registered", redirectUri, [clearCookie]);
+  const owner = await c.env.DB.prepare("SELECT voter_id FROM discord_account_links WHERE discord_id = ?").bind(identity.subject).first<{ voter_id: string }>();
+  if (owner && owner.voter_id !== registration.id) return discordResultResponse("/login", "discord_already_linked", redirectUri, [clearCookie]);
+  const existingLink = await c.env.DB.prepare("SELECT discord_id FROM discord_account_links WHERE voter_id = ?").bind(registration.id).first<{ discord_id: string }>();
+  if (existingLink && existingLink.discord_id !== identity.subject) return discordResultResponse("/login", "account_already_linked", redirectUri, [clearCookie]);
+  if (oauthState.flow === "link" && oauthState.voter_id !== identity.subject) return discordResultResponse("/login", "discord_id_mismatch", redirectUri, [clearCookie]);
+  let voterAccount = await account(c.env.DB, registration.id);
+  if (!voterAccount) {
+    await c.env.DB.prepare("INSERT INTO voter_accounts (voter_id, voter_name, country_name, password_hash) VALUES (?, ?, ?, ?)").bind(registration.id, registration.voterName, registration.countryName, await hashPassword(randomDiscordToken(32))).run();
+    voterAccount = await account(c.env.DB, registration.id);
+  }
+  if (!voterAccount) return discordResultResponse("/login", "failed", redirectUri, [clearCookie]);
+  if (!existingLink) await c.env.DB.prepare("INSERT INTO discord_account_links (voter_id, discord_id, discord_username) VALUES (?, ?, ?)").bind(registration.id, identity.subject, identity.globalName || identity.username).run();
+  if (oauthState.flow === "link") return discordResultResponse("/login", "connected", redirectUri, [clearCookie]);
+  const session = await createSession(c.env.DB, voterAccount.voter_id);
+  return discordResultResponse("/login", "login", redirectUri, [sessionCookie(session.raw, session.maxAge), clearCookie]);
 });
 
 app.get("/api/members", async c => { try { return c.json({ ...(await members()), cached: Boolean(membersCache), lastUpdated: membersCache ? new Date(membersCache.at).toISOString() : null }); } catch (e) { return c.json({ error: "Failed to fetch member states", message: String(e) }, 500); } });
@@ -668,6 +772,27 @@ app.post("/api/auth/logout", async c => { const token = cookieValue(c, SESSION_C
 app.post("/api/auth/change-password", async c => { const body = z.object({ oldPassword: z.string().min(1), newPassword: z.string().min(4) }).safeParse(await parseJson(c)); if (!body.success) return c.json({ error: "Invalid input" }, 400); const a = await currentAccount(c); if (!a || !(await verifyPassword(body.data.oldPassword, a.password_hash))) return c.json({ error: "Incorrect current password." }, 403); await c.env.DB.prepare("UPDATE voter_accounts SET password_hash = ?, updated_at = datetime('now') WHERE voter_id = ?").bind(await hashPassword(body.data.newPassword), a.voter_id).run(); return c.json({ success: true }); });
 
 async function requireAdmin(db: D1Database, voterId: string, level: number) { const a = await account(db, voterId); return a && a.admin_level >= level ? a : null; }
+app.get("/api/admin/bot/status", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
+  const result = await botApiJson(c.env, "/healthz");
+  return c.json(result.data, (result.ok ? 200 : result.status) as any);
+});
+app.get("/api/admin/bot/channels", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
+  const result = await botApiJson(c.env, "/channels");
+  return c.json(result.data, (result.ok ? 200 : result.status) as any);
+});
+app.post("/api/admin/bot/announce", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
+  const body = z.object({ channelId: z.string().regex(/^\d{15,25}$/), title: z.string().trim().min(1).max(256), content: z.string().trim().min(1).max(1900), roleId: z.string().regex(/^\d{17,20}$/).optional().or(z.literal("")), author: z.string().trim().min(1).max(80).optional() }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "公告標題、內容或頻道格式不正確。" }, 400);
+  const result = await botApiJson(c.env, "/announce", { method: "POST", body: JSON.stringify({ ...body.data, author: actor.voter_name }) });
+  if (result.ok) background(c, auditStatement(c.env.DB, actor, "discord.announce", "discord_channel", body.data.channelId, { title: body.data.title }).run());
+  return c.json(result.data, (result.ok ? 200 : result.status) as any);
+});
  app.get("/api/admin/accounts", async c => { const a = await ((await currentAccount(c))?.admin_level ?? 0) >= ADMIN_TIER1 ? await currentAccount(c) : null; if (!a) return c.json({ error: "管理員權限不足。" }, 403); const rows = await c.env.DB.prepare("SELECT a.voter_id, a.voter_name, a.country_name, a.admin_level, a.created_at, g.google_email FROM voter_accounts a LEFT JOIN google_account_links g ON g.voter_id = a.voter_id ORDER BY a.created_at ASC").all(); return c.json((rows.results ?? []).map((row: any) => ({ voterId: row.voter_id, voterName: row.voter_name, countryName: row.country_name, googleEmail: row.google_email || null, adminLevel: row.admin_level, createdAt: row.created_at }))); });
 app.post("/api/admin/accounts", async c => {
   const actor = await currentAccount(c);
@@ -889,6 +1014,139 @@ app.delete("/api/admin/webhooks/:id", async c => {
   await auditWebhook(c.env.DB, actor, "webhook.delete", existing.id, { name: existing.name, endpointHost: new URL(existing.url).host });
   return c.json({ success: true });
 });
+function documentMutationOriginAllowed(c: any) {
+  const origin = c.req.header("Origin");
+  if (!origin) return true;
+  const allowedOrigins = (c.env.CORS_ORIGIN || "").split(",").map((value: string) => value.trim()).filter(Boolean);
+  return allowedOrigins.length === 0 || allowedOrigins.includes(origin);
+}
+
+function newDocumentId() {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+}
+
+function documentResponse(row: any) {
+  return {
+    id: row.id,
+    title: row.title,
+    kind: row.kind,
+    starred: Boolean(row.starred),
+    content: row.content,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+const documentInputSchema = z.object({
+  id: z.string().regex(DOCUMENT_ID_RE).optional(),
+  title: z.string().trim().min(1).max(200),
+  kind: z.string().trim().max(40).optional(),
+  starred: z.boolean().optional(),
+  content: z.string().max(MAX_DOCUMENT_CHARS),
+});
+
+app.get("/api/documents", async c => {
+  const actor = await currentAccount(c);
+  if (!actor) return c.json({ error: "unauthorized" }, 401, { "Cache-Control": "no-store" });
+  try {
+    const rows = await c.env.DB.prepare("SELECT id, title, kind, starred, content, created_at, updated_at FROM fumo_workspace_documents ORDER BY updated_at DESC, id ASC LIMIT 500").all();
+    return c.json({ documents: (rows.results ?? []).map(documentResponse) }, 200, { "Cache-Control": "no-store" });
+  } catch {
+    return c.json({ error: "storage_unavailable" }, 503, { "Cache-Control": "no-store" });
+  }
+});
+
+app.post("/api/documents", async c => {
+  const actor = await currentAccount(c);
+  if (!actor) return c.json({ error: "unauthorized" }, 401);
+  if (actor.admin_level < ADMIN_TIER2) return c.json({ error: "admin_level_required", requiredAdminLevel: ADMIN_TIER2 }, 403);
+  if (!documentMutationOriginAllowed(c)) return c.json({ error: "forbidden" }, 403);
+  const contentLength = Number(c.req.header("Content-Length") || 0);
+  if (contentLength > 850000) return c.json({ error: "payload_too_large" }, 413);
+  const body = z.object({ documents: z.array(documentInputSchema).min(1).max(100) }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "invalid_payload", details: body.error.issues }, 400);
+  if (new Set(body.data.documents.map(document => document.id).filter(Boolean)).size !== body.data.documents.filter(document => document.id).length) {
+    return c.json({ error: "duplicate_document_id" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const normalized = body.data.documents.map(document => ({
+    id: document.id || newDocumentId(),
+    title: document.title,
+    kind: document.kind || "文件",
+    starred: document.starred ? 1 : 0,
+    content: document.content,
+  }));
+  if (normalized.some(document => !DOCUMENT_ID_RE.test(document.id))) return c.json({ error: "invalid_id" }, 400);
+
+  try {
+    const statements = normalized.map(document => c.env.DB.prepare(
+      "INSERT INTO fumo_workspace_documents (id, title, kind, starred, content, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET title = excluded.title, kind = excluded.kind, starred = excluded.starred, content = excluded.content, updated_by = excluded.updated_by, updated_at = excluded.updated_at"
+    ).bind(document.id, document.title, document.kind, document.starred, document.content, actor.voter_id, actor.voter_id, now, now));
+    const results = await c.env.DB.batch(statements);
+    if (results.some(result => !result.success)) return c.json({ error: "storage_unavailable" }, 503);
+    return c.json({ documents: normalized.map(document => ({ ...document, starred: Boolean(document.starred), createdAt: now, updatedAt: now })) }, 200, { "Cache-Control": "no-store" });
+  } catch {
+    return c.json({ error: "storage_unavailable" }, 503);
+  }
+});
+
+app.delete("/api/documents/:id", async c => {
+  const actor = await currentAccount(c);
+  if (!actor) return c.json({ error: "unauthorized" }, 401);
+  if (actor.admin_level < ADMIN_TIER2) return c.json({ error: "admin_level_required", requiredAdminLevel: ADMIN_TIER2 }, 403);
+  if (!documentMutationOriginAllowed(c)) return c.json({ error: "forbidden" }, 403);
+  const id = c.req.param("id");
+  if (!DOCUMENT_ID_RE.test(id)) return c.json({ error: "invalid_id" }, 400);
+  try {
+    const result = await c.env.DB.prepare("DELETE FROM fumo_workspace_documents WHERE id = ?").bind(id).run();
+    return c.json({ deleted: Number(result.meta?.changes || 0) > 0 });
+  } catch {
+    return c.json({ error: "storage_unavailable" }, 503);
+  }
+});
+
+app.post("/api/shares", async c => {
+  const actor = await currentAccount(c);
+  if (!actor) return c.json({ error: "unauthorized" }, 401);
+  if (actor.admin_level < ADMIN_TIER2) return c.json({ error: "admin_level_required", requiredAdminLevel: ADMIN_TIER2 }, 403);
+  if (!documentMutationOriginAllowed(c)) return c.json({ error: "forbidden" }, 403);
+  const contentLength = Number(c.req.header("Content-Length") || 0);
+  if (contentLength > 65000) return c.json({ error: "payload_too_large" }, 413);
+  const body = z.object({
+    title: z.string().trim().min(1).max(200),
+    content: z.string().max(MAX_SHARE_CHARS),
+    documentId: z.string().regex(DOCUMENT_ID_RE).optional(),
+    slug: z.string().trim().min(3).max(48).regex(DOCUMENT_SLUG_RE).optional(),
+  }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "invalid_payload" }, 400);
+
+  const id = body.data.slug || newDocumentId();
+  const created = new Date().toISOString();
+  try {
+    const inserted = await c.env.DB.prepare("INSERT INTO fumo_workspace_shares (id, document_id, title, content, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(id, body.data.documentId || null, body.data.title, body.data.content, actor.voter_id, created).run();
+    if (!inserted.success) return c.json({ error: "storage_unavailable" }, 503);
+    return c.json({ id }, 201, { "Cache-Control": "no-store" });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (body.data.slug && /UNIQUE constraint failed/i.test(errorMessage)) return c.json({ error: "slug_taken" }, 409);
+    return c.json({ error: "storage_unavailable" }, 503);
+  }
+});
+
+app.get("/api/shares/:id", async c => {
+  const id = c.req.param("id");
+  if (!DOCUMENT_ID_RE.test(id)) return c.json({ error: "not_found" }, 404);
+  try {
+    const row = await c.env.DB.prepare("SELECT title, content, created_at FROM fumo_workspace_shares WHERE id = ? LIMIT 1").bind(id).first<any>();
+    if (!row) return c.json({ error: "not_found" }, 404);
+    return c.json({ title: row.title, content: row.content, created: row.created_at }, 200, { "Cache-Control": "public, max-age=300" });
+  } catch {
+    return c.json({ error: "storage_unavailable" }, 503, { "Cache-Control": "no-store" });
+  }
+});
+
 app.notFound(c => c.json({ error: "Not found" }, 404));
 app.onError((err, c) => { console.error(err); return c.json({ error: "Internal server error" }, 500); });
 export default {
