@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import { buildGoogleAuthorizationUrl, createPkceChallenge, fetchGoogleIdentity, randomToken } from "./googleOAuth";
+import { buildDiscordAuthorizationUrl, createPkceChallenge as createDiscordPkceChallenge, fetchDiscordIdentity, randomToken as randomDiscordToken } from "./discordOAuth";
 import { deliverWebhook, dispatchVoteEvent, DISCORD_ROLE_ID, normalizeDiscordRoleIds, normalizeWebhookEvents, runVoteNotificationSweep, validateWebhookUrl, voteWebhookPayload, webhookSecret, webhookSummary, WEBHOOK_EVENTS, type WebhookEvent, type WebhookRow } from "./voteWebhooks";
 
 interface Env {
@@ -11,6 +12,9 @@ interface Env {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GOOGLE_REDIRECT_URI?: string;
+  DISCORD_CLIENT_ID?: string;
+  DISCORD_CLIENT_SECRET?: string;
+  DISCORD_REDIRECT_URI?: string;
 }
 type Variables = { account: Account | null };
 type App = Hono<{ Bindings: Env; Variables: Variables }>;
@@ -76,6 +80,8 @@ const MAX_DOCUMENT_CHARS = 200000;
 const MAX_SHARE_CHARS = 24000;
 const GOOGLE_STATE_COOKIE = "fumo_google_oauth_state";
 const DEFAULT_GOOGLE_REDIRECT_URI = "https://www.micronationfumo.org/api/auth/google/callback";
+const DISCORD_STATE_COOKIE = "fumo_discord_oauth_state";
+const DEFAULT_DISCORD_REDIRECT_URI = "https://www.micronationfumo.org/api/auth/discord/callback";
 
 const json = (value: unknown, status = 200, headers: HeadersInit = {}) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json", ...headers } });
 const parseJson = async (c: any) => { try { return await c.req.json(); } catch { return null; } };
@@ -272,6 +278,25 @@ function googleResultResponse(path: string, result: string, redirectUri: string,
   for (const cookie of cookies) headers.append("Set-Cookie", cookie);
   return new Response(null, { status: 302, headers });
 }
+function discordRedirectUri(env: Env) {
+  const candidate = env.DISCORD_REDIRECT_URI?.trim() || DEFAULT_DISCORD_REDIRECT_URI;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "https:" || parsed.hostname !== "www.micronationfumo.org" || parsed.pathname !== "/api/auth/discord/callback" || parsed.search || parsed.hash) return DEFAULT_DISCORD_REDIRECT_URI;
+    return parsed.toString();
+  } catch {
+    return DEFAULT_DISCORD_REDIRECT_URI;
+  }
+}
+function discordStateCookie(state: string) { return `${DISCORD_STATE_COOKIE}=${encodeURIComponent(state)}; Max-Age=600; Path=/api/auth/discord/callback; HttpOnly; Secure; SameSite=Lax`; }
+function clearDiscordStateCookie() { return `${DISCORD_STATE_COOKIE}=; Max-Age=0; Path=/api/auth/discord/callback; HttpOnly; Secure; SameSite=Lax`; }
+function discordResultResponse(path: string, result: string, redirectUri: string, cookies: string[] = []) {
+  const destination = new URL(path, new URL(redirectUri).origin);
+  destination.searchParams.set("discord", result);
+  const headers = new Headers({ Location: destination.toString(), "Cache-Control": "no-store", Pragma: "no-cache" });
+  for (const cookie of cookies) headers.append("Set-Cookie", cookie);
+  return new Response(null, { status: 302, headers });
+}
 
 function background(c: any, promise: Promise<unknown>) {
   try { c.executionCtx.waitUntil(promise); } catch { void promise; }
@@ -414,6 +439,65 @@ app.get("/api/auth/google/callback", async c => {
   }
   const session = await createSession(c.env.DB, voterAccount.voter_id);
   return googleResultResponse(returnTo, "login", redirectUri, [sessionCookie(session.raw, session.maxAge), clearCookie]);
+});
+
+app.get("/api/auth/discord/start", async c => {
+  const clientId = c.env.DISCORD_CLIENT_ID?.trim();
+  const clientSecret = c.env.DISCORD_CLIENT_SECRET?.trim();
+  const redirectUri = discordRedirectUri(c.env);
+  if (!clientId || !clientSecret) return discordResultResponse("/login", "not_configured", redirectUri, [clearDiscordStateCookie()]);
+  const flow = c.req.query("mode") ?? "login";
+  if (flow !== "login" && flow !== "link") return discordResultResponse("/login", "failed", redirectUri, [clearDiscordStateCookie()]);
+  const actor = flow === "link" ? await currentAccount(c) : null;
+  if (flow === "link" && !actor) return discordResultResponse("/login", "sign_in_first", redirectUri, [clearDiscordStateCookie()]);
+  const state = randomDiscordToken();
+  const verifier = randomDiscordToken();
+  await c.env.DB.prepare("DELETE FROM discord_oauth_states WHERE expires_at <= datetime('now')").run();
+  await c.env.DB.prepare("INSERT INTO discord_oauth_states (state_hash, flow, voter_id, return_to, code_verifier, expires_at) VALUES (?, ?, ?, ?, ?, datetime('now', '+10 minutes'))")
+    .bind(await sessionHash(state), flow, actor?.voter_id ?? null, "/login", verifier).run();
+  const challenge = await createDiscordPkceChallenge(verifier);
+  return new Response(null, { status: 302, headers: { Location: buildDiscordAuthorizationUrl(clientId, redirectUri, state, challenge), "Set-Cookie": discordStateCookie(state), "Cache-Control": "no-store", Pragma: "no-cache" } });
+});
+
+app.get("/api/auth/discord/callback", async c => {
+  const redirectUri = discordRedirectUri(c.env);
+  const state = c.req.query("state");
+  const stateCookie = cookieValue(c, DISCORD_STATE_COOKIE);
+  const clearCookie = clearDiscordStateCookie();
+  if (!state || !stateCookie || state !== stateCookie) return discordResultResponse("/login", "invalid_state", redirectUri, [clearCookie]);
+  const oauthState = await c.env.DB.prepare("SELECT flow, voter_id, return_to, code_verifier FROM discord_oauth_states WHERE state_hash = ? AND expires_at > datetime('now')")
+    .bind(await sessionHash(state)).first<{ flow: "login" | "link"; voter_id: string | null; return_to: string; code_verifier: string }>();
+  if (!oauthState) return discordResultResponse("/login", "invalid_state", redirectUri, [clearCookie]);
+  await c.env.DB.prepare("DELETE FROM discord_oauth_states WHERE state_hash = ?").bind(await sessionHash(state)).run();
+  if (c.req.query("error")) return discordResultResponse("/login", c.req.query("error") === "access_denied" ? "denied" : "failed", redirectUri, [clearCookie]);
+  const clientId = c.env.DISCORD_CLIENT_ID?.trim();
+  const clientSecret = c.env.DISCORD_CLIENT_SECRET?.trim();
+  const code = c.req.query("code");
+  if (!clientId || !clientSecret) return discordResultResponse("/login", "not_configured", redirectUri, [clearCookie]);
+  if (!code || code.length > 2048) return discordResultResponse("/login", "failed", redirectUri, [clearCookie]);
+  if (oauthState.flow === "link") {
+    const actor = await currentAccount(c);
+    if (!actor || actor.voter_id !== oauthState.voter_id) return discordResultResponse("/login", "session_changed", redirectUri, [clearCookie]);
+  }
+  const identity = await fetchDiscordIdentity(code, oauthState.code_verifier, clientId, clientSecret, redirectUri);
+  if (!identity) return discordResultResponse("/login", "failed", redirectUri, [clearCookie]);
+  const registration = (await registrations()).find(r => r.id === identity.subject);
+  if (!registration) return discordResultResponse("/login", "id_not_registered", redirectUri, [clearCookie]);
+  const owner = await c.env.DB.prepare("SELECT voter_id FROM discord_account_links WHERE discord_id = ?").bind(identity.subject).first<{ voter_id: string }>();
+  if (owner && owner.voter_id !== registration.id) return discordResultResponse("/login", "discord_already_linked", redirectUri, [clearCookie]);
+  const existingLink = await c.env.DB.prepare("SELECT discord_id FROM discord_account_links WHERE voter_id = ?").bind(registration.id).first<{ discord_id: string }>();
+  if (existingLink && existingLink.discord_id !== identity.subject) return discordResultResponse("/login", "account_already_linked", redirectUri, [clearCookie]);
+  if (oauthState.flow === "link" && oauthState.voter_id !== identity.subject) return discordResultResponse("/login", "discord_id_mismatch", redirectUri, [clearCookie]);
+  let voterAccount = await account(c.env.DB, registration.id);
+  if (!voterAccount) {
+    await c.env.DB.prepare("INSERT INTO voter_accounts (voter_id, voter_name, country_name, password_hash) VALUES (?, ?, ?, ?)").bind(registration.id, registration.voterName, registration.countryName, await hashPassword(randomDiscordToken(32))).run();
+    voterAccount = await account(c.env.DB, registration.id);
+  }
+  if (!voterAccount) return discordResultResponse("/login", "failed", redirectUri, [clearCookie]);
+  if (!existingLink) await c.env.DB.prepare("INSERT INTO discord_account_links (voter_id, discord_id, discord_username) VALUES (?, ?, ?)").bind(registration.id, identity.subject, identity.globalName || identity.username).run();
+  if (oauthState.flow === "link") return discordResultResponse("/login", "connected", redirectUri, [clearCookie]);
+  const session = await createSession(c.env.DB, voterAccount.voter_id);
+  return discordResultResponse("/login", "login", redirectUri, [sessionCookie(session.raw, session.maxAge), clearCookie]);
 });
 
 app.get("/api/members", async c => { try { return c.json({ ...(await members()), cached: Boolean(membersCache), lastUpdated: membersCache ? new Date(membersCache.at).toISOString() : null }); } catch (e) { return c.json({ error: "Failed to fetch member states", message: String(e) }, 500); } });

@@ -20,6 +20,11 @@ export function googleOAuthStartUrl(mode: "login" | "link", next?: string): stri
   return `${origin}/api/auth/google/start?${query.toString()}`;
 }
 
+export function discordOAuthStartUrl(mode: "login" | "link"): string {
+  const origin = isProductionSite ? "https://www.micronationfumo.org" : API_BASE_URL;
+  return `${origin}/api/auth/discord/start?${new URLSearchParams({ mode }).toString()}`;
+}
+
 export function apiFetch(path: string, init: RequestInit = {}) {
   return fetch(apiUrl(path), { ...init, credentials: "include" });
 }
