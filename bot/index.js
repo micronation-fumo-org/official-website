@@ -38,6 +38,7 @@ const BOT_HTTP_PORT = Number(process.env.PORT || process.env.BOT_HTTP_PORT || 30
 const BOT_MENTION_EVENTS = (process.env.FUMO_BOT_MENTION_EVENTS || "vote.created,vote.published,vote.started,vote.closing_soon,vote.closed").split(",").map(value => value.trim()).filter(Boolean);
 const ANNOUNCEMENT_AUTHOR = process.env.FUMO_ANNOUNCEMENT_AUTHOR || "FUMO 官方網站 Bot";
 const PROPOSAL_CHANNEL_ID = process.env.FUMO_PROPOSAL_CHANNEL_ID || "1414537668406149140";
+const ADMISSION_CHANNEL_ID = process.env.FUMO_ADMISSION_CHANNEL_ID || PROPOSAL_CHANNEL_ID;
 
 const commands = [
   new SlashCommandBuilder()
@@ -57,6 +58,9 @@ const commands = [
     .setName("整理提案")
     .setDescription("整理議事中心例行大會串文中的提案")
     .addStringOption(option => option.setName("會期").setDescription("例如 2026/11；留空則整理最新一期").setRequired(false).setMaxLength(20)),
+  new SlashCommandBuilder()
+    .setName("整理入聯")
+    .setDescription("整理 Forum 頻道中的入聯申請資料"),
 ].map(command => command.toJSON());
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
@@ -151,6 +155,68 @@ function isSeatChange(title) {
   return /^🔸/.test(title.trim()) || /(升格|降格|取消席次|席位更動|席位变动|入聯|退聯|入联|退联)/i.test(title);
 }
 
+function admissionFromMessage(content) {
+  const name = getProposalField(content, ["貴國國號（中/英）", "貴國國號(中/英)", "Name of Your Nation \\(ZN/EN\\)", "Name of Your Nation"]);
+  const flag = getProposalField(content, ["貴國國旗", "National Flag of Your Country"]);
+  const code = getProposalField(content, ["貴國國家代碼", "National Code"]);
+  const role = getProposalField(content, ["申請者於貴國身分", "Applicant’s Position/Role in Your Nation", "Applicant's Position/Role in Your Nation"]);
+  const links = getProposalField(content, ["國家相關連結（Discord、官方網站、社群媒體等）", "國家相關連結", "Relevant Links of Your Nation"]);
+  const locations = getProposalField(content, ["貴國主要活躍地點", "Main active locations"]);
+  const introduction = getProposalField(content, ["貴國國情介紹", "Introduction to Your Nation"]);
+  const reasons = getProposalField(content, ["申請入聯緣由", "Reasons for Applying for Membership"]);
+  if (!name && !code && !role && !introduction && !reasons) return null;
+  return { name: name || "未填寫", flag: flag || "未提供文字（請查看附件）", code: code || "未填寫", role: role || "未填寫", links: links || "未填寫", locations: locations || "未填寫", introduction: introduction || "未填寫", reasons: reasons || "未填寫" };
+}
+
+async function collectAdmissionDigest(channel) {
+  if (channel.isThread?.() && channel.parentId) {
+    const parent = await client.channels.fetch(channel.parentId);
+    if (parent?.threads) return collectAdmissionDigest(parent);
+  }
+  if (!channel?.threads) throw new Error(`ID ${ADMISSION_CHANNEL_ID} 不是可讀取串文的 Forum／文字頻道（type ${channel?.type ?? "unknown"}）。`);
+  const threads = new Map();
+  for (const thread of channel.threads.cache.values()) threads.set(thread.id, thread);
+  const active = await channel.threads.fetchActive();
+  for (const thread of active.threads.values()) threads.set(thread.id, thread);
+  let before;
+  for (let page = 0; page < 10; page += 1) {
+    const archived = await channel.threads.fetchArchived({ limit: 100, ...(before ? { before } : {}) });
+    for (const thread of archived.threads.values()) threads.set(thread.id, thread);
+    if (!archived.hasMore || !archived.threads.size) break;
+    before = archived.threads.last().id;
+  }
+  const applications = [];
+  for (const thread of [...threads.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp)) {
+    const messages = await thread.messages.fetch({ limit: 100 });
+    for (const message of messages.values()) {
+      const admission = admissionFromMessage(message.content || "");
+      if (admission) { applications.push({ thread, admission }); break; }
+    }
+  }
+  if (!applications.length) throw new Error(`在 ${threads.size} 個串文中找不到符合入聯表格欄位的申請。`);
+  return applications;
+}
+
+function formatAdmissionDigest(applications) {
+  return applications.map(({ thread, admission }, index) => [
+    `## ${index + 1}. ${admission.name}`,
+    `來源串文：${thread.name}`,
+    "",
+    "I. Basic Information of the Applicant Nation",
+    "一、國家基本資訊",
+    `◆ 貴國國號（中/英）：${admission.name}`,
+    `◆ 貴國國旗：${admission.flag}`,
+    `◆ 貴國國家代碼：${admission.code}`,
+    `◆ 申請者於貴國身分：${admission.role}`,
+    `◆ 國家相關連結：${admission.links}`,
+    `◆ 貴國主要活躍地點：${admission.locations}`,
+    "",
+    `II. Introduction to Your Nation\n二、貴國國情介紹：${admission.introduction}`,
+    "",
+    `III. Reasons for Applying for Membership\n三、申請入聯緣由：${admission.reasons}`,
+  ].join("\n")).join("\n\n──────────\n\n");
+}
+
 async function collectProposalDigest(channel, requestedPeriod) {
   if (channel.isThread?.()) {
     if (channel.parentId) {
@@ -224,6 +290,20 @@ async function handleInteraction(interaction) {
   }
   if (!canManage(interaction)) {
     await interaction.reply({ content: "只有 FUMO 管理員或具備管理伺服器權限的成員可以使用此指令。", ephemeral: true });
+    return;
+  }
+  if (interaction.commandName === "整理入聯") {
+    await interaction.deferReply();
+    try {
+      const channel = await client.channels.fetch(ADMISSION_CHANNEL_ID);
+      if (!channel || (!channel.isTextBased() && !channel.threads)) throw new Error(`無法讀取入聯頻道 ${ADMISSION_CHANNEL_ID}（type ${channel?.type ?? "unknown"}）。`);
+      const applications = await collectAdmissionDigest(channel);
+      await sendLongReply(interaction, `**FUMO 入聯申請整理**\n\n${formatAdmissionDigest(applications)}`);
+    } catch (error) {
+      console.error("Admission digest failed", error?.stack || error);
+      const reason = error instanceof Error ? error.message : String(error);
+      await interaction.editReply(`入聯整理失敗：${reason.slice(0, 1500)}\n\n請確認 Bot 已啟用 Message Content Intent，並擁有入聯 Forum 頻道的 View Channel、Read Message History 權限。`);
+    }
     return;
   }
   if (interaction.commandName === "整理提案") {

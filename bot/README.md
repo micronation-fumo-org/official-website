@@ -5,7 +5,8 @@
 - `/公告`：發布 Embed 公告到指定頻道
 - `/身分組檢查`：比較 FUMO `/api/voters` 註冊名單與 Discord Server 成員，列出缺少或未註冊成員
 - `/投票狀態`：檢查 FUMO 官方網站 API 狀態
-- `/整理提案`：掃描議事中心例行大會串文，整理席位更動案與一般提案
+- `/整理提案`：整理議事中心例行大會串文，整理席位更動案與一般提案
+- `/整理入聯`：掃描入聯 Forum 串文，依入聯申請表整理國家資訊、國情與入聯緣由
 - 網站 Webhook relay：接收網站簽名事件，再由 Bot 發送 Discord Embed
 
 `/身分組檢查` 會依網站 `/api/members` 的成員國／觀察國資料檢查代表是否擁有正確身分組，也會統計秘書處與議事中心身分組人數。目前只做檢查，不會自動新增或移除身分組。確認比對結果後，再加入需要 `MANAGE_ROLES` 的同步指令，避免誤改成員權限。
@@ -40,6 +41,7 @@ npm start
 - `FUMO_BOT_MENTION_EVENTS`：要提及公告身分組的事件，逗號分隔
 - `FUMO_ANNOUNCEMENT_AUTHOR`：公告預設發布者名稱，預設為 `FUMO 官方網站 Bot`
 - `FUMO_PROPOSAL_CHANNEL_ID`：議案整理來源頻道，預設為 `1414537668406149140`
+- `FUMO_ADMISSION_CHANNEL_ID`：入聯整理來源 Forum 頻道，未設定時沿用 `FUMO_PROPOSAL_CHANNEL_ID`
 
 ## Wispbyte 設定
 
