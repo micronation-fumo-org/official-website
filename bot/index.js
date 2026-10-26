@@ -342,7 +342,7 @@ async function handleInteraction(interaction) {
       const content = interaction.options.getString("內容", true).trim();
       const replyId = interaction.options.getString("回覆id")?.trim() || "";
       const message = await postBotSpeech(content, interaction.channel, replyId);
-      logAction("speech.sent", { userId: interaction.user.id, channelId: interaction.channelId, messageId: message.id, replyId: replyId || null, contentLength: content.length });
+      logAction("speech.sent", { userId: interaction.user.id, channelId: interaction.channelId, messageId: message.id, replyId: replyId || null, content });
       await interaction.editReply(`Bot 已發言：${message.url}`);
     } catch (error) {
       console.error("Bot speech failed", error?.stack || error);
@@ -387,7 +387,7 @@ async function handleInteraction(interaction) {
     await interaction.deferReply({ ephemeral: true });
     try {
       const url = await postAnnouncement(interaction.options.getString("標題", true), interaction.options.getString("內容", true), interaction.user.username);
-      logAction("announcement.sent", { userId: interaction.user.id, channelId: ANNOUNCEMENT_CHANNEL_ID, messageUrl: url });
+      logAction("announcement.sent", { userId: interaction.user.id, channelId: ANNOUNCEMENT_CHANNEL_ID, messageUrl: url, title: interaction.options.getString("標題", true), content: interaction.options.getString("內容", true) });
       await interaction.editReply(`公告已發布：${url}`);
     } catch (error) {
       console.error("Announcement failed", error);
