@@ -153,6 +153,10 @@ function isSeatChange(title) {
 
 async function collectProposalDigest(channel, requestedPeriod) {
   if (channel.isThread?.()) {
+    if (channel.parentId) {
+      const parent = await client.channels.fetch(channel.parentId);
+      if (parent?.threads) return collectProposalDigest(parent, requestedPeriod);
+    }
     const period = proposalPeriod(channel.name);
     if (!period || (requestedPeriod && period !== requestedPeriod)) throw new Error(`指定的串文標題不符合格式：${channel.name}`);
     const messages = await channel.messages.fetch({ limit: 100 });
