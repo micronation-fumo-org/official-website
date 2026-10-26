@@ -80,3 +80,15 @@ Pages Functions 必須放在 repository root 的 `functions/` 目錄，而非前
 - Worker 使用 Web Crypto PBKDF2 儲存密碼雜湊，不依賴 Node.js native module。
 - 第一次部署後請立即修改預設超級管理員密碼；預設帳號仍沿用既有 Discord ID，密碼為 `changeme`。
 - 成員與投票資格資料仍由公開 Google Sheet 讀取；投票與帳戶資料則完全寫入 D1。
+
+## 6. Wispbyte Node.js Discord Bot
+
+網站專用 Discord Bot 位於 `bot/`，不與 Cloudflare Worker 共用執行程序。Bot 使用 Node.js + discord.js，適合部署到 Wispbyte 的 Node.js Docker image。Wispbyte Startup command 可設定為：
+
+```bash
+npm install --omit=dev && node index.js
+```
+
+部署時將 `bot/` 目錄內容放在伺服器根目錄，並在 Wispbyte Startup → Environment variables 設定 `BOT_TOKEN`、`DISCORD_APPLICATION_ID`、`DISCORD_GUILD_ID`、`ANNOUNCEMENT_CHANNEL_ID`、`FUMO_API_BASE_URL` 等變數。不要上傳 `bot/.env` 或把 Bot Token 寫入 Git。
+
+第一次啟動前，請在 Discord Developer Portal 啟用 Server Members Intent；`/身分組檢查` 會用它讀取 Server 成員。Bot 至少需要公告頻道的 View Channel、Send Messages、Embed Links 與 Read Message History 權限。現階段身分組功能只做比對，不會自動修改成員角色。
