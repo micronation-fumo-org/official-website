@@ -129,7 +129,7 @@ function normalizeText(value) {
 }
 
 function getProposalField(content, labels) {
-  const match = normalizeText(content).match(new RegExp(`(?:^|\\n)\\s*(?:◆\\s*[|｜]?\\s*)?(?:${labels.join("|")})\\s*:?\\s*(.+?)(?=\\n\\s*(?:◆|🔹|🔸)|$)`, "i"));
+  const match = normalizeText(content).match(new RegExp(`(?:^|\\n)\\s*(?:◆\\s*[||]?\\s*)?(?:${labels.join("|")})\\s*:?\\s*(.+?)(?=\\n\\s*(?:◆|🔹|🔸)|$)`, "i"));
   return match?.[1]?.trim().replace(/\n+/g, " ") || "";
 }
 
