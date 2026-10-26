@@ -43,6 +43,7 @@ const ANNOUNCEMENT_AUTHOR = process.env.FUMO_ANNOUNCEMENT_AUTHOR || "FUMO 官方
 const PROPOSAL_CHANNEL_ID = process.env.FUMO_PROPOSAL_CHANNEL_ID || "1414537668406149140";
 const ADMISSION_CHANNEL_ID = process.env.FUMO_ADMISSION_CHANNEL_ID || PROPOSAL_CHANNEL_ID;
 const WELCOME_CHANNEL_ID = process.env.FUMO_WELCOME_CHANNEL_ID || ANNOUNCEMENT_CHANNEL_ID;
+const VERIFIED_ROLE_ID = process.env.FUMO_VERIFIED_ROLE_ID || "1249427737081286687";
 
 function logAction(action, details = {}) {
   console.log(`[BOT_ACTION] ${JSON.stringify({ at: new Date().toISOString(), action, ...details })}`);
@@ -167,8 +168,11 @@ async function verifyMember(member) {
   if (!roleId) return { ok: false, reason: "country_role_missing", countryName: registration.countryName };
   const role = member.guild.roles.cache.get(roleId) || await member.guild.roles.fetch(roleId).catch(() => null);
   if (!role) return { ok: false, reason: "role_not_found", roleId, countryName: registration.countryName };
+  const verifiedRole = member.guild.roles.cache.get(VERIFIED_ROLE_ID) || await member.guild.roles.fetch(VERIFIED_ROLE_ID).catch(() => null);
+  if (!verifiedRole) return { ok: false, reason: "verified_role_not_found", roleId: VERIFIED_ROLE_ID, countryName: registration.countryName };
   await member.roles.add(role, "FUMO Discord 驗證");
-  return { ok: true, countryName: registration.countryName, roleName: role.name };
+  await member.roles.add(verifiedRole, "FUMO Discord 驗證完成");
+  return { ok: true, countryName: registration.countryName, roleName: role.name, verifiedRoleName: verifiedRole.name };
 }
 
 async function sendWelcomeMessage(member, joined) {
@@ -364,9 +368,10 @@ async function handleInteraction(interaction) {
       const member = guild ? await guild.members.fetch(interaction.user.id) : null;
       if (!member) throw new Error("找不到目前 Server 成員");
       const result = await verifyMember(member);
-      logAction(result.ok ? "member.verified_by_button" : "member.verification_button_failed", { userId: interaction.user.id, guildId: guild.id, countryName: result.countryName || null, roleName: result.roleName || null, reason: result.reason || null });
-      if (result.ok) await interaction.editReply(`驗證成功！已為你加入「${result.roleName}」身分組（${result.countryName}）。`);
+      logAction(result.ok ? "member.verified_by_button" : "member.verification_button_failed", { userId: interaction.user.id, guildId: guild.id, countryName: result.countryName || null, roleName: result.roleName || null, verifiedRoleName: result.verifiedRoleName || null, reason: result.reason || null });
+      if (result.ok) await interaction.editReply(`驗證成功！已為你加入「${result.roleName}」及「${result.verifiedRoleName}」身分組（${result.countryName}）。`);
       else if (result.reason === "not_registered") await interaction.editReply("驗證失敗：你的 Discord ID 不在 FUMO 官方註冊名單中，請先完成網站註冊或聯絡管理員。");
+      else if (result.reason === "verified_role_not_found") await interaction.editReply("驗證失敗：伺服器尚未設定已驗證身分組，請聯絡管理員。");
       else await interaction.editReply("驗證失敗：請聯絡 FUMO 管理員協助處理。");
     } catch (error) {
       console.error("Verification button failed", error?.stack || error);
@@ -393,11 +398,12 @@ async function handleInteraction(interaction) {
       const member = interaction.member;
       if (!member || !member.roles?.add) throw new Error("只能在 Server 頻道使用驗證指令");
       const result = await verifyMember(member);
-      logAction(result.ok ? "member.verified" : "member.verification_failed", { userId: interaction.user.id, guildId: interaction.guildId, countryName: result.countryName || null, roleName: result.roleName || null, reason: result.reason || null });
-      if (result.ok) await interaction.editReply(`驗證成功！已為你加入「${result.roleName}」身分組（${result.countryName}）。`);
+      logAction(result.ok ? "member.verified" : "member.verification_failed", { userId: interaction.user.id, guildId: interaction.guildId, countryName: result.countryName || null, roleName: result.roleName || null, verifiedRoleName: result.verifiedRoleName || null, reason: result.reason || null });
+      if (result.ok) await interaction.editReply(`驗證成功！已為你加入「${result.roleName}」及「${result.verifiedRoleName}」身分組（${result.countryName}）。`);
       else if (result.reason === "not_registered") await interaction.editReply("驗證失敗：你的 Discord ID 不在 FUMO 官方註冊名單中，請先完成網站註冊或聯絡管理員。");
       else if (result.reason === "country_role_missing") await interaction.editReply(`驗證失敗：找不到「${result.countryName}」對應的成員國／觀察國資料。`);
       else if (result.reason === "role_not_found") await interaction.editReply("驗證失敗：伺服器尚未設定對應身分組，請聯絡管理員。");
+      else if (result.reason === "verified_role_not_found") await interaction.editReply("驗證失敗：伺服器尚未設定已驗證身分組，請聯絡管理員。");
       else await interaction.editReply("驗證失敗，請稍後再試或聯絡管理員。");
     } catch (error) {
       console.error("Member verification failed", error?.stack || error);
