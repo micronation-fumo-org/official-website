@@ -787,7 +787,7 @@ app.get("/api/admin/bot/channels", async c => {
 app.post("/api/admin/bot/announce", async c => {
   const actor = await currentAccount(c);
   if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
-  const body = z.object({ channelId: z.string().regex(/^\d{15,25}$/), title: z.string().trim().min(1).max(256), content: z.string().trim().min(1).max(1900), roleId: z.string().regex(/^\d{17,20}$/).optional().or(z.literal("")) }).safeParse(await parseJson(c));
+  const body = z.object({ channelId: z.string().regex(/^\d{15,25}$/), title: z.string().trim().min(1).max(256), content: z.string().trim().min(1).max(1900), roleId: z.string().regex(/^\d{17,20}$/).optional().or(z.literal("")), author: z.string().trim().min(1).max(80).optional() }).safeParse(await parseJson(c));
   if (!body.success) return c.json({ error: "公告標題、內容或頻道格式不正確。" }, 400);
   const result = await botApiJson(c.env, "/announce", { method: "POST", body: JSON.stringify({ ...body.data, author: actor.voter_name }) });
   if (result.ok) background(c, auditStatement(c.env.DB, actor, "discord.announce", "discord_channel", body.data.channelId, { title: body.data.title }).run());

@@ -44,7 +44,7 @@ function buildEmbed(payload, event, websiteUrl) {
   };
 }
 
-export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secret, path, port, mentionRoleId, mentionEvents }) {
+export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secret, path, port, mentionRoleId, mentionEvents, defaultAuthor }) {
   const events = new Set(mentionEvents);
   const server = createServer(async (request, response) => {
     if (request.method === "GET" && request.url === "/healthz") {
@@ -74,8 +74,9 @@ export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secr
         const content = typeof data.content === "string" ? data.content.trim().slice(0, 1900) : "";
         if (!title || !content) { response.writeHead(400); response.end("Title and content are required"); return; }
         const roleId = typeof data.roleId === "string" && /^\d{17,20}$/.test(data.roleId) ? data.roleId : "";
+        const authorName = typeof data.author === "string" && data.author.trim() ? data.author.trim().slice(0, 80) : defaultAuthor;
         const mention = roleId ? `<@&${roleId}>` : "";
-        const message = await target.send({ content: mention, embeds: [{ title: `📢 ${title}`, description: content, color: 0x5865f2, url: websiteUrl, footer: { text: "FUMO 官方網站 Bot" }, timestamp: new Date().toISOString() }], allowedMentions: roleId ? { roles: [roleId] } : { parse: [] } });
+        const message = await target.send({ content: mention, embeds: [{ author: { name: authorName }, title: `📢 ${title}`, description: content, color: 0x5865f2, url: websiteUrl, footer: { text: "FUMO 官方網站 Bot" }, timestamp: new Date().toISOString() }], allowedMentions: roleId ? { roles: [roleId] } : { parse: [] } });
         response.writeHead(200, { "Content-Type": "application/json" });
         response.end(JSON.stringify({ ok: true, messageUrl: message.url }));
       } catch (error) {

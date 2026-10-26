@@ -46,7 +46,7 @@ export async function fetchBotStatus(): Promise<{ ok: boolean; bot: boolean }> {
   return data;
 }
 
-export async function sendBotAnnouncement(payload: { channelId: string; title: string; content: string; roleId?: string }): Promise<{ ok: boolean; messageUrl?: string }> {
+export async function sendBotAnnouncement(payload: { channelId: string; title: string; content: string; roleId?: string; author?: string }): Promise<{ ok: boolean; messageUrl?: string }> {
   const response = await apiFetch("/api/admin/bot/announce", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "公告發布失敗。");

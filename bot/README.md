@@ -37,6 +37,7 @@ npm start
 - `FUMO_WEBHOOK_PATH`：預設 `/fumo/webhook`
 - `BOT_HTTP_PORT`：預設 `3000`；Wispbyte 若提供 `PORT`，會優先使用 `PORT`
 - `FUMO_BOT_MENTION_EVENTS`：要提及公告身分組的事件，逗號分隔
+- `FUMO_ANNOUNCEMENT_AUTHOR`：公告預設發布者名稱，預設為 `FUMO 官方網站 Bot`
 
 ## Wispbyte 設定
 
@@ -58,7 +59,7 @@ npm ci --omit=dev && exec node index.js
 
 ## 讓 Bot 取代 Discord Webhook
 
-Bot 會在 `FUMO_WEBHOOK_PATH` 提供 HTTP endpoint。先在 Wispbyte 為 Bot 啟用可公開存取的 HTTPS 網址，再到 FUMO 網站管理後台新增一般 Webhook：網址填 `https://你的-wispbyte-網域/fumo/webhook`，事件依需要選擇。`FUMO_WEBHOOK_SECRET` 留空即可直接接收；若之後要防止陌生人呼叫 endpoint，再讓網站 Webhook secret 與 Bot Secret 完全相同。Bot 收到事件後會用 Bot 身分發送 Embed；原本的 Discord `discord.com/api/webhooks/...` endpoint 可以停用。
+Bot 會在 `FUMO_WEBHOOK_PATH` 提供 HTTP endpoint。先在 Wispbyte 為 Bot 啟用可公開存取的 HTTPS 網址，再到 FUMO 網站管理後台新增一般 Webhook：網址填 `https://你的-wispbyte-網域/fumo/webhook`，事件依需要選擇。`FUMO_WEBHOOK_SECRET` 留空即可直接接收；若之後要防止陌生人呼叫 endpoint，再讓網站 Webhook secret 與 Bot Secret 完全相同。Bot 收到事件後會用 Bot 身分發送 Embed；原本的 Discord `discord.com/api/webhooks/...` endpoint 可以停用。網站 Bot 後台的公告可以自訂 Embed 頂部的發布者名稱，預設為 `FUMO 官方網站 Bot`；Discord 訊息時間會自動顯示當下時間。
 
 ## Discord Developer Portal
 
