@@ -65,7 +65,8 @@ const commands = [
   new SlashCommandBuilder()
     .setName("說話")
     .setDescription("讓 FUMO Bot 發送文字訊息")
-    .addStringOption(option => option.setName("內容").setDescription("Bot 要說的內容").setRequired(true).setMaxLength(1900)),
+    .addStringOption(option => option.setName("內容").setDescription("Bot 要說的內容").setRequired(true).setMaxLength(1900))
+    .addStringOption(option => option.setName("回覆id").setDescription("可選；要回覆的同頻道訊息 ID").setRequired(false).setMaxLength(25)),
 ].map(command => command.toJSON());
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
@@ -99,9 +100,15 @@ async function postAnnouncement(title, content, author) {
   return message.url;
 }
 
-async function postBotSpeech(content, channel) {
+async function postBotSpeech(content, channel, replyId = "") {
   if (!channel?.isTextBased() || !channel.isSendable()) throw new Error("目前頻道不可發送訊息");
-  return channel.send({ content, allowedMentions: { parse: [] } });
+  const payload = { content, allowedMentions: { parse: [] } };
+  if (replyId) {
+    if (!/^\d{15,25}$/.test(replyId)) throw new Error("回覆 ID 格式不正確");
+    const target = await channel.messages.fetch(replyId);
+    payload.reply = { messageReference: target.id, failIfNotExists: false };
+  }
+  return channel.send(payload);
 }
 
 async function compareRoles(guild) {
@@ -327,7 +334,8 @@ async function handleInteraction(interaction) {
     await interaction.deferReply({ ephemeral: true });
     try {
       const content = interaction.options.getString("內容", true).trim();
-      const message = await postBotSpeech(content, interaction.channel);
+      const replyId = interaction.options.getString("回覆id")?.trim() || "";
+      const message = await postBotSpeech(content, interaction.channel, replyId);
       await interaction.editReply(`Bot 已發言：${message.url}`);
     } catch (error) {
       console.error("Bot speech failed", error?.stack || error);
