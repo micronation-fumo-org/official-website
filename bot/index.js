@@ -152,6 +152,22 @@ function isSeatChange(title) {
 }
 
 async function collectProposalDigest(channel, requestedPeriod) {
+  if (channel.isThread?.()) {
+    if (channel.parentId) {
+      const parent = await client.channels.fetch(channel.parentId);
+      if (parent?.threads) return collectProposalDigest(parent, requestedPeriod);
+    }
+    const period = proposalPeriod(channel.name);
+    if (!period || (requestedPeriod && period !== requestedPeriod)) throw new Error(`指定的串文標題不符合格式：${channel.name}`);
+    const messages = await channel.messages.fetch({ limit: 100 });
+    const unique = new Map();
+    for (const message of messages.values()) {
+      const proposal = proposalFromMessage(message.content || "");
+      if (proposal) unique.set(`${proposal.country}|${proposal.representative}|${proposal.title}`, proposal);
+    }
+    return { thread: channel, period, proposals: [...unique.values()] };
+  }
+  if (!channel.threads) throw new Error(`ID ${channel.id} 是 ${channel.name || "未知頻道"}（type ${channel.type}），不是可列出串文的母頻道；請改填 Forum／文字頻道 ID，或直接使用單一串文 ID。`);
   const threads = new Map();
   for (const thread of channel.threads.cache.values()) threads.set(thread.id, thread);
   const active = await channel.threads.fetchActive();
@@ -214,7 +230,7 @@ async function handleInteraction(interaction) {
     await interaction.deferReply();
     try {
       const channel = await client.channels.fetch(PROPOSAL_CHANNEL_ID);
-      if (!channel?.isTextBased() || !channel.threads) throw new Error("提案頻道無法讀取串文");
+      if (!channel?.isTextBased()) throw new Error(`無法讀取 ID ${PROPOSAL_CHANNEL_ID}：這不是文字或 Forum 頻道（type ${channel?.type ?? "unknown"}）。`);
       const result = await collectProposalDigest(channel, interaction.options.getString("會期"));
       await sendLongReply(interaction, `**${result.thread.name}**\n${formatProposalDigest(result.period, result.proposals)}`);
     } catch (error) {
