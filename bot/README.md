@@ -37,13 +37,19 @@ npm start
 
 選擇 Node.js Docker image，將 `bot/` 目錄內容上傳到伺服器根目錄，或使用 Wispbyte GitHub Integration 拉取 repo 後把工作目錄指到 `bot`。Wispbyte 的 Node.js 伺服器會在有 `package.json` 時安裝依賴。
 
-Startup command：
+如果 Wispbyte 伺服器根目錄就是整個 `official-website` repo，不能在 `/home/container` 直接執行 `npm install`，因為網站根目錄的 `preinstall` 只允許 pnpm。請在 Startup command 使用：
 
 ```bash
-npm install --omit=dev && node index.js
+cd /home/container/bot && npm ci --omit=dev && exec node index.js
 ```
 
-也可以將 `index.js` 設為 JS_FILE，然後從 Console 啟動。Wispbyte 官方建議將 Token 放在 Startup → Environment variables，不要提交 `.env` 或把 Token 寫入 Git。
+如果你只把 `bot/` 裡面的檔案上傳到 `/home/container`，才使用：
+
+```bash
+npm ci --omit=dev && exec node index.js
+```
+
+使用自訂 Startup command 時，不需要依賴預設的 `JS_FILE`；如果面板仍要求填寫，填 `bot/index.js`。Wispbyte 官方建議將 Token 放在 Startup → Environment variables，不要提交 `.env` 或把 Token 寫入 Git。
 
 ## Discord Developer Portal
 

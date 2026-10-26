@@ -89,6 +89,12 @@ Pages Functions 必須放在 repository root 的 `functions/` 目錄，而非前
 npm install --omit=dev && node index.js
 ```
 
-部署時將 `bot/` 目錄內容放在伺服器根目錄，並在 Wispbyte Startup → Environment variables 設定 `BOT_TOKEN`、`DISCORD_APPLICATION_ID`、`DISCORD_GUILD_ID`、`ANNOUNCEMENT_CHANNEL_ID`、`FUMO_API_BASE_URL` 等變數。不要上傳 `bot/.env` 或把 Bot Token 寫入 Git。
+部署時若是把整個 repo 放在 Wispbyte 的 `/home/container`，Startup command 必須進入 Bot 子目錄，避免觸發網站根目錄只允許 pnpm 的 `preinstall`：
+
+```bash
+cd /home/container/bot && npm ci --omit=dev && exec node index.js
+```
+
+若只上傳 `bot/` 內容到 `/home/container`，才使用 `npm ci --omit=dev && exec node index.js`。並在 Wispbyte Startup → Environment variables 設定 `BOT_TOKEN`、`DISCORD_APPLICATION_ID`、`DISCORD_GUILD_ID`、`ANNOUNCEMENT_CHANNEL_ID`、`FUMO_API_BASE_URL` 等變數。不要上傳 `bot/.env` 或把 Bot Token 寫入 Git。
 
 第一次啟動前，請在 Discord Developer Portal 啟用 Server Members Intent；`/身分組檢查` 會用它讀取 Server 成員。Bot 至少需要公告頻道的 View Channel、Send Messages、Embed Links 與 Read Message History 權限。現階段身分組功能只做比對，不會自動修改成員角色。
