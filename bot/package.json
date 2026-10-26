@@ -11,6 +11,7 @@
     "node": ">=20"
   },
   "dependencies": {
-    "discord.js": "^14.25.1"
+    "discord.js": "^14.25.1",
+    "dotenv": "^16.6.1"
   }
 }
