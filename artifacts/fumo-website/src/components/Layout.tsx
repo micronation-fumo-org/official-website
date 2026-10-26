@@ -373,6 +373,7 @@ export function Layout({ children }: LayoutProps) {
                 <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>{isEnglish ? "Website by FUMO & Dam Curry Rice" : "FUMO × 蛋包咖哩飯"}</span>
               </a>
+              {isAdmin && <Link href="/bot-admin" className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary-foreground/15 px-3 py-1.5 font-medium text-primary-foreground/80 transition-colors hover:border-secondary/60 hover:bg-secondary/10 hover:text-secondary"><Shield className="h-3.5 w-3.5" aria-hidden="true" /><span>{isEnglish ? "Discord Bot admin" : "Discord Bot 後台"}</span></Link>}
             </div>
           </div>
         </div>
