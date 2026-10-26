@@ -184,6 +184,8 @@ async function verifyMember(member) {
   const verifiedRole = member.guild.roles.cache.get(VERIFIED_ROLE_ID) || await member.guild.roles.fetch(VERIFIED_ROLE_ID).catch(() => null);
   if (!verifiedRole) return { ok: false, reason: "verified_role_not_found", roleId: VERIFIED_ROLE_ID, countryName: registration.countryName };
   await member.roles.add(role, "FUMO Discord 驗證");
+  const oppositeRoleId = status === "member" ? OBSERVER_ROLE_ID : MEMBER_ROLE_ID;
+  if (oppositeRoleId && member.roles.cache.has(oppositeRoleId)) await member.roles.remove(oppositeRoleId, "FUMO Discord 驗證：移除不符合目前國家狀態的身分組");
   await member.roles.add(verifiedRole, "FUMO Discord 驗證完成");
   return { ok: true, countryName: registration.countryName, roleName: role.name, verifiedRoleName: verifiedRole.name };
 }
