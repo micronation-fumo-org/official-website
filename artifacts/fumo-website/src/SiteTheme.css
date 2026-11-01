@@ -201,6 +201,11 @@
 .fumo-route-body .container:not([class*="max-w-"]) {
   max-width: var(--site-content-max) !important;
 }
+.fumo-route-body .container.fumo-admin-container {
+  max-width: var(--site-content-max) !important;
+  padding-left: clamp(16px, 2vw, 24px) !important;
+  padding-right: clamp(16px, 2vw, 24px) !important;
+}
 .fumo-route-body .container.max-w-md {
   max-width: 560px !important;
   padding-left: var(--site-gutter) !important;

@@ -215,7 +215,7 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-muted/20 py-12">
-      <div className="container mx-auto px-4 max-w-5xl">
+      <div className="container mx-auto px-4 fumo-admin-container">
         <div className="mb-8 flex items-start justify-between flex-wrap gap-3">
           <div>
             <h1 className="H1">
