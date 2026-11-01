@@ -218,7 +218,7 @@ export default function Admin() {
       <div className="container mx-auto px-4 max-w-5xl">
         <div className="mb-8 flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-primary flex items-start gap-2 leading-tight">
+            <h1 className="H1">
               <Shield className="w-6 h-6 shrink-0 mt-1" />
               <span className="break-words"><span className="block sm:inline">{isEnglish ? "Welcome back, " : "歡迎回來，"}</span><span className="block sm:inline">{user!.voterName}</span></span>
             </h1>
