@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { AlertTriangle, KeyRound, Link2, MessageCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import './css/styles.css'
 
 export default function Login() {
   const { isEnglish } = useLanguage();
@@ -132,23 +133,23 @@ export default function Login() {
             {discordMessage && <div className={`flex items-start gap-2 rounded-md p-3 ${discordResult === "login" || discordResult === "connected" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`} role="alert"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span className="text-sm">{discordMessage}</span></div>}
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label htmlFor="login-id" className="block text-sm font-medium mb-1">{isEnglish ? "Registration ID" : "註冊 ID（Discord ID）"}</label>
+                <label htmlFor="login-id" className="Label">{isEnglish ? "Registration ID" : "註冊 ID（Discord ID）"}</label>
                 <Input id="login-id" value={voterId} onChange={event => setVoterId(event.target.value)} placeholder={isEnglish ? "Enter your registration ID" : "輸入註冊名單中的 ID"} autoComplete="username" />
               </div>
               <div>
-                <label htmlFor="login-password" className="block text-sm font-medium mb-1">{isEnglish ? "Password" : "密碼"}</label>
+                <label htmlFor="login-password" className="Label">{isEnglish ? "Password" : "密碼"}</label>
                 <Input id="login-password" type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder={isEnglish ? "Enter your password" : "輸入密碼"} autoComplete="current-password" />
               </div>
               {error && <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md" role="alert"><AlertTriangle className="w-4 h-4 shrink-0" /><span className="text-sm">{error}</span></div>}
-              <Button type="submit" disabled={loading} className="w-full min-h-11 bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button type="submit" disabled={loading} className="Button-hollow">
                 {loading ? (isEnglish ? "Signing in..." : "登入中…") : (isEnglish ? "Sign in with ID and password" : "使用 ID 與密碼登入")}
               </Button>
             </form>
             <div className="relative py-1" aria-hidden="true"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div><div className="relative flex justify-center"><span className="bg-white px-2 text-xs text-muted-foreground">{isEnglish ? "OR" : "或"}</span></div></div>
-            <Button type="button" variant="outline" onClick={startGoogle} className="w-full min-h-11 gap-2">
+            <Button type="button" variant="outline" onClick={startGoogle} className="Button-solid">
               <Link2 className="w-4 h-4" />{user ? (isEnglish ? "Connect Google account" : "連接 Google 帳戶") : (isEnglish ? "Continue with Google" : "使用 Google 帳戶登入")}
             </Button>
-            <Button type="button" variant="outline" onClick={startDiscord} className="w-full min-h-11 gap-2">
+            <Button type="button" variant="outline" onClick={startDiscord} className="Button-solid">
               <MessageCircle className="w-4 h-4" />{user ? (isEnglish ? "Connect Discord account" : "連接 Discord 帳戶") : (isEnglish ? "Continue with Discord" : "使用 Discord 登入")}
             </Button>
             <p className="text-center text-xs text-muted-foreground">

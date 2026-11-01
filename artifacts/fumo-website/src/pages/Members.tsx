@@ -143,8 +143,8 @@ export default function Members() {
     <div className="min-h-screen bg-muted/20 py-12">
       <div className="container mx-auto px-4">
         <div className="mb-10 text-center">
-          <h1 className="text-4xl font-bold text-primary mb-4">{isEnglish ? "Member and Observer States" : "成員國及觀察國"}</h1>
-          <p className="text-foreground/70 max-w-2xl mx-auto mb-6">
+          <h1 className="H1">{isEnglish ? "Member and Observer States" : "成員國及觀察國"}</h1>
+          <p className="P-subtitle">
             {isEnglish ? "A directory of FUMO member and observer states. Our diverse political entities work together for peace and cooperation." : "聯合微國家組織的正式成員國及觀察國名錄。本組織由多元的政治實體組成，共同致力於和平與合作。"}
           </p>
           <div className="inline-flex items-center gap-3 flex-wrap justify-center mb-4">
@@ -170,7 +170,7 @@ export default function Members() {
             </Button>
           </div>
           {data?.lastUpdated && (
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="P-tini">
               {isEnglish ? "Last updated:" : "上次更新"} {new Date(data.lastUpdated).toLocaleString("zh-TW")}
             </p>
           )}
@@ -181,21 +181,21 @@ export default function Members() {
           <Button
             variant={activeTab === "all" ? "default" : "outline"}
             onClick={() => setActiveTab("all")}
-            className={activeTab === "all" ? "bg-primary text-primary-foreground" : ""}
+            className={activeTab === "all" ? "Button-switcher" : ""}
           >
             {isEnglish ? "All" : "全部"} ({allStates.length})
           </Button>
           <Button
             variant={activeTab === "member" ? "default" : "outline"}
             onClick={() => setActiveTab("member")}
-            className={activeTab === "member" ? "bg-primary text-primary-foreground" : ""}
+            className={activeTab === "member" ? "Button-switcher" : ""}
           >
             {isEnglish ? "Member states" : "成員國"} ({memberStates.length})
           </Button>
           <Button
             variant={activeTab === "observer" ? "default" : "outline"}
             onClick={() => setActiveTab("observer")}
-            className={activeTab === "observer" ? "bg-primary text-primary-foreground" : ""}
+            className={activeTab === "observer" ? "Button-switcher" : ""}
           >
             {isEnglish ? "Observer states" : "觀察國"} ({observerStates.length})
           </Button>
@@ -209,11 +209,11 @@ export default function Members() {
               placeholder={isEnglish ? "Search nations, government type, or leaders..." : "搜尋國家名稱、政體或元首..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-14 text-base bg-white shadow-sm border-border/50 focus-visible:ring-secondary"
+              className="pl-10 h-14 text-base bg-white shadow-sm border-border/50 rounded-full focus-visible:ring-secondary"
             />
           </div>
           {searchQuery && (
-            <p className="text-sm text-muted-foreground mt-2 px-1">
+            <p className="P-tini">
               {isEnglish ? `${filteredMembers.length} results found` : `找到 ${filteredMembers.length} 個結果`}
             </p>
           )}
