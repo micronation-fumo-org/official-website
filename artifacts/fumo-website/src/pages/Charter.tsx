@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink, BookOpen } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { charterUrlEn, charterUrlZh } from "@/data/regulations";
+import "./css/styles.css";
 
 function escapeHtml(value: string): string {
   return value
@@ -123,10 +124,10 @@ export default function Charter() {
     <div className="min-h-screen bg-muted/10 py-12">
       <div className="container mx-auto px-4 max-w-5xl">
         <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold text-primary mb-4">
+          <h1 className="H1">
             {isEnglish ? "Charter of the Federation of United Micronations Organisation" : "聯合微國家組織憲章"}
           </h1>
-          <p className="text-foreground/70 mb-6 max-w-3xl mx-auto">
+          <p className="P-subtitle">
             {isEnglish
               ? "The complete Version VII Charter, including the articles, amendment history and supplementary provisions adopted at the 37th Regular Conference."
               : "第七版《聯合微國家組織憲章》完整內容，包含正式條文、憲章修改歷史及第三十七次組織例會通過的附章。"}
@@ -141,7 +142,7 @@ export default function Charter() {
         </div>
 
         <article
-          className="bg-white rounded-lg shadow-sm border border-border/60 overflow-hidden p-5 sm:p-8 lg:p-12 prose prose-slate max-w-none prose-headings:text-primary prose-h1:text-center prose-h1:text-3xl prose-h2:border-l-4 prose-h2:border-secondary prose-h2:pl-4 prose-h2:py-1 prose-h2:mt-12 prose-h3:text-xl prose-h3:mt-8 prose-p:leading-8 prose-blockquote:border-secondary prose-blockquote:bg-muted/40 prose-blockquote:rounded-r-md prose-table:text-sm"
+          className="Article-base"
           dangerouslySetInnerHTML={{ __html: markdownToHtml(document) }}
         />
       </div>

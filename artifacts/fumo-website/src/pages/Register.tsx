@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiFetch, googleOAuthStartUrl } from "@/lib/api";
+import './css/styles.css'
 
 export default function Register() {
   const { isEnglish } = useLanguage();
@@ -91,16 +92,16 @@ export default function Register() {
                 <form onSubmit={handleIdRegister} className="space-y-4">
                   <h2 className="text-sm font-semibold">{isEnglish ? "Register with ID and password" : "使用 ID 與密碼註冊"}</h2>
                   <div>
-                    <label htmlFor="register-id" className="block text-sm font-medium mb-1">{isEnglish ? "Registration ID (Discord ID)" : "註冊 ID（Discord ID）"}</label>
+                    <label htmlFor="register-id" className="Label">{isEnglish ? "Registration ID (Discord ID)" : "註冊 ID（Discord ID）"}</label>
                     <Input id="register-id" value={voterId} onChange={event => setVoterId(event.target.value)} placeholder={isEnglish ? "Enter your registration ID" : "輸入註冊名單中的 ID"} autoComplete="username" inputMode="numeric" />
                     <p className="text-xs text-muted-foreground mt-1">{isEnglish ? "Your ID must be listed in the official registration sheet. Registration does not automatically grant voting eligibility." : "ID 必須在官方註冊名單內；完成註冊不代表自動取得投票資格。"}</p>
                   </div>
                   <div>
-                    <label htmlFor="register-password" className="block text-sm font-medium mb-1">{isEnglish ? "Set password" : "設定密碼"}</label>
+                    <label htmlFor="register-password" className="Label">{isEnglish ? "Set password" : "設定密碼"}</label>
                     <Input id="register-password" type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder={isEnglish ? "At least 4 characters" : "至少 4 個字元"} autoComplete="new-password" />
                   </div>
                   <div>
-                    <label htmlFor="register-confirm-password" className="block text-sm font-medium mb-1">{isEnglish ? "Confirm password" : "確認密碼"}</label>
+                    <label htmlFor="register-confirm-password" className="Label">{isEnglish ? "Confirm password" : "確認密碼"}</label>
                     <Input id="register-confirm-password" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder={isEnglish ? "Enter the password again" : "再次輸入密碼"} autoComplete="new-password" />
                   </div>
                   {error && <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md" role="alert"><AlertTriangle className="w-4 h-4 shrink-0" /><span className="text-sm">{error}</span></div>}

@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiFetch } from "@/lib/api";
 import { toChineseError } from "@/lib/errorMessage";
+import "./css/styles.css";
 
 interface AttendanceRecord {
   countryName: string;
@@ -147,8 +148,8 @@ export default function Attendance() {
       <div className="mb-7 flex items-start gap-3">
         <div className="rounded-lg bg-primary/10 p-2.5 text-primary"><ClipboardCheck className="h-6 w-6" /></div>
         <div>
-          <h1 className="text-2xl font-bold text-primary sm:text-3xl">{isEnglish ? "Attendance" : "出席簽到"}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{isEnglish ? "Attendance sessions are independent from ballots. Each member or observer state may check in once per session." : "出席場次與投票議案分開管理；成員國與觀察國每場各可簽到一次，不會產生或影響選票。"}</p>
+          <h1 className="H1">{isEnglish ? "Attendance" : "出席簽到"}</h1>
+          <p className="P-subtitle">{isEnglish ? "Attendance sessions are independent from ballots. Each member or observer state may check in once per session." : "出席場次與投票議案分開管理；成員國與觀察國每場各可簽到一次，不會產生或影響選票。"}</p>
         </div>
       </div>
 
@@ -171,7 +172,7 @@ export default function Attendance() {
       <div className="grid gap-6 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.4fr)]">
         <section aria-label={isEnglish ? "Attendance sessions" : "出席場次清單"}>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-lg font-semibold text-primary">{isEnglish ? "Sessions" : "場次"}</h2>
+            <h2 className="H2">{isEnglish ? "Sessions" : "場次"}</h2>
             <Badge variant="secondary">{sessions.length}</Badge>
           </div>
           {sessionsQuery.isLoading ? (
@@ -187,7 +188,7 @@ export default function Attendance() {
                   <CardContent className="p-4">
                     <div className="mb-3 flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <h3 className="break-words font-semibold text-primary">{session.title}</h3>
+                        <h3 className="H3">{session.title}</h3>
                         <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays className="h-3.5 w-3.5 shrink-0" />{formatDate(session.eventDate, isEnglish)}</p>
                       </div>
                       <Badge variant={session.isOpen ? "default" : "secondary"} className="shrink-0">{sessionStateLabel(session.isOpen)}</Badge>

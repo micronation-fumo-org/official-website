@@ -132,7 +132,7 @@ function renderPage(title, articleHtml, created) {
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
   <title>${safeTitle}｜FUMO 文件分享</title>
   <style>
-    :root{color-scheme:light;--navy:#00334d;--gold:#d9af53;--ink:#00334d;--muted:#64748b;--line:#e7ebf1;--paper:#fff;--canvas:#fff;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;color:var(--ink)}
+    :root{color-scheme:light;--navy:#00334d;--gold:var(--gold);--ink:#00334d;--muted:var(--muted);--line:#e7ebf1;--paper:#fff;--canvas:#fff;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;color:var(--ink)}
     *{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--canvas);color:var(--ink)}a{color:var(--navy)}
     .bar{min-height:66px;background:#fff;color:var(--navy);display:flex;align-items:center;padding:12px max(20px,calc((100vw - 1040px)/2));gap:13px;border-bottom:1px solid var(--line)}
     .brand{display:flex;align-items:center;gap:10px;color:var(--navy);text-decoration:none;font-weight:700}.brand img{width:37px;height:37px;border:1px solid rgba(0,51,77,.12);border-radius:4px;object-fit:cover}

@@ -1,0 +1,63 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+    --radius: 0.5rem;
+}
+
+.H1 {
+    @apply text-4xl font-bold text-primary mb-4
+}
+.H2 {
+    @apply text-3xl md:text-4xl font-bold text-primary mb-6
+}
+.H3 {
+    @apply text-xl font-bold text-primary mb-3
+}
+.H3-intitle{
+    @apply text-xl font-bold text-primary-foreground
+}
+
+.P {
+    @apply text-foreground/80 leading-relaxed
+}
+.P-subtitle {
+    @apply text-foreground/70 max-w-2xl mx-auto mb-6
+}
+.P-intitle {
+    @apply text-primary-foreground/80 text-sm
+}
+.P-incontent {
+    @apply text-foreground/80 mb-4
+}
+.P-tini {
+    @apply text-xs text-muted-foreground mt-2
+}
+.P-remainder {
+    @apply text-xs text-muted-foreground mt-1
+}
+
+.Button-hollow {
+    @apply border-primary text-primary min-w-[200px] h-14 text-lg text-white rounded-full transition-colors duration-200 hover:bg-primary/90;
+}
+.Button-solid {
+    @apply border-secondary text-secondary hover:border-secondary/5 min-w-[200px] h-14 text-lg rounded-full transition-colors duration-200 hover:bg-secondary/5;
+}
+.Button-solid-white {
+    @apply border-primary-foreground text-primary-foreground min-w-[200px] h-14 text-lg rounded-full transition-colors duration-200 hover:text-primary hover:bg-primary-foreground;
+}
+.Button-switcher {
+    @apply bg-primary text-primary-foreground
+}
+
+.Label {
+    @apply block text-sm font-medium mb-1
+}
+
+.Div-base {
+    @apply rounded-xl border text-card-foreground shadow mb-8 border-border/60 bg-white
+}
+
+.Article-base {
+    @apply bg-white rounded-lg shadow-sm border border-border/60 overflow-hidden p-5 sm:p-8 lg:p-12 prose prose-slate max-w-none prose-headings:text-primary prose-h1:text-center prose-h1:text-3xl prose-h2:border-l-4 prose-h2:border-secondary prose-h2:pl-4 prose-h2:py-1 prose-h2:mt-12 prose-h3:text-xl prose-h3:mt-8 prose-p:leading-8 prose-blockquote:border-secondary prose-blockquote:bg-muted/40 prose-blockquote:rounded-r-md prose-table:text-sm
+}

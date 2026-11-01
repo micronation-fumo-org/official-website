@@ -67,7 +67,7 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  /* FUMO Colors: Blue (#00334D) -> 200 100% 15%, Yellow (#D9AF53) -> 41 64% 59% */
+  /* FUMO Colors: Blue (#00334D) -> 200 100% 15%, Yellow (var(--gold)) -> 41 64% 59% */
   --background: 0 0% 100%;
   --foreground: 200 100% 15.1%;
   --border: 214 32% 91%;

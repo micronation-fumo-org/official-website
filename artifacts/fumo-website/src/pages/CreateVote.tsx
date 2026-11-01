@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import './css/styles.css'
 
 type PublishMode = "immediate" | "draft" | "scheduled";
 
@@ -138,7 +139,7 @@ export default function CreateVote() {
       <div className="min-h-screen bg-muted/20 py-12 flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-primary mb-2">{isEnglish ? "Administrator permission required" : "需要管理員權限"}</h2>
+          <h2 className="H2">{isEnglish ? "Administrator permission required" : "需要管理員權限"}</h2>
           <p className="text-muted-foreground mb-4">{isEnglish ? "Only administrators can create votes." : "只有管理員才能建立投票。"}</p>
           <Link href="/votes">
             <Button variant="outline">{isEnglish ? "Back to voting" : "返回投票列表"}</Button>
@@ -151,8 +152,8 @@ export default function CreateVote() {
   return (
     <div className="min-h-screen bg-muted/20 py-6 sm:py-12">
       <div className="container mx-auto px-3 sm:px-4 max-w-2xl">
-        <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">{isEnglish ? "Create vote" : "創建投票 Create Vote"}</h1>
-        <p className="text-muted-foreground mb-5 sm:mb-8">
+        <h1 className="H1">{isEnglish ? "Create vote" : "創建投票 Create Vote"}</h1>
+        <p className="P-subtitle">
           {isEnglish ? "Set up a new vote for member-state representatives." : "設定一個新的投票，讓成員國代表進行投票。"}
         </p>
 
@@ -201,7 +202,7 @@ export default function CreateVote() {
                 placeholder={isEnglish ? "e.g. 12" : "例如：12"}
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="P-remainder">
                 {isEnglish ? "Closed votes will be grouped under this meeting on the voting page." : "投票結束後，會在投票列表歸入該次例行大會的獨立分區。"}
               </p>
             </div>
@@ -217,21 +218,21 @@ export default function CreateVote() {
                   <RadioGroupItem id="publish-immediate" value="immediate" className="mt-1 h-5 w-5" />
                   <div className="min-w-0 flex-1">
                     <Label htmlFor="publish-immediate" className="cursor-pointer break-words">{isEnglish ? "Publish now" : "立即公開"}</Label>
-                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "The vote becomes visible and opens immediately." : "建立後立即公開並開放投票。"}</p>
+                    <p className="P-remainder">{isEnglish ? "The vote becomes visible and opens immediately." : "建立後立即公開並開放投票。"}</p>
                   </div>
                 </div>
                 <div onClick={() => setPublishMode("draft")} className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors focus-within:ring-2 focus-within:ring-primary/30 sm:p-4 ${publishMode === "draft" ? "border-primary bg-primary/5" : "border-border"}`}>
                   <RadioGroupItem id="publish-draft" value="draft" className="mt-1 h-5 w-5" />
                   <div className="min-w-0 flex-1">
                     <Label htmlFor="publish-draft" className="cursor-pointer break-words">{isEnglish ? "Save as draft" : "儲存為草稿"}</Label>
-                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Only administrators can see it until you publish it." : "草稿僅管理員可見；準備好後可從投票詳情手動發布。"}</p>
+                    <p className="P-remainder">{isEnglish ? "Only administrators can see it until you publish it." : "草稿僅管理員可見；準備好後可從投票詳情手動發布。"}</p>
                   </div>
                 </div>
                 <div onClick={() => setPublishMode("scheduled")} className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors focus-within:ring-2 focus-within:ring-primary/30 sm:p-4 ${publishMode === "scheduled" ? "border-primary bg-primary/5" : "border-border"}`}>
                   <RadioGroupItem id="publish-scheduled" value="scheduled" className="mt-1 h-5 w-5" />
                   <div className="min-w-0 flex-1">
                     <Label htmlFor="publish-scheduled" className="cursor-pointer break-words">{isEnglish ? "Schedule a start" : "預約開始時間"}</Label>
-                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "It is publicly listed as upcoming, then voting opens automatically at the chosen time." : "開始前會公開顯示為「即將開始」，到指定時間自動開放投票。"}</p>
+                    <p className="P-remainder">{isEnglish ? "It is publicly listed as upcoming, then voting opens automatically at the chosen time." : "開始前會公開顯示為「即將開始」，到指定時間自動開放投票。"}</p>
                   </div>
                 </div>
               </RadioGroup>
@@ -245,7 +246,7 @@ export default function CreateVote() {
                     onChange={(e) => setStartsAt(e.target.value)}
                     className="mt-1 w-full min-w-0"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Uses your device's local time." : "依照此裝置的本地時間設定。"}</p>
+                  <p className="mt-1 P-remainder">{isEnglish ? "Uses your device's local time." : "依照此裝置的本地時間設定。"}</p>
                 </div>
               )}
             </div>
