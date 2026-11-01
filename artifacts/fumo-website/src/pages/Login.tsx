@@ -120,7 +120,7 @@ export default function Login() {
       <div className="container mx-auto px-4 max-w-md">
         <Card className="border-border/60 bg-white shadow-sm">
           <CardHeader className="text-center">
-            <h1 className="text-2xl font-bold text-primary flex items-center justify-start gap-2">
+            <h1 className="text-2xl font-bold text-primary flex items-center justify-center gap-2 text-center">
               <KeyRound className="w-6 h-6" />{isEnglish ? "Sign in to FUMO" : "登入 FUMO 帳戶"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -141,15 +141,15 @@ export default function Login() {
                 <Input id="login-password" type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder={isEnglish ? "Enter your password" : "輸入密碼"} autoComplete="current-password" />
               </div>
               {error && <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md" role="alert"><AlertTriangle className="w-4 h-4 shrink-0" /><span className="text-sm">{error}</span></div>}
-              <Button type="submit" disabled={loading} className="Button-hollow">
+              <Button type="submit" disabled={loading} className="Button-hollow w-full justify-center">
                 {loading ? (isEnglish ? "Signing in..." : "登入中…") : (isEnglish ? "Sign in with ID and password" : "使用 ID 與密碼登入")}
               </Button>
             </form>
             <div className="relative py-1" aria-hidden="true"><div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div><div className="relative flex justify-center"><span className="bg-white px-2 text-xs text-muted-foreground">{isEnglish ? "OR" : "或"}</span></div></div>
-            <Button type="button" variant="outline" onClick={startGoogle} className="Button-solid">
+            <Button type="button" variant="outline" onClick={startGoogle} className="Button-solid w-full justify-center">
               <Link2 className="w-4 h-4" />{user ? (isEnglish ? "Connect Google account" : "連接 Google 帳戶") : (isEnglish ? "Continue with Google" : "使用 Google 帳戶登入")}
             </Button>
-            <Button type="button" variant="outline" onClick={startDiscord} className="Button-solid">
+            <Button type="button" variant="outline" onClick={startDiscord} className="Button-solid w-full justify-center">
               <MessageCircle className="w-4 h-4" />{user ? (isEnglish ? "Connect Discord account" : "連接 Discord 帳戶") : (isEnglish ? "Continue with Discord" : "使用 Discord 登入")}
             </Button>
             <p className="text-center text-xs text-muted-foreground">
