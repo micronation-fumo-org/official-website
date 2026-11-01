@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { BookOpen, Users, Scale, Shield, Globe, Award } from "lucide-react";
+import './css/styles.css'
 
 export default function Home() {
   const { isEnglish } = useLanguage();
@@ -35,7 +36,7 @@ export default function Home() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="mb-10"
           >
-            <div className="relative p-2 rounded-sm shadow-2xl border border-border/50">
+            <div>
               <img 
                 src="/fumo-flag.png" 
                 alt="FUMO Flag" 
@@ -83,17 +84,17 @@ export default function Home() {
             className="flex flex-col sm:flex-row gap-4"
           >
             <Link href="/members">
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-white min-w-[200px] h-14 text-lg">
+              <Button size="lg" className="Button-hollow">
                 {isEnglish ? "Explore member states" : "探索成員國"}
               </Button>
             </Link>
             <Link href="/charter">
-              <Button size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/5 min-w-[200px] h-14 text-lg">
+              <Button size="lg" variant="outline" className="Button-solid">
                 {isEnglish ? "Read the charter" : "閱讀憲章"}
               </Button>
             </Link>
             <a href="https://discord.com/invite/MuSM3yXrQh" target="_blank" rel="noopener noreferrer">
-              <Button size="lg" variant="outline" className="border-secondary text-secondary hover:bg-secondary/5 min-w-[200px] h-14 text-lg">
+              <Button size="lg" variant="outline" className="Button-solid">
                 {isEnglish ? "Join Discord" : "加入 Discord"}
               </Button>
             </a>
@@ -114,7 +115,7 @@ export default function Home() {
               {isEnglish ? "Today, the organisation brings together nearly one hundred member and observer states across diverse political systems and cultural backgrounds." : "目前，組織擁有近百個成員國與觀察國，涵蓋多種政治體制與文化背景，展現了微國家社群的多元與活力。"}
             </p>
             <div className="mt-10 rounded-xl border border-secondary/30 bg-secondary/5 p-6 text-left">
-              <h3 className="text-xl font-bold text-primary mb-3">{isEnglish ? "Why FUMO was founded" : "組織創立初衷"}</h3>
+              <h3 className="H3">{isEnglish ? "Why FUMO was founded" : "組織創立初衷"}</h3>
               <p className="text-foreground/80 leading-relaxed mb-4">
                 {isEnglish ? "FUMO was founded to give micronations a fair, peaceful and constructive space for dialogue. By recognising the equal dignity of each participating entity, the organisation seeks to reduce misunderstanding, mediate disputes and turn a diverse micronational community into a lasting network of cooperation." : "聯合微國家組織成立的初衷，是為微國家建立一個公平、和平且具建設性的對話平台。透過尊重每個參與實體的平等地位，組織希望減少誤解、調解爭端，並將多元的微國家社群連結成持久合作的網絡。"}
               </p>
@@ -130,7 +131,7 @@ export default function Home() {
       <section className="py-24 bg-muted/50 border-y border-border/50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-primary mb-6">{isEnglish ? "Core pillars" : "核心支柱"}</h2>
+            <h2 className="H2">{isEnglish ? "Core pillars" : "核心支柱"}</h2>
             <div className="w-16 h-1 bg-secondary mx-auto" />
           </div>
 
@@ -153,7 +154,7 @@ export default function Home() {
                     <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
                       <pillar.icon className="w-8 h-8 text-primary" />
                     </div>
-                    <h3 className="text-xl font-bold mb-3 text-primary">{pillar.title}</h3>
+                    <h3 className="H3-intitle">{pillar.title}</h3>
                     <p className="text-foreground/70">{pillar.desc}</p>
                   </CardContent>
                 </Card>
@@ -167,7 +168,7 @@ export default function Home() {
       <section className="py-24 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-primary mb-6">{isEnglish ? "Main organs" : "主要機構"}</h2>
+            <h2 className="H2">{isEnglish ? "Main organs" : "主要機構"}</h2>
             <div className="w-16 h-1 bg-secondary mx-auto mb-6" />
             <p className="text-foreground/70 max-w-2xl mx-auto">{isEnglish ? "Under the FUMO Charter, three permanent organs support daily operations and decision-making." : "依據《聯合微國家組織憲章》，本組織設立三大常設機構以維持日常運作與決策。"}</p>
           </div>
@@ -175,7 +176,7 @@ export default function Home() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <Card className="overflow-hidden border-border/50 hover:border-secondary/50 transition-colors">
               <div className="bg-primary p-4 text-center">
-                <h3 className="text-xl font-bold text-primary-foreground">{isEnglish ? "Deliberation Center" : "議事中心"}</h3>
+                <h3 className="H3-intitle">{isEnglish ? "Deliberation Center" : "議事中心"}</h3>
                 <p className="text-primary-foreground/80 text-sm">Deliberation Center</p>
               </div>
               <CardContent className="p-6">
@@ -192,7 +193,7 @@ export default function Home() {
 
             <Card className="overflow-hidden border-border/50 hover:border-secondary/50 transition-colors">
               <div className="bg-primary p-4 text-center">
-                <h3 className="text-xl font-bold text-primary-foreground">{isEnglish ? "Secretariat" : "秘書處"}</h3>
+                <h3 className="H3-intitle">{isEnglish ? "Secretariat" : "秘書處"}</h3>
                 <p className="text-primary-foreground/80 text-sm">Secretariat</p>
               </div>
               <CardContent className="p-6">
@@ -209,7 +210,7 @@ export default function Home() {
 
             <Card className="overflow-hidden border-border/50 hover:border-secondary/50 transition-colors">
               <div className="bg-primary p-4 text-center">
-                <h3 className="text-xl font-bold text-primary-foreground">{isEnglish ? "Council" : "理事會"}</h3>
+                <h3 className="H3-intitle">{isEnglish ? "Council" : "理事會"}</h3>
                 <p className="text-primary-foreground/80 text-sm">Council</p>
               </div>
               <CardContent className="p-6">
@@ -230,18 +231,18 @@ export default function Home() {
       {/* Call to Action */}
       <section className="py-24 bg-primary text-primary-foreground text-center px-4">
         <div className="container mx-auto max-w-3xl">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6 text-white">{isEnglish ? "Join our community" : "加入我們的行列"}</h2>
+          <h2 className="H2 text-white">{isEnglish ? "Join our community" : "加入我們的行列"}</h2>
           <p className="text-xl text-white/80 mb-10">
             {isEnglish ? "Whether you represent an established micronation or a new sovereign entity, FUMO welcomes you to this diverse and inclusive international community." : "無論是成熟的微國家還是新興的主權實體，FUMO 都歡迎您加入這個多元、包容的國際社群。"}
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link href="/regulations">
-              <Button size="lg" className="bg-secondary hover:bg-secondary/90 text-primary font-bold min-w-[200px] h-14 text-lg">
+              <Button size="lg" className="Button-hollow">
                 {isEnglish ? "Review membership regulations" : "查閱入聯法規"}
               </Button>
             </Link>
             <Link href="/members">
-              <Button size="lg" variant="outline" className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary min-w-[200px] h-14 text-lg">
+              <Button size="lg" variant="outline" className="Button-solid-white">
                 {isEnglish ? "Browse current members" : "瀏覽現有成員"}
               </Button>
             </Link>
