@@ -34,3 +34,7 @@
 .Button-solid-white {
     @apply border-primary-foreground text-primary-foreground min-w-[200px] h-14 text-lg rounded-full transition-colors duration-200 hover:text-primary hover:bg-primary-foreground;
 }
+
+.Label-login {
+    @apply tblock text-sm font-medium mb-1
+}
