@@ -3,10 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import './css/styles.css'
 
 const acknowledgements = [
-  { name: "成田路", contribution: "購買網域" },
-  { name: "蛋包飯", contribution: "上架設立網站與協助處理網域問題、修改網站與新增功能" },
-  { name: "霖仙", contribution: "建立網站架構與設計" },
-  { name: "FUMO 秘書處", contribution: "許可與同意網站架設之情況" },
+  { name: "成田路", contribution: isEnglish ? "Purchase a domain name" : "購買網域" },
+  { name: "蛋包飯", contribution: isEnglish ? "Set up the website and assist with domain issues, modify the website and add new features" : "上架設立網站與協助處理網域問題、修改網站與新增功能" },
+  { name: "霖仙", contribution: isEnglish ? "Establish website structure and design" : "建立網站架構與設計" },
+  { name: "FUMO 秘書處", contribution: isEnglish ? "Provide approval and consent for website setup" : "許可與同意網站架設之情況" }, 
 ];
 
 export default function Acknowledgements() {
