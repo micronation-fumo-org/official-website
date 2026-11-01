@@ -2,7 +2,7 @@ import { toChineseError } from "@/lib/errorMessage";
 import { apiFetch, discordOAuthStartUrl, googleOAuthStartUrl } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AlertTriangle, KeyRound, Link2, MessageCircle } from "lucide-react";
@@ -120,9 +120,9 @@ export default function Login() {
       <div className="container mx-auto px-4 max-w-md">
         <Card className="border-border/60 bg-white shadow-sm">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-primary flex items-center justify-center gap-2">
+            <h1 className="text-2xl font-bold text-primary flex items-center justify-start gap-2">
               <KeyRound className="w-6 h-6" />{isEnglish ? "Sign in to FUMO" : "登入 FUMO 帳戶"}
-            </CardTitle>
+            </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {isEnglish ? "Sign in with your registration ID and password, or use Google if your account is linked." : "可使用註冊 ID 與密碼登入；已連結的 Google 帳戶也可登入。"}
             </p>

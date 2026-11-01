@@ -14,7 +14,7 @@ export default function Acknowledgements() {
     <div className="min-h-screen bg-muted/20 py-10 sm:py-12">
       <div className="container mx-auto max-w-4xl px-4">
         <div className="mb-8 text-center">
-          <div className="mb-3 flex items-center justify-center gap-2 text-secondary">
+          <div className="mb-3 flex items-center justify-start gap-2 text-secondary">
             <HeartHandshake className="h-6 w-6" />
             <span className="text-sm font-semibold tracking-wide">FUMO</span>
           </div>

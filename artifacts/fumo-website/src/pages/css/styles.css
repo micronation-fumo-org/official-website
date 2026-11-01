@@ -1,5 +1,4 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@reference "../../index.css";
 
 :root {
     --radius: 0.5rem;

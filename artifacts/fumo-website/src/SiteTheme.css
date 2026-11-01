@@ -1,0 +1,330 @@
+/* Shared editorial shell for every non-homepage route. The homepage keeps its dedicated approved stylesheet. */
+.fumo-inner-site {
+  --site-ink: #1d1d1f;
+  --site-muted: #6e6e73;
+  --site-line: #d2d2d7;
+  --site-paper: #fff;
+  --site-soft: #f5f5f7;
+  --site-blue: #00334d;
+  min-height: 100vh;
+  background: var(--site-paper);
+  color: var(--site-ink);
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.fumo-inner-site *,
+.fumo-inner-site *::before,
+.fumo-inner-site *::after { box-sizing: border-box; }
+.fumo-inner-site a { text-decoration: none; }
+.fumo-inner-site a:hover { color: var(--site-blue); }
+
+.fumo-shell-header {
+  position: sticky;
+  z-index: 50;
+  top: 0;
+  width: 100%;
+  border-bottom: 1px solid rgba(210, 210, 215, .82);
+  background: rgba(255, 255, 255, .94);
+  backdrop-filter: saturate(180%) blur(18px);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+}
+.fumo-shell-nav-inner {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(16px, 3vw, 38px);
+  width: min(100%, 1220px);
+  min-height: 58px;
+  height: auto !important;
+  margin: 0 auto;
+  padding-inline: clamp(22px, 5.6vw, 84px) !important;
+}
+.fumo-shell-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  flex: 0 0 auto;
+  transition: opacity .18s ease;
+}
+.fumo-shell-brand:hover { opacity: .78; }
+.fumo-shell-brand-mark {
+  color: var(--site-blue);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -.07em;
+}
+.fumo-shell-brand-name {
+  max-width: 270px;
+  padding-left: 11px;
+  border-left: 1px solid var(--site-line);
+  color: #424245;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fumo-shell-links {
+  display: none;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 1.7vw, 24px);
+}
+.fumo-shell-links > a,
+.fumo-shell-links > div > button {
+  color: #424245 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  white-space: nowrap;
+}
+.fumo-shell-links > a:hover,
+.fumo-shell-links > div > button:hover { color: var(--site-blue) !important; }
+.fumo-shell-links [role="menu"] {
+  border: 1px solid var(--site-line) !important;
+  border-radius: 3px !important;
+  background: #fff !important;
+  box-shadow: 0 8px 24px rgba(29, 29, 31, .08) !important;
+}
+.fumo-shell-links [role="menuitem"] { color: #424245 !important; font-size: 13px !important; }
+.fumo-shell-links [role="menuitem"]:hover { background: var(--site-soft) !important; color: var(--site-blue) !important; }
+.fumo-shell-actions {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+}
+.fumo-shell-actions button,
+.fumo-shell-actions a { font-size: 12px !important; }
+.fumo-shell-actions button[aria-label*="Switch"] { color: var(--site-blue) !important; }
+.fumo-shell-actions > div { display: flex; align-items: center; gap: 10px; }
+.fumo-shell-actions .bg-primary { background: var(--site-blue) !important; }
+.fumo-shell-actions .text-primary-foreground { color: #fff !important; }
+.fumo-shell-actions button { min-height: 32px !important; height: auto !important; padding: 5px 7px !important; border-color: transparent !important; border-radius: 3px !important; box-shadow: none !important; }
+.fumo-shell-actions button:hover { background: var(--site-soft) !important; color: var(--site-blue) !important; }
+.fumo-shell-menu-toggle {
+  display: inline-flex !important;
+  width: 34px;
+  height: 34px !important;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--site-ink) !important;
+  box-shadow: none !important;
+}
+.fumo-shell-mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px clamp(22px, 5.6vw, 84px) 20px !important;
+  border-top: 1px solid var(--site-line) !important;
+  background: rgba(255, 255, 255, .98) !important;
+  box-shadow: 0 10px 20px rgba(29, 29, 31, .06) !important;
+}
+.fumo-shell-mobile-menu > a,
+.fumo-shell-mobile-menu [role="menuitem"] {
+  padding: 9px 0 !important;
+  border-bottom: 1px solid #e7e7e9;
+  color: #424245 !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+.fumo-shell-mobile-menu button {
+  min-height: 38px !important;
+  height: auto !important;
+  justify-content: flex-start;
+  padding: 7px 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #424245 !important;
+  font-size: 14px !important;
+  box-shadow: none !important;
+}
+.fumo-shell-mobile-menu .border-y,
+.fumo-shell-mobile-menu .border-t { border-color: var(--site-line) !important; }
+.fumo-shell-mobile-menu .border-l { border-color: var(--site-line) !important; }
+.fumo-shell-mobile-menu .bg-primary { background: transparent !important; color: var(--site-blue) !important; }
+
+.fumo-route-main {
+  flex: 1 0 auto;
+  width: 100%;
+  background: var(--site-paper);
+  color: var(--site-ink);
+}
+.fumo-page-index {
+  width: 100%;
+  max-width: 1220px;
+  margin: 0;
+  padding: clamp(36px, 5.7vw, 72px) clamp(22px, 5.6vw, 84px) 0;
+  color: var(--site-muted);
+  font-size: 12px;
+  letter-spacing: .045em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.fumo-page-index::before {
+  display: inline-block;
+  width: 18px;
+  height: 1px;
+  margin: 0 12px 4px 0;
+  background: var(--site-blue);
+  content: "";
+}
+.fumo-page-index span:first-child { margin-right: 12px; color: var(--site-blue); }
+.fumo-route-body { width: 100%; }
+.fumo-route-body > :first-child {
+  min-height: 0 !important;
+  padding-top: 0 !important;
+  background-color: transparent !important;
+}
+.fumo-route-body > :first-child[class*="justify-center"] {
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+}
+.fumo-route-body .container {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: clamp(22px, 5.6vw, 84px) !important;
+  padding-right: clamp(22px, 5.6vw, 84px) !important;
+}
+.fumo-route-body .container.max-w-md {
+  max-width: 560px !important;
+  padding-left: clamp(22px, 5.6vw, 84px) !important;
+  padding-right: clamp(22px, 5.6vw, 84px) !important;
+}
+.fumo-route-body .container.max-w-lg {
+  max-width: 760px !important;
+  padding-left: clamp(22px, 5.6vw, 84px) !important;
+  padding-right: clamp(22px, 5.6vw, 84px) !important;
+}
+.fumo-route-body .text-center { text-align: left !important; }
+.fumo-route-body .mx-auto { margin-left: 0 !important; margin-right: 0 !important; }
+.fumo-route-body h1 {
+  margin-top: 0;
+  color: var(--site-ink) !important;
+  font-family: inherit !important;
+  font-size: clamp(35px, 4.6vw, 52px) !important;
+  font-weight: 600 !important;
+  letter-spacing: -.055em !important;
+  line-height: 1.12 !important;
+  text-align: left !important;
+}
+.fumo-route-body .container.max-w-md h1,
+.fumo-route-body .container.max-w-lg h1 {
+  font-size: clamp(27px, 3vw, 34px) !important;
+  letter-spacing: -.04em !important;
+  line-height: 1.16 !important;
+}
+.fumo-route-body h2 {
+  color: var(--site-ink) !important;
+  font-family: inherit !important;
+  font-weight: 550 !important;
+  letter-spacing: -.035em;
+}
+.fumo-route-body h3 { color: var(--site-ink) !important; font-family: inherit !important; font-weight: 550 !important; }
+.fumo-route-body [class*="text-foreground/70"],
+.fumo-route-body [class*="text-foreground/85"],
+.fumo-route-body [class*="text-muted-foreground"] { color: var(--site-muted); }
+.fumo-route-body [class*="text-secondary"] { color: var(--site-blue) !important; }
+.fumo-route-body [class*="bg-secondary/"] { background-color: rgba(0, 51, 77, .06) !important; }
+.fumo-route-body [class*="border-secondary"] { border-color: rgba(0, 51, 77, .36) !important; }
+.fumo-route-body [class*="shadow"] { box-shadow: none !important; }
+.fumo-route-body [class*="rounded-xl"],
+.fumo-route-body [class*="rounded-lg"],
+.fumo-route-body [class*="rounded-md"] { border-radius: 3px !important; }
+.fumo-route-body [class*="border-border"] { border-color: var(--site-line) !important; }
+.fumo-route-body [class*="border-primary"] { border-color: rgba(0, 51, 77, .35) !important; }
+.fumo-route-body a { font-size: max(13px, 1em); }
+.fumo-route-body button {
+  min-height: 36px;
+  height: auto;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 450;
+  box-shadow: none;
+}
+.fumo-route-body button.bg-primary,
+.fumo-route-body a.bg-primary {
+  background-color: var(--site-blue) !important;
+  color: #fff !important;
+}
+.fumo-route-body input,
+.fumo-route-body select,
+.fumo-route-body textarea {
+  border-color: var(--site-line) !important;
+  border-radius: 3px !important;
+  color: var(--site-ink);
+  font-family: inherit;
+  font-size: 14px;
+  box-shadow: none;
+}
+.fumo-route-body input:focus,
+.fumo-route-body select:focus,
+.fumo-route-body textarea:focus { border-color: var(--site-blue) !important; }
+.fumo-route-body :focus-visible { outline-color: rgba(0, 51, 77, .42); }
+
+.fumo-shell-footer {
+  margin-top: auto;
+  padding: 48px 0 26px !important;
+  border-top: 1px solid var(--site-line) !important;
+  background: var(--site-soft) !important;
+  color: var(--site-ink) !important;
+}
+.fumo-shell-footer-inner {
+  width: min(100%, 1220px);
+  margin: 0 auto;
+  padding-inline: clamp(22px, 5.6vw, 84px) !important;
+}
+.fumo-shell-footer h3,
+.fumo-shell-footer h4,
+.fumo-shell-footer h5 { color: var(--site-ink) !important; }
+.fumo-shell-footer h4 { font-size: 13px !important; font-weight: 500 !important; }
+.fumo-shell-footer p,
+.fumo-shell-footer a,
+.fumo-shell-footer span { color: var(--site-muted) !important; }
+.fumo-shell-footer a { font-size: 13px !important; }
+.fumo-shell-footer a:hover { color: var(--site-blue) !important; }
+.fumo-shell-footer [class*="rounded-xl"] {
+  border-color: var(--site-line) !important;
+  border-radius: 3px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.fumo-shell-footer .text-secondary { color: var(--site-blue) !important; }
+.fumo-shell-footer .fumo-shell-brand-mark { color: var(--site-blue) !important; }
+.fumo-shell-footer svg { color: var(--site-blue); }
+
+@media (min-width: 1024px) {
+  .fumo-shell-links { display: flex; }
+  .fumo-shell-actions { display: flex; }
+  .fumo-shell-menu-toggle,
+  .fumo-shell-mobile-menu { display: none !important; }
+}
+@media (max-width: 1023px) {
+  .fumo-shell-nav-inner { gap: 0; }
+  .fumo-shell-brand-name { max-width: 230px; }
+}
+@media (max-width: 620px) {
+  .fumo-shell-nav-inner { min-height: 54px; }
+  .fumo-shell-brand-name { max-width: 155px; font-size: 11px; }
+  .fumo-page-index { padding-top: 34px; }
+  .fumo-route-body .container { padding-left: 22px !important; padding-right: 22px !important; }
+  .fumo-route-body button { min-height: 40px; }
+  .fumo-shell-footer { padding-top: 36px !important; }
+  .fumo-shell-footer-inner { padding-inline: 22px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fumo-inner-site *, .fumo-inner-site *::before, .fumo-inner-site *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

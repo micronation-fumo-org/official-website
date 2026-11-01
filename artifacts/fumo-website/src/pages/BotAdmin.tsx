@@ -37,7 +37,7 @@ export default function BotAdmin() {
   };
 
   if (!isAdmin) {
-    return <div className="min-h-screen bg-muted/20 py-12"><div className="container mx-auto max-w-lg px-4"><Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5" />Bot 管理後台</CardTitle></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{user ? "您沒有管理員權限。" : "請先登入管理員帳戶。"}</p>{!user && <Link href="/login"><Button className="w-full"><LogIn className="mr-2 h-4 w-4" />前往登入</Button></Link>}</CardContent></Card></div></div>;
+    return <div className="min-h-screen bg-muted/20 py-12"><div className="container mx-auto max-w-lg px-4"><Card><CardHeader><h1 className="flex items-center gap-2 text-lg font-semibold text-primary"><ShieldAlert className="h-5 w-5" />Bot 管理後台</h1></CardHeader><CardContent className="space-y-4"><p className="text-sm text-muted-foreground">{user ? "您沒有管理員權限。" : "請先登入管理員帳戶。"}</p>{!user && <Link href="/login"><Button className="w-full"><LogIn className="mr-2 h-4 w-4" />前往登入</Button></Link>}</CardContent></Card></div></div>;
   }
 
   const channelOptions = channels.data?.channels ?? [];

@@ -90,13 +90,14 @@
 
 .fumo-section { padding: clamp(62px, 8vw, 102px) 0; }
 .fumo-section-soft { background: var(--fumo-soft); }
-.fumo-section-head { display: grid; grid-template-columns: minmax(180px, .58fr) 1fr; gap: 46px; margin-bottom: 43px; align-items: start; }
+.fumo-section-head { display: grid; grid-template-columns: 1fr; gap: 17px; margin-bottom: 43px; align-items: start; }
 .fumo-section-index { display: flex; gap: 13px; align-items: center; margin: 3px 0 0; color: var(--fumo-muted); font-size: 12px; letter-spacing: .04em; }
 .fumo-section-index::before { content: ""; width: 18px; height: 1px; background: var(--fumo-blue); }
+.fumo-join .fumo-section-index::before { background: #b2e9ff; }
 .fumo-section h2, .fumo-join h2 { margin: 0; color: inherit; font-size: clamp(33px, 4.1vw, 48px); font-weight: 600; line-height: 1.14; letter-spacing: -.05em; }
 .fumo-section h3 { margin: 0; font-size: 20px; font-weight: 550; letter-spacing: -.025em; line-height: 1.3; }
-.fumo-section-intro { max-width: 700px; margin: 17px 0 0; color: #515154; font-size: 17px; line-height: 1.72; }
-.fumo-about-grid { margin-left: 226px; }
+.fumo-section-intro { max-width: 700px; margin: 0; color: #515154; font-size: 17px; line-height: 1.72; }
+.fumo-about-grid { margin-left: 0; }
 .fumo-about-label { color: var(--fumo-muted); font-size: 13px; }
 .fumo-about-copy { max-width: 740px; }
 .fumo-about-copy p { margin: 0 0 18px; color: #424245; }
@@ -152,8 +153,7 @@
   .fumo-nav-actions { gap: 15px; }
   .fumo-hero-grid { grid-template-columns: minmax(0, 1fr); gap: 30px; }
   .fumo-hero-aside { padding: 0 0 0 18px; }
-  .fumo-section-head, .fumo-join-grid { grid-template-columns: 160px 1fr; gap: 30px; }
-  .fumo-about-grid { margin-left: 190px; }
+  .fumo-join-grid { grid-template-columns: 160px 1fr; gap: 30px; }
   .fumo-pillar-grid { grid-template-columns: repeat(2, 1fr); }
   .fumo-pillar:nth-child(3) { padding-left: 0; border-left: 0; }
   .fumo-organ-grid { grid-template-columns: 1fr; }
@@ -174,7 +174,7 @@
   .fumo-hero-aside { padding: 0 0 0 18px; }
   .fumo-hero-stat { font-size: 66px; }
   .fumo-stat-caption { max-width: 280px; }
-  .fumo-section-head, .fumo-join-grid { grid-template-columns: 1fr; gap: 20px; }
+  .fumo-join-grid { grid-template-columns: 1fr; gap: 20px; }
   .fumo-about-grid { margin-left: 0; }
   .fumo-section-head { margin-bottom: 31px; }
   .fumo-pillar-grid { grid-template-columns: 1fr; }

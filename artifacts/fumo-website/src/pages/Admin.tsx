@@ -178,10 +178,10 @@ export default function Admin() {
         <div className="container mx-auto px-4 max-w-lg">
           <Card className="Div-base">
             <CardHeader>
-              <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
+              <h1 className="text-lg font-bold text-primary flex items-center gap-2">
                 <Shield className="w-5 h-5" />
                 {isEnglish ? "Admin panel" : "管理面板"}
-              </CardTitle>
+              </h1>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 p-4 rounded-md">
