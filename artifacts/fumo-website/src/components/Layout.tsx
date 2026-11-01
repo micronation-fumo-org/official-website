@@ -68,11 +68,26 @@ export function Layout({ children }: LayoutProps) {
         { href: "/documents", label: "文件工作區" },
       ];
   const votingPaths = new Set(["/vote-records", "/attendance", "/votes"]);
-  const morePaths = new Set(["/staff", "/partners", "/acknowledgements", "/regulations", "/charter", "/documents"]);
+  const morePaths = new Set(["/staff", "/partners", "/acknowledgements", "/regulations", "/documents"]);
   const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href) && !votingPaths.has(link.href));
   const votingNavLinks = allNavLinks.filter((link) => votingPaths.has(link.href));
   const discordInviteUrl = "https://discord.com/invite/MuSM3yXrQh";
   const moreNavLinks = allNavLinks.filter((link) => morePaths.has(link.href));
+  const homepageNavLinks = isEnglish
+    ? [
+        { href: "/#about", label: "About" },
+        { href: "/#pillars", label: "Pillars" },
+        { href: "/#organs", label: "Organs" },
+        { href: "/members", label: "Members" },
+        { href: "/charter", label: "Charter" },
+      ]
+    : [
+        { href: "/#about", label: "組織" },
+        { href: "/#pillars", label: "核心支柱" },
+        { href: "/#organs", label: "主要機構" },
+        { href: "/members", label: "會員國" },
+        { href: "/charter", label: "憲章" },
+      ];
   const pageIndex = getRouteIndex(location, isEnglish);
   const footerGroups = [
     {
@@ -154,18 +169,10 @@ export function Layout({ children }: LayoutProps) {
           </Link>
 
           <nav className="fumo-shell-links hidden lg:flex min-w-0 flex-1 items-center justify-center gap-4 xl:gap-5" aria-label={isEnglish ? "Main navigation" : "主要導覽"}>
-            <a
-              href={discordInviteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="whitespace-nowrap text-sm font-medium text-secondary transition-colors hover:text-secondary/80"
-            >
-              {isEnglish ? "Join Discord" : "加入 Discord"}
-            </a>
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href} className={`text-sm font-medium transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>
+            {homepageNavLinks.map((link) => (
+              <a key={link.href} href={link.href} className={`text-sm font-medium transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>
                 {link.label}
-              </Link>
+              </a>
             ))}
             <div
               className="relative flex h-full items-center"
@@ -235,6 +242,7 @@ export function Layout({ children }: LayoutProps) {
               </Button>
               <div className={`absolute right-0 top-full z-50 min-w-52 pt-2 transition-opacity duration-150 ${isDesktopMoreOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
                 <div role="menu" aria-label={isEnglish ? "More pages" : "更多頁面"} className="rounded-md border border-border bg-background p-2 shadow-lg">
+                  <a href={discordInviteUrl} target="_blank" rel="noopener noreferrer" role="menuitem" onClick={() => setIsDesktopMoreOpen(false)} className="block rounded-sm px-3 py-2 text-sm text-foreground/80 transition-colors hover:bg-muted hover:text-secondary">{isEnglish ? "Join Discord" : "加入 Discord"}</a>
                   {moreNavLinks.map((link) => (
                     link.href === "/documents" ? (
                       <a key={link.href} href="/documents/" role="menuitem" onClick={() => setIsDesktopMoreOpen(false)} className="block rounded-sm px-3 py-2 text-sm text-foreground/80 transition-colors hover:bg-muted hover:text-secondary">{link.label}</a>
