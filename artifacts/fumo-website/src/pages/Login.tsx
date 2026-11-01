@@ -133,11 +133,11 @@ export default function Login() {
             {discordMessage && <div className={`flex items-start gap-2 rounded-md p-3 ${discordResult === "login" || discordResult === "connected" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`} role="alert"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span className="text-sm">{discordMessage}</span></div>}
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label htmlFor="login-id" className="Label-login">{isEnglish ? "Registration ID" : "註冊 ID（Discord ID）"}</label>
+                <label htmlFor="login-id" className="Label">{isEnglish ? "Registration ID" : "註冊 ID（Discord ID）"}</label>
                 <Input id="login-id" value={voterId} onChange={event => setVoterId(event.target.value)} placeholder={isEnglish ? "Enter your registration ID" : "輸入註冊名單中的 ID"} autoComplete="username" />
               </div>
               <div>
-                <label htmlFor="login-password" className="Label-login">{isEnglish ? "Password" : "密碼"}</label>
+                <label htmlFor="login-password" className="Label">{isEnglish ? "Password" : "密碼"}</label>
                 <Input id="login-password" type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder={isEnglish ? "Enter your password" : "輸入密碼"} autoComplete="current-password" />
               </div>
               {error && <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-md" role="alert"><AlertTriangle className="w-4 h-4 shrink-0" /><span className="text-sm">{error}</span></div>}

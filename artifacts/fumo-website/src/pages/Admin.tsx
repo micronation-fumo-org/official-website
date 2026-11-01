@@ -12,6 +12,7 @@ import { Shield, Users, AlertTriangle, CheckCircle2, KeyRound, LogIn, Crown, Use
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import AdminWebhooks from "@/components/AdminWebhooks";
+import './css/styles.css'
 
 interface Account {
   voterId: string;
@@ -175,7 +176,7 @@ export default function Admin() {
     return (
       <div className="min-h-screen bg-muted/20 py-12">
         <div className="container mx-auto px-4 max-w-lg">
-          <Card className="border-border/60 bg-white">
+          <Card className="Div-base">
             <CardHeader>
               <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
                 <Shield className="w-5 h-5" />
@@ -232,7 +233,7 @@ export default function Admin() {
         </div>
 
         {/* Permissions info */}
-        <Card className="mb-8 border-border/60 bg-white">
+        <Card className="mb-8 Div-base">
           <CardHeader>
             <CardTitle className="text-base font-bold text-primary flex items-center gap-2">
               <Crown className="w-4 h-4" />
@@ -287,7 +288,7 @@ export default function Admin() {
 
         {/* Reset Password — only tier-2+ */}
         {isTier2Admin && (
-          <Card className="mb-8 border-border/60 bg-white">
+          <Card className="mb-8 Div-base">
             <CardHeader>
               <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
                 <KeyRound className="w-5 h-5" />
@@ -300,7 +301,7 @@ export default function Admin() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">{isEnglish ? "Target Discord ID" : "目標 Discord ID"}</label>
+                  <label className="Label">{isEnglish ? "Target Discord ID" : "目標 Discord ID"}</label>
                   <Input
                     value={resetTarget}
                     onChange={(e) => setResetTarget(e.target.value)}
@@ -308,7 +309,7 @@ export default function Admin() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">{isEnglish ? "New password" : "新密碼"}</label>
+                  <label className="Label">{isEnglish ? "New password" : "新密碼"}</label>
                   <Input
                     type="password"
                     value={resetPassword}

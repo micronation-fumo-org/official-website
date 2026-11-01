@@ -47,6 +47,10 @@
     @apply bg-primary text-primary-foreground
 }
 
-.Label-login {
-    @apply tblock text-sm font-medium mb-1
+.Label {
+    @apply block text-sm font-medium mb-1
+}
+
+.Div-base {
+    @apply rounded-xl border text-card-foreground shadow mb-8 border-border/60 bg-white
 }
