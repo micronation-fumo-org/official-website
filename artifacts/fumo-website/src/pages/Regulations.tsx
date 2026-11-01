@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink, Book, CheckCircle2, Clock, PenTool } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
+import "./css/styles.css";
 
 export default function Regulations() {
   const { isEnglish } = useLanguage();
@@ -73,7 +74,7 @@ export default function Regulations() {
               transition={{ duration: 0.5 }}
             >
               <div className="flex items-center gap-3 mb-6 pb-2 border-b border-border/60">
-                <h2 className="text-2xl font-bold text-primary">{isEnglish ? group.info.labelEn : group.info.label}</h2>
+                <h2 className="H2">{isEnglish ? group.info.labelEn : group.info.label}</h2>
                 <span className="text-muted-foreground text-sm font-medium px-2 py-1 bg-muted rounded-md">{group.info.labelEn}</span>
               </div>
               
