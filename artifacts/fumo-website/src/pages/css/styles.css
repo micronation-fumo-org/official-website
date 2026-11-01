@@ -5,6 +5,9 @@
     --radius: 0.5rem;
 }
 
+.H1 {
+    @apply text-4xl font-bold text-primary mb-4
+}
 .H2 {
     @apply text-3xl md:text-4xl font-bold text-primary mb-6
 }
@@ -18,11 +21,17 @@
 .P {
     @apply text-foreground/80 leading-relaxed
 }
+.P-subtitle {
+    @apply text-foreground/70 max-w-2xl mx-auto mb-6
+}
 .P-intitle {
     @apply text-primary-foreground/80 text-sm
 }
 .P-incontent {
     @apply text-foreground/80 mb-4
+}
+.P-tini {
+    @apply text-xs text-muted-foreground mt-2
 }
 
 .Button-hollow {
@@ -33,6 +42,9 @@
 }
 .Button-solid-white {
     @apply border-primary-foreground text-primary-foreground min-w-[200px] h-14 text-lg rounded-full transition-colors duration-200 hover:text-primary hover:bg-primary-foreground;
+}
+.Button-switcher {
+    @apply bg-primary text-primary-foreground
 }
 
 .Label-login {
