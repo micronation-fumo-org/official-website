@@ -15,6 +15,16 @@
     @apply text-xl font-bold text-primary-foreground
 }
 
+.P {
+    @apply text-foreground/80 leading-relaxed
+}
+.P-intitle {
+    @apply text-primary-foreground/80 text-sm
+}
+.P-incontent {
+    @apply text-foreground/80 mb-4
+}
+
 .Button-hollow {
     @apply border-primary text-primary min-w-[200px] h-14 text-lg text-white rounded-full transition-colors duration-200 hover:bg-primary/90;
 }

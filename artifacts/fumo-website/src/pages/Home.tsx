@@ -106,17 +106,17 @@ export default function Home() {
       <section className="py-24 bg-white">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-primary mb-6">{isEnglish ? "About FUMO" : "關於組織"}</h2>
+            <h2 className="H2">{isEnglish ? "About FUMO" : "關於組織"}</h2>
             <div className="w-16 h-1 bg-secondary mx-auto mb-8" />
-            <p className="text-lg text-foreground/80 leading-relaxed mb-6">
+            <p className="P text-lg mb-6">
               {isEnglish ? "FUMO is an international organisation dedicated to peace, cooperation and exchange among micronations. We provide a fair and objective platform for sovereign entities to engage in dialogue, mediate disputes and build a stable, thriving community." : "聯合微國家組織（FUMO）是一個致力於維護微國家間和平、促進合作與交流的國際性組織。我們提供一個公正、客觀的平台，讓各個主權實體能夠在平等的基礎上進行對話、調解爭端，並共同推動微國家社群的繁榮與穩定。"}
             </p>
-            <p className="text-lg text-foreground/80 leading-relaxed">
+            <p className="P text-lg mb-6">
               {isEnglish ? "Today, the organisation brings together nearly one hundred member and observer states across diverse political systems and cultural backgrounds." : "目前，組織擁有近百個成員國與觀察國，涵蓋多種政治體制與文化背景，展現了微國家社群的多元與活力。"}
             </p>
             <div className="mt-10 rounded-xl border border-secondary/30 bg-secondary/5 p-6 text-left">
               <h3 className="H3">{isEnglish ? "Why FUMO was founded" : "組織創立初衷"}</h3>
-              <p className="text-foreground/80 leading-relaxed mb-4">
+              <p className="P-incontent leading-relaxed">
                 {isEnglish ? "FUMO was founded to give micronations a fair, peaceful and constructive space for dialogue. By recognising the equal dignity of each participating entity, the organisation seeks to reduce misunderstanding, mediate disputes and turn a diverse micronational community into a lasting network of cooperation." : "聯合微國家組織成立的初衷，是為微國家建立一個公平、和平且具建設性的對話平台。透過尊重每個參與實體的平等地位，組織希望減少誤解、調解爭端，並將多元的微國家社群連結成持久合作的網絡。"}
               </p>
               <a href="https://www.micropedia.site/wiki/聯合微國家組織" target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-sm font-semibold text-secondary hover:text-primary transition-colors">
@@ -170,17 +170,17 @@ export default function Home() {
           <div className="text-center mb-16">
             <h2 className="H2">{isEnglish ? "Main organs" : "主要機構"}</h2>
             <div className="w-16 h-1 bg-secondary mx-auto mb-6" />
-            <p className="text-foreground/70 max-w-2xl mx-auto">{isEnglish ? "Under the FUMO Charter, three permanent organs support daily operations and decision-making." : "依據《聯合微國家組織憲章》，本組織設立三大常設機構以維持日常運作與決策。"}</p>
+            <p className="P max-w-2xl mx-auto">{isEnglish ? "Under the FUMO Charter, three permanent organs support daily operations and decision-making." : "依據《聯合微國家組織憲章》，本組織設立三大常設機構以維持日常運作與決策。"}</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <Card className="overflow-hidden border-border/50 hover:border-secondary/50 transition-colors">
               <div className="bg-primary p-4 text-center">
                 <h3 className="H3-intitle">{isEnglish ? "Deliberation Center" : "議事中心"}</h3>
-                <p className="text-primary-foreground/80 text-sm">Deliberation Center</p>
+                <p className="P-intitle">Deliberation Center</p>
               </div>
               <CardContent className="p-6">
-                <p className="text-foreground/80 mb-4">
+                <p className="P-incontent">
                   {isEnglish ? "The organisation’s highest deliberative body. Each member state may appoint representatives to propose, vote and speak on major policies and resolutions." : "組織的最高權力與議事機構。每個成員國可派遣代表參與，行使提案、表決與發言權，決定組織的重大方針與決議。"}
                 </p>
                 <ul className="list-disc list-inside text-sm text-foreground/70 space-y-2 ml-4">
@@ -194,10 +194,10 @@ export default function Home() {
             <Card className="overflow-hidden border-border/50 hover:border-secondary/50 transition-colors">
               <div className="bg-primary p-4 text-center">
                 <h3 className="H3-intitle">{isEnglish ? "Secretariat" : "秘書處"}</h3>
-                <p className="text-primary-foreground/80 text-sm">Secretariat</p>
+                <p className="P-intitle">Secretariat</p>
               </div>
               <CardContent className="p-6">
-                <p className="text-foreground/80 mb-4">
+                <p className="P-incontent">
                   {isEnglish ? "The permanent administrative organ led by the Secretary-General. It represents FUMO externally, supports the Deliberation Center and implements resolutions." : "組織的常設行政機構，由秘書長領導。負責對外代表組織，並維持議事中心的日常運作與執行決議。"}
                 </p>
                 <ul className="list-disc list-inside text-sm text-foreground/70 space-y-2 ml-4">
@@ -211,10 +211,10 @@ export default function Home() {
             <Card className="overflow-hidden border-border/50 hover:border-secondary/50 transition-colors">
               <div className="bg-primary p-4 text-center">
                 <h3 className="H3-intitle">{isEnglish ? "Council" : "理事會"}</h3>
-                <p className="text-primary-foreground/80 text-sm">Council</p>
+                <p className="P-intitle">Council</p>
               </div>
               <CardContent className="p-6">
-                <p className="text-foreground/80 mb-4">
+                <p className="P-incontent">
                   {isEnglish ? "Maintains the order and procedures of the Deliberation Center. Council states chair meetings and may request special meetings when necessary." : "負責維持議事中心的秩序與流程。理事國負責主持會議，並在特殊情況下有權要求召開特別會議。"}
                 </p>
                 <ul className="list-disc list-inside text-sm text-foreground/70 space-y-2 ml-4">
