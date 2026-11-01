@@ -26,16 +26,6 @@
 .fumo-home button { color: inherit; font: inherit; }
 .fumo-wrap { width: min(100%, var(--fumo-max)); margin: 0 auto; padding-inline: var(--fumo-gutter); }
 
-.fumo-preview-note {
-  padding: 9px var(--fumo-gutter);
-  background: var(--fumo-soft);
-  color: var(--fumo-muted);
-  font-size: 12px;
-  letter-spacing: .01em;
-}
-.fumo-preview-note .fumo-wrap { padding: 0; }
-.fumo-preview-note strong { color: var(--fumo-ink); font-weight: 500; }
-
 .fumo-global-nav {
   position: sticky;
   z-index: 50;

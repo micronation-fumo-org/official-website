@@ -104,14 +104,6 @@ export default function Home() {
 
   return (
     <div className="fumo-home">
-      <div className="fumo-preview-note">
-        <div className="fumo-wrap">
-          <strong>{text("首頁改版預覽", "Homepage redesign preview")}</strong>
-          <span> · </span>
-          <span>{text("僅供檢視；正式網站與功能尚未變更。", "For review only; the live site and its features are unchanged.")}</span>
-        </div>
-      </div>
-
       <header className="fumo-global-nav">
         <div className="fumo-nav-inner">
           <a className="fumo-brand" href="#top" aria-label={text("FUMO 首頁", "FUMO home")}>
@@ -294,7 +286,7 @@ export default function Home() {
             <a href="https://www.micronationfumo.org/" target="_blank" rel="noopener noreferrer">micronationfumo.org</a>
             <a className="fumo-credit" href="https://damcurryrice.com" target="_blank" rel="noopener noreferrer"><Link2 size={13} aria-hidden="true" />{text("FUMO × 蛋包咖哩飯", "FUMO × Dam Curry Rice")}</a>
             {isAdmin && <Link className="fumo-admin-link" href="/bot-admin"><Shield size={13} aria-hidden="true" />{text("Discord Bot 後台", "Discord Bot admin")}</Link>}
-            <p className="fumo-footer-disclaimer">{text("本頁為首頁設計預覽；子頁、登入、會員與投票功能仍維持原有系統。", "This is a homepage design preview; subpages, sign-in, membership and voting remain on their existing systems.")}</p>
+            <p className="fumo-footer-disclaimer">{text("和平交流，合作共創。", "Peace, dialogue and cooperation.")}</p>
           </div>
         </div>
       </footer>
