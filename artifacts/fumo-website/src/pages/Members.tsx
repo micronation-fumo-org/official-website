@@ -140,7 +140,7 @@ export default function Members() {
   );
 
   return (
-    <div className="min-h-screen bg-muted/20 py-12">
+    <div className="fumo-members-page min-h-screen bg-muted/20 py-12">
       <div className="container mx-auto px-4">
         <div className="mb-10 text-center">
           <h1 className="H1">{isEnglish ? "Member and Observer States" : "成員國及觀察國"}</h1>

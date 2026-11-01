@@ -87,6 +87,24 @@
 }
 .fumo-shell-links > a:hover,
 .fumo-shell-links > div > button:hover { color: var(--site-blue) !important; }
+.fumo-shell-links-auth-hidden { display: none !important; }
+.fumo-shell-auth-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px clamp(12px, 1.8vw, 24px);
+  width: min(100%, var(--site-content-max));
+  margin: 0 auto;
+  padding: 0 var(--site-gutter) 12px;
+}
+.fumo-shell-auth-nav a {
+  color: #424245 !important;
+  font-size: 13px !important;
+  white-space: nowrap;
+}
+.fumo-shell-auth-nav a:hover { color: var(--site-blue) !important; }
+.fumo-shell-auth-nav a[aria-current="page"] { color: var(--site-blue) !important; font-weight: 600; }
 .fumo-shell-links [role="menu"] {
   border: 1px solid var(--site-line) !important;
   border-radius: 3px !important;
@@ -192,6 +210,7 @@
   padding-top: 0 !important;
   background-color: transparent !important;
 }
+.fumo-route-body .fumo-members-page { padding-top: clamp(32px, 4vw, 48px) !important; }
 .fumo-route-body .container {
   margin-left: auto !important;
   margin-right: auto !important;
@@ -319,6 +338,7 @@
 @media (max-width: 1023px) {
   .fumo-shell-nav-inner { gap: 0; }
   .fumo-shell-brand-name { max-width: 230px; }
+  .fumo-shell-auth-nav { display: none !important; }
 }
 @media (max-width: 620px) {
   .fumo-shell-nav-inner { min-height: 54px; }
@@ -331,4 +351,54 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .fumo-inner-site *, .fumo-inner-site *::before, .fumo-inner-site *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* Shared footer styling is global so the home page and every inner route use one component. */
+.fumo-shell-footer {
+  --site-ink: #1d1d1f;
+  --site-muted: #6e6e73;
+  --site-line: #d2d2d7;
+  --site-soft: #f5f5f7;
+  --site-blue: #00334d;
+  margin-top: auto;
+  padding: 48px 0 26px;
+  border-top: 1px solid var(--site-line);
+  background: var(--site-soft);
+  color: var(--site-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+}
+.fumo-shell-footer-inner { width: min(100%, 1220px); margin: 0 auto; padding-inline: clamp(22px, 5.6vw, 84px); }
+.fumo-shell-footer-top { display: grid; grid-template-columns: minmax(180px, 1.1fr) minmax(0, 2fr) minmax(150px, 1fr); gap: clamp(24px, 4vw, 52px); padding-bottom: 32px; border-bottom: 1px solid var(--site-line); }
+.fumo-shell-footer-brand-block { min-width: 0; }
+.fumo-shell-footer-brand-mark { display: inline-block; color: var(--site-blue) !important; font-size: 17px !important; font-weight: 700; letter-spacing: -.07em; }
+.fumo-shell-footer-brand-block h3 { max-width: 300px; margin: 10px 0 0; color: var(--site-ink) !important; font-size: 15px; font-weight: 550; line-height: 1.4; }
+.fumo-shell-footer-brand-block p { max-width: 260px; margin: 9px 0 0; color: var(--site-muted) !important; font-size: 13px; }
+.fumo-shell-footer-navigation h4,
+.fumo-shell-footer-resources h4 { margin: 0 0 14px; color: var(--site-ink) !important; font-size: 13px; font-weight: 550; }
+.fumo-shell-footer-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.fumo-shell-footer-groups h5 { margin: 0 0 9px; color: var(--site-muted) !important; font-size: 11px; font-weight: 550; letter-spacing: .025em; }
+.fumo-shell-footer-links { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.fumo-shell-footer .fumo-shell-footer-links a { color: var(--site-muted) !important; font-size: 12px !important; line-height: 1.45; }
+.fumo-shell-footer .fumo-shell-footer-links a:hover,
+.fumo-shell-footer-bottom-meta a:hover { color: var(--site-blue) !important; }
+.fumo-shell-footer-resources .fumo-shell-footer-social-title { margin-top: 22px; }
+.fumo-shell-footer-bottom { padding-top: 18px; color: var(--site-muted); font-size: 11px; }
+.fumo-shell-footer-bottom-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; }
+.fumo-shell-footer-bottom-meta > span { margin-right: auto; }
+.fumo-shell-footer-bottom-meta a { display: inline-flex; align-items: center; gap: 5px; color: var(--site-muted) !important; font-size: 11px !important; }
+.fumo-shell-footer-bottom-meta svg { width: 13px; height: 13px; color: var(--site-blue); }
+.fumo-shell-footer-bottom > p { margin: 13px 0 0; color: #86868b; font-size: 11px; }
+@media (max-width: 900px) {
+  .fumo-shell-footer-top { grid-template-columns: 1fr 1.6fr; }
+  .fumo-shell-footer-resources { grid-column: 2; }
+}
+@media (max-width: 620px) {
+  .fumo-route-body .fumo-members-page { padding-top: 28px !important; }
+  .fumo-shell-auth-nav { justify-content: flex-start; }
+  .fumo-shell-footer { padding-top: 36px; }
+  .fumo-shell-footer-top { grid-template-columns: 1fr; gap: 28px; }
+  .fumo-shell-footer-resources { grid-column: auto; }
+  .fumo-shell-footer-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 22px; }
+  .fumo-shell-footer-bottom-meta { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .fumo-shell-footer-bottom-meta > span { margin-right: 0; }
 }

@@ -49,7 +49,7 @@ export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secr
   const server = createServer(async (request, response) => {
     if (request.method === "GET" && request.url === "/healthz") {
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ ok: true, bot: client.isReady() }));
+      response.end(JSON.stringify({ ok: true, bot: client.isReady(), features: { announcementText: true } }));
       return;
     }
     if (request.method === "GET" && request.url === "/channels") {
@@ -70,14 +70,23 @@ export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secr
         const data = JSON.parse(Buffer.concat(chunks).toString("utf8"));
         const target = await client.channels.fetch(typeof data.channelId === "string" ? data.channelId : channelId);
         if (!target?.isTextBased() || !target.isSendable()) throw new Error("Channel is not writable");
+        const mode = data.mode === undefined ? "embed" : data.mode;
+        if (mode !== "embed" && mode !== "text") { response.writeHead(400); response.end("Unsupported announcement mode"); return; }
         const title = typeof data.title === "string" ? data.title.trim().slice(0, 256) : "";
         const content = typeof data.content === "string" ? data.content.trim().slice(0, 1900) : "";
-        if (!title || !content) { response.writeHead(400); response.end("Title and content are required"); return; }
+        if (!content || (mode === "embed" && !title)) { response.writeHead(400); response.end("Content is required; embed announcements also need a title"); return; }
         const roleId = typeof data.roleId === "string" && /^\d{17,20}$/.test(data.roleId) ? data.roleId : "";
         const authorName = typeof data.author === "string" && data.author.trim() ? data.author.trim().slice(0, 80) : defaultAuthor;
         const mention = roleId ? `<@&${roleId}>` : "";
-        const message = await target.send({ content: mention, embeds: [{ author: { name: authorName }, title: `📢 ${title}`, description: content, color: 0x5865f2, url: websiteUrl, footer: { text: "FUMO 官方網站 Bot" }, timestamp: new Date().toISOString() }], allowedMentions: roleId ? { roles: [roleId] } : { parse: [] } });
-        logAction("web.admin_announcement.sent", { channelId: target.id, messageId: message.id, author: authorName, title, content });
+        let message;
+        if (mode === "text") {
+          const plainText = [mention, title, content].filter(Boolean).join("\n\n");
+          if (plainText.length > 2000) { response.writeHead(400); response.end("Plain-text announcement exceeds Discord's 2000 character limit"); return; }
+          message = await target.send({ content: plainText, allowedMentions: roleId ? { roles: [roleId] } : { parse: [] } });
+        } else {
+          message = await target.send({ content: mention, embeds: [{ author: { name: authorName }, title: `📢 ${title}`, description: content, color: 0x5865f2, url: websiteUrl, footer: { text: "FUMO 官方網站 Bot" }, timestamp: new Date().toISOString() }], allowedMentions: roleId ? { roles: [roleId] } : { parse: [] } });
+        }
+        logAction("web.admin_announcement.sent", { channelId: target.id, messageId: message.id, mode, author: mode === "embed" ? authorName : undefined, title, content });
         response.writeHead(200, { "Content-Type": "application/json" });
         response.end(JSON.stringify({ ok: true, messageUrl: message.url }));
       } catch (error) {

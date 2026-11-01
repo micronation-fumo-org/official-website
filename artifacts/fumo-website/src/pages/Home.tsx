@@ -14,6 +14,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { googleOAuthStartUrl } from "@/lib/api";
+import { SiteFooter } from "@/components/SiteFooter";
+import { getSiteNavigationLinks } from "@/data/siteNavigation";
 import "./Home.css";
 
 type PageLink = { href: string; zh: string; en: string; external?: boolean };
@@ -95,12 +97,7 @@ export default function Home() {
   const closeMenu = () => setMenuOpen(false);
   const connectGoogle = () => window.location.assign(googleOAuthStartUrl("link"));
   const documentsUrl = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/documents/`;
-
-  const footerGroups = [
-    { title: text("組織資訊", "Organisation"), links: allPageLinks.slice(0, 5) },
-    { title: text("議事與投票", "Deliberation"), links: allPageLinks.slice(5, 10) },
-    { title: text("帳戶與其他", "Account & more"), links: allPageLinks.slice(10) },
-  ];
+  const topNavLinks = getSiteNavigationLinks(isEnglish);
 
   return (
     <div className="fumo-home">
@@ -110,7 +107,7 @@ export default function Home() {
             <span className="fumo-brand-mark">FUMO</span>
             <span className="fumo-brand-name">{text("聯合微國家組織", "Federation of United Micronations Organisation")}</span>
           </a>
-          <nav className="fumo-nav-links" aria-label={text("主要導覽", "Main navigation")}>
+          <nav className={`fumo-nav-links ${user ? "fumo-nav-links-hidden-authenticated" : ""}`} aria-label={text("主要導覽", "Main navigation")}>
             {mainNav.map((item) => item.href.startsWith("#") ? (
               <a key={item.href} href={item.href}><LinkLabel item={item} english={isEnglish} /></a>
             ) : (
@@ -139,6 +136,15 @@ export default function Home() {
             </button>
           </div>
         </div>
+        {user && (
+          <nav className="fumo-authenticated-nav" aria-label={text("所有頁面", "All pages")}>
+            {topNavLinks.map((item) => item.href === "/documents" ? (
+              <a key={item.href} href={documentsUrl}>{item.label}</a>
+            ) : (
+              <Link key={item.href} href={item.href}>{item.label}</Link>
+            ))}
+          </nav>
+        )}
         <nav className={`fumo-mobile-menu${menuOpen ? " open" : ""}`} id="fumo-mobile-menu" aria-label={text("行動版導覽", "Mobile navigation")}>
           <div className="fumo-mobile-anchor-links">
             {mainNav.slice(0, 3).map((item) => <a key={item.href} href={item.href} onClick={closeMenu}><LinkLabel item={item} english={isEnglish} /></a>)}
@@ -257,35 +263,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="fumo-site-footer">
-        <div className="fumo-wrap">
-          <div className="fumo-footer-top">
-            <div>
-              <a className="fumo-footer-brand" href="#top">FUMO</a>
-              <p className="fumo-footer-tagline">{text("眾志成城，攜手共進", "United in determination, advancing together")}</p>
-            </div>
-            <div className="fumo-footer-groups">
-              {footerGroups.map((group) => (
-                <div className="fumo-footer-group" key={group.title}>
-                  <h3>{group.title}</h3>
-                  {group.links.map((item) => item.href === "/documents/" ? (
-                    <a key={item.href} href={documentsUrl}><LinkLabel item={item} english={isEnglish} /></a>
-                  ) : (
-                    <Link key={item.href} href={item.href}><LinkLabel item={item} english={isEnglish} /></Link>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="fumo-footer-bottom">
-            <span className="fumo-copyright">© FUMO · Federation of United Micronations Organisation</span>
-            <a href="https://www.micronationfumo.org/" target="_blank" rel="noopener noreferrer">micronationfumo.org</a>
-            <a className="fumo-credit" href="https://damcurryrice.com" target="_blank" rel="noopener noreferrer"><Link2 size={13} aria-hidden="true" />{text("FUMO × 蛋包咖哩飯", "FUMO × Dam Curry Rice")}</a>
-            {isAdmin && <Link className="fumo-admin-link" href="/bot-admin"><Shield size={13} aria-hidden="true" />{text("Discord Bot 後台", "Discord Bot admin")}</Link>}
-            <p className="fumo-footer-disclaimer">{text("和平交流，合作共創。", "Peace, dialogue and cooperation.")}</p>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 這個 Bot 使用 Node.js + discord.js，部署在 Wispbyte；網站 API 仍部署在 Cloudflare Worker。Bot 目前提供：
 
-- `/公告`：發布 Embed 公告到指定頻道
+- `/公告`：發布公告到指定頻道，可選擇視覺化 Embed（預設）或純文字
 - `/身分組檢查`：比較 FUMO `/api/voters` 註冊名單與 Discord Server 成員，列出缺少或未註冊成員
 - `/投票狀態`：檢查 FUMO 官方網站 API 狀態
 - `/驗證`：以 Discord ID 對照 FUMO 註冊名單，成功後加入成員國／觀察國身分組
@@ -11,6 +11,7 @@
 - `/整理入聯`：依「第 N 次議事中心入聯提案申請-YYYY/MM」串文，整理為「國家｜最高領導人｜貴國連結」；可指定 `會期`，留空則整理最新一期
 - `/說話`：管理員指揮 Bot 發送一般文字訊息；在哪個頻道執行，Bot 就發送到哪個頻道。填入同頻道的 `回覆id` 可直接回覆指定訊息
 - 網站 Webhook relay：接收網站簽名事件，再由 Bot 發送 Discord Embed
+- 網站 `/bot-admin`：管理員可選擇沿用 Embed 公告，或改用純文字訊息；純文字模式會以標題與內容直接組成 Discord 訊息
 
 `/身分組檢查` 會依網站 `/api/members` 的成員國／觀察國資料檢查代表是否擁有正確身分組，也會統計秘書處與議事中心身分組人數。目前只做檢查，不會自動新增或移除身分組。確認比對結果後，再加入需要 `MANAGE_ROLES` 的同步指令，避免誤改成員權限。
 
@@ -51,6 +52,8 @@ npm start
 
 選擇 Node.js Docker image，將 `bot/` 目錄內容上傳到伺服器根目錄，或使用 Wispbyte GitHub Integration 拉取 repo 後把工作目錄指到 `bot`。Wispbyte 的 Node.js 伺服器會在有 `package.json` 時安裝依賴。
 
+網站 repo 的 GitHub Actions 目前只有版本標籤觸發的 Release workflow，沒有 Wispbyte Bot 自動部署 workflow。推送 `main` 不代表執行中的 Bot 已更新；除非 Wispbyte 已設定追蹤此 repository/branch 的 GitHub Integration 並自動重啟，否則需要在 Wispbyte 更新 Bot 檔案並重啟。網站 `/bot-admin` 的純文字選項會同時檢查 API Worker 與 `/healthz` 回報的 `features.announcementText`，只有兩者都部署新版後才會啟用。
+
 如果 Wispbyte 伺服器根目錄就是整個 `official-website` repo，不能在 `/home/container` 直接執行 `npm install`，因為網站根目錄的 `preinstall` 只允許 pnpm。請在 Startup command 使用：
 
 ```bash
@@ -67,7 +70,7 @@ npm ci --omit=dev && exec node index.js
 
 ## 讓 Bot 取代 Discord Webhook
 
-Bot 會在 `FUMO_WEBHOOK_PATH` 提供 HTTP endpoint。先在 Wispbyte 為 Bot 啟用可公開存取的 HTTPS 網址，再到 FUMO 網站管理後台新增一般 Webhook：網址填 `https://你的-wispbyte-網域/fumo/webhook`，事件依需要選擇。`FUMO_WEBHOOK_SECRET` 留空即可直接接收；若之後要防止陌生人呼叫 endpoint，再讓網站 Webhook secret 與 Bot Secret 完全相同。Bot 收到事件後會用 Bot 身分發送 Embed；原本的 Discord `discord.com/api/webhooks/...` endpoint 可以停用。網站 Bot 後台的公告可以自訂 Embed 頂部的發布者名稱，預設為 `FUMO 官方網站 Bot`；Discord 訊息時間會自動顯示當下時間。
+Bot 會在 `FUMO_WEBHOOK_PATH` 提供 HTTP endpoint。先在 Wispbyte 為 Bot 啟用可公開存取的 HTTPS 網址，再到 FUMO 網站管理後台新增一般 Webhook：網址填 `https://你的-wispbyte-網域/fumo/webhook`，事件依需要選擇。`FUMO_WEBHOOK_SECRET` 留空即可直接接收；若之後要防止陌生人呼叫 endpoint，再讓網站 Webhook secret 與 Bot Secret 完全相同。Bot 收到事件後會用 Bot 身分發送 Embed；原本的 Discord `discord.com/api/webhooks/...` endpoint 可以停用。網站 Bot 後台的 Embed 公告可自訂發布者顯示名稱，預設為 `FUMO 官方網站 Bot`；選擇純文字時標題與內容會直接作為一般訊息發送。
 
 ## Discord Developer Portal
 

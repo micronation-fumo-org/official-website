@@ -50,6 +50,10 @@
 .fumo-nav-links { display: flex; align-items: center; gap: clamp(15px, 2vw, 27px); }
 .fumo-nav-links a { color: #424245; font-size: 13px; white-space: nowrap; }
 .fumo-nav-links a:hover { color: var(--fumo-blue); }
+.fumo-nav-links-hidden-authenticated { display: none !important; }
+.fumo-authenticated-nav { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px clamp(12px, 1.8vw, 24px); width: min(100%, var(--fumo-max)); margin: 0 auto; padding: 0 var(--fumo-gutter) 12px; }
+.fumo-authenticated-nav a { color: #424245; font-size: 13px; white-space: nowrap; }
+.fumo-authenticated-nav a:hover { color: var(--fumo-blue); }
 .fumo-nav-actions { display: flex; align-items: center; gap: 15px; margin-left: auto; }
 .fumo-nav-actions button, .fumo-account-actions a { font-size: 12px; white-space: nowrap; }
 .fumo-language-button, .fumo-menu-button {
@@ -149,6 +153,7 @@
 }
 @media (max-width: 900px) {
   .fumo-nav-links { display: none; }
+  .fumo-authenticated-nav { display: none; }
   .fumo-menu-button { display: inline-flex; }
   .fumo-nav-actions { gap: 15px; }
   .fumo-hero-grid { grid-template-columns: minmax(0, 1fr); gap: 30px; }

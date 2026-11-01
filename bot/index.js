@@ -68,6 +68,7 @@ const commands = [
     .setDescription("在 FUMO 官方公告頻道發布公告")
     .addStringOption(option => option.setName("標題").setDescription("公告標題").setRequired(true).setMaxLength(256))
     .addStringOption(option => option.setName("內容").setDescription("公告內容").setRequired(true).setMaxLength(1900))
+    .addStringOption(option => option.setName("格式").setDescription("公告呈現格式，預設為 Embed").addChoices({ name: "視覺化 Embed", value: "embed" }, { name: "純文字", value: "text" }).setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild.toString()),
   new SlashCommandBuilder()
     .setName("身分組檢查")
@@ -113,15 +114,23 @@ async function registerCommands() {
   console.log(`Registered ${commands.length} slash commands${GUILD_ID ? ` in guild ${GUILD_ID}` : " globally"}.`);
 }
 
-async function postAnnouncement(title, content, author) {
+async function postAnnouncement(title, content, author, mode = "embed") {
   const channel = await client.channels.fetch(ANNOUNCEMENT_CHANNEL_ID);
   if (!channel?.isTextBased() || !channel.isSendable()) throw new Error("Announcement channel is not writable");
   const roleMention = ANNOUNCEMENT_ROLE_ID ? `<@&${ANNOUNCEMENT_ROLE_ID}>` : "";
-  const message = await channel.send({
-    content: roleMention,
-    embeds: [{ title: `📢 ${title}`, description: content, color: 0x5865f2, url: WEBSITE_URL, footer: { text: `FUMO 官方網站 · 發布者 ${author}` }, timestamp: new Date().toISOString() }],
-    allowedMentions: ANNOUNCEMENT_ROLE_ID ? { roles: [ANNOUNCEMENT_ROLE_ID] } : { parse: [] },
-  });
+  const allowedMentions = ANNOUNCEMENT_ROLE_ID ? { roles: [ANNOUNCEMENT_ROLE_ID] } : { parse: [] };
+  let message;
+  if (mode === "text") {
+    const plainText = [roleMention, title, content].filter(Boolean).join("\n\n");
+    if (plainText.length > 2000) throw new Error("Plain-text announcement exceeds Discord's 2000 character limit");
+    message = await channel.send({ content: plainText, allowedMentions });
+  } else {
+    message = await channel.send({
+      content: roleMention,
+      embeds: [{ title: `📢 ${title}`, description: content, color: 0x5865f2, url: WEBSITE_URL, footer: { text: `FUMO 官方網站 · 發布者 ${author}` }, timestamp: new Date().toISOString() }],
+      allowedMentions,
+    });
+  }
   return message.url;
 }
 
@@ -482,13 +491,16 @@ async function handleInteraction(interaction) {
   if (interaction.commandName === "公告") {
     await interaction.deferReply({ ephemeral: true });
     try {
-      const url = await postAnnouncement(interaction.options.getString("標題", true), interaction.options.getString("內容", true), interaction.user.username);
-      logAction("announcement.sent", { userId: interaction.user.id, channelId: ANNOUNCEMENT_CHANNEL_ID, messageUrl: url, title: interaction.options.getString("標題", true), content: interaction.options.getString("內容", true) });
+      const title = interaction.options.getString("標題", true);
+      const content = interaction.options.getString("內容", true);
+      const mode = interaction.options.getString("格式") || "embed";
+      const url = await postAnnouncement(title, content, interaction.user.username, mode);
+      logAction("announcement.sent", { userId: interaction.user.id, channelId: ANNOUNCEMENT_CHANNEL_ID, messageUrl: url, mode, title, content });
       await interaction.editReply(`公告已發布：${url}`);
     } catch (error) {
       console.error("Announcement failed", error);
       logAction("announcement.failed", { userId: interaction.user.id, error: String(error) });
-      await interaction.editReply("公告發布失敗，請確認 Bot 有公告頻道的 View Channel、Send Messages 與 Embed Links 權限。");
+      await interaction.editReply("公告發布失敗，請確認公告頻道的 View Channel 與 Send Messages 權限；Embed 模式另需 Embed Links。");
     }
     return;
   }

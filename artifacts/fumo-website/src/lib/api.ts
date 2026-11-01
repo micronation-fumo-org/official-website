@@ -31,6 +31,7 @@ export function apiFetch(path: string, init: RequestInit = {}) {
 
 export interface BotChannel { id: string; name: string; type: number; }
 export interface BotChannelsResponse { guildId: string; channels: BotChannel[]; }
+export type BotAnnouncementMode = "embed" | "text";
 
 export async function fetchBotChannels(): Promise<BotChannelsResponse> {
   const response = await apiFetch("/api/admin/bot/channels");
@@ -39,14 +40,14 @@ export async function fetchBotChannels(): Promise<BotChannelsResponse> {
   return data;
 }
 
-export async function fetchBotStatus(): Promise<{ ok: boolean; bot: boolean }> {
+export async function fetchBotStatus(): Promise<{ ok: boolean; bot: boolean; features?: { announcementText?: boolean }; apiFeatures?: { announcementMode?: boolean } }> {
   const response = await apiFetch("/api/admin/bot/status");
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "無法連線到 Discord Bot。");
   return data;
 }
 
-export async function sendBotAnnouncement(payload: { channelId: string; title: string; content: string; roleId?: string; author?: string }): Promise<{ ok: boolean; messageUrl?: string }> {
+export async function sendBotAnnouncement(payload: { channelId: string; mode?: BotAnnouncementMode; title?: string; content: string; roleId?: string; author?: string }): Promise<{ ok: boolean; messageUrl?: string }> {
   const response = await apiFetch("/api/admin/bot/announce", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "公告發布失敗。");
