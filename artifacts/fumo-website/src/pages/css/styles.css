@@ -33,6 +33,9 @@
 .P-tini {
     @apply text-xs text-muted-foreground mt-2
 }
+.P-remainder {
+    @apply text-xs text-muted-foreground mt-1
+}
 
 .Button-hollow {
     @apply border-primary text-primary min-w-[200px] h-14 text-lg text-white rounded-full transition-colors duration-200 hover:bg-primary/90;
@@ -53,4 +56,8 @@
 
 .Div-base {
     @apply rounded-xl border text-card-foreground shadow mb-8 border-border/60 bg-white
+}
+
+.Article-base {
+    @apply bg-white rounded-lg shadow-sm border border-border/60 overflow-hidden p-5 sm:p-8 lg:p-12 prose prose-slate max-w-none prose-headings:text-primary prose-h1:text-center prose-h1:text-3xl prose-h2:border-l-4 prose-h2:border-secondary prose-h2:pl-4 prose-h2:py-1 prose-h2:mt-12 prose-h3:text-xl prose-h3:mt-8 prose-p:leading-8 prose-blockquote:border-secondary prose-blockquote:bg-muted/40 prose-blockquote:rounded-r-md prose-table:text-sm
 }
