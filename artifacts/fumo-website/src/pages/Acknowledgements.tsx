@@ -17,8 +17,8 @@ export default function Acknowledgements() {
             <HeartHandshake className="h-6 w-6" />
             <span className="text-sm font-semibold tracking-wide">FUMO</span>
           </div>
-          <h1 className="text-3xl font-bold text-primary sm:text-4xl">致謝名單</h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-foreground/70 sm:text-base">
+          <h1 className="H1">致謝名單</h1>
+          <p className="P-subtitle">
             感謝每一位為 FUMO 官方網站建設、維護與發展提供協助的人員與組織。
           </p>
         </div>
