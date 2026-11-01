@@ -5,7 +5,11 @@
 - `/公告`：發布 Embed 公告到指定頻道
 - `/身分組檢查`：比較 FUMO `/api/voters` 註冊名單與 Discord Server 成員，列出缺少或未註冊成員
 - `/投票狀態`：檢查 FUMO 官方網站 API 狀態
-- `/整理提案`：掃描議事中心例行大會串文，整理席位更動案與一般提案
+- `/驗證`：以 Discord ID 對照 FUMO 註冊名單，成功後加入成員國／觀察國身分組
+- 新成員加入時自動私訊「開始驗證」按鈕，並在歡迎頻道發送中英文歡迎詞；成員離開時在同一頻道發送歡送 ASCII 訊息
+- `/整理提案`：整理議事中心例行大會串文，整理席位更動案與一般提案
+- `/整理入聯`：依「第 N 次議事中心入聯提案申請-YYYY/MM」串文，整理為「國家｜最高領導人｜貴國連結」；可指定 `會期`，留空則整理最新一期
+- `/說話`：管理員指揮 Bot 發送一般文字訊息；在哪個頻道執行，Bot 就發送到哪個頻道。填入同頻道的 `回覆id` 可直接回覆指定訊息
 - 網站 Webhook relay：接收網站簽名事件，再由 Bot 發送 Discord Embed
 
 `/身分組檢查` 會依網站 `/api/members` 的成員國／觀察國資料檢查代表是否擁有正確身分組，也會統計秘書處與議事中心身分組人數。目前只做檢查，不會自動新增或移除身分組。確認比對結果後，再加入需要 `MANAGE_ROLES` 的同步指令，避免誤改成員權限。
@@ -27,6 +31,7 @@ npm start
 - `DISCORD_GUILD_ID`：測試 Server ID；設定後指令會立即註冊到該 Server。留空則註冊為全域指令
 - `ANNOUNCEMENT_CHANNEL_ID`：公告頻道 ID
 - `ANNOUNCEMENT_ROLE_ID`：公告要提及的身分組 ID，可留空
+- `FUMO_WELCOME_CHANNEL_ID`：歡迎／歡送頻道 ID；未設定時沿用公告頻道
 - `FUMO_API_BASE_URL`：例如 `https://fumo-api.micronationfumo.workers.dev`
 - `FUMO_WEBSITE_URL`：預設為 `https://www.micronationfumo.org`
 - `FUMO_BOT_ADMIN_IDS`：額外允許使用管理指令的 Discord User ID，逗號分隔
@@ -40,6 +45,7 @@ npm start
 - `FUMO_BOT_MENTION_EVENTS`：要提及公告身分組的事件，逗號分隔
 - `FUMO_ANNOUNCEMENT_AUTHOR`：公告預設發布者名稱，預設為 `FUMO 官方網站 Bot`
 - `FUMO_PROPOSAL_CHANNEL_ID`：議案整理來源頻道，預設為 `1414537668406149140`
+- `FUMO_ADMISSION_CHANNEL_ID`：入聯整理來源 Forum 頻道，未設定時沿用 `FUMO_PROPOSAL_CHANNEL_ID`
 
 ## Wispbyte 設定
 
@@ -69,6 +75,7 @@ Bot 會在 `FUMO_WEBHOOK_PATH` 提供 HTTP endpoint。先在 Wispbyte 為 Bot �
 
 - `Server Members Intent`：`/身分組檢查` 需要讀取完整 Server 成員清單
 - `Message Content Intent`：`/整理提案` 需要讀取提案串文內容
+- Bot 還需要 `Manage Roles`，且 Bot 最高身分組要高於成員國／觀察國身分組，`/驗證` 才能加上身分組
 
 邀請 Bot 時至少給予：
 

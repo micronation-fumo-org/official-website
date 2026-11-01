@@ -44,7 +44,7 @@ function buildEmbed(payload, event, websiteUrl) {
   };
 }
 
-export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secret, path, port, mentionRoleId, mentionEvents, defaultAuthor }) {
+export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secret, path, port, mentionRoleId, mentionEvents, defaultAuthor, logAction = () => {} }) {
   const events = new Set(mentionEvents);
   const server = createServer(async (request, response) => {
     if (request.method === "GET" && request.url === "/healthz") {
@@ -77,6 +77,7 @@ export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secr
         const authorName = typeof data.author === "string" && data.author.trim() ? data.author.trim().slice(0, 80) : defaultAuthor;
         const mention = roleId ? `<@&${roleId}>` : "";
         const message = await target.send({ content: mention, embeds: [{ author: { name: authorName }, title: `📢 ${title}`, description: content, color: 0x5865f2, url: websiteUrl, footer: { text: "FUMO 官方網站 Bot" }, timestamp: new Date().toISOString() }], allowedMentions: roleId ? { roles: [roleId] } : { parse: [] } });
+        logAction("web.admin_announcement.sent", { channelId: target.id, messageId: message.id, author: authorName, title, content });
         response.writeHead(200, { "Content-Type": "application/json" });
         response.end(JSON.stringify({ ok: true, messageUrl: message.url }));
       } catch (error) {
@@ -101,7 +102,9 @@ export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secr
       const channel = await client.channels.fetch(channelId);
       if (!channel?.isTextBased() || !channel.isSendable()) throw new Error("Relay channel is not writable");
       const mention = mentionRoleId && events.has(event) ? `<@&${mentionRoleId}>` : "";
-      await channel.send({ content: mention, embeds: [buildEmbed(payload, event, websiteUrl)], allowedMentions: mention ? { roles: [mentionRoleId] } : { parse: [] } });
+      const message = await channel.send({ content: mention, embeds: [buildEmbed(payload, event, websiteUrl)], allowedMentions: mention ? { roles: [mentionRoleId] } : { parse: [] } });
+      const vote = payload.vote && typeof payload.vote === "object" ? payload.vote : {};
+      logAction("webhook.relay.sent", { event, channelId: channel.id, messageId: message.id, title: typeof vote.name === "string" ? vote.name : null, content: typeof vote.description === "string" ? vote.description : typeof payload.text === "string" ? payload.text : null });
       response.writeHead(204); response.end();
     } catch (error) {
       console.error("Website webhook relay failed", error);
