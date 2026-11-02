@@ -260,7 +260,7 @@
 .fumo-route-body [class*="text-foreground/70"],
 .fumo-route-body [class*="text-foreground/85"],
 .fumo-route-body [class*="text-muted-foreground"] { color: var(--site-muted); }
-.fumo-route-body [class*="text-secondary"] { color: var(--site-blue) !important; }
+.fumo-route-body [class*="text-secondary"] { color: var(--site-soft) !important; }
 .fumo-route-body [class*="bg-secondary/"] { background-color: rgba(0, 51, 77, .06) !important; }
 .fumo-route-body [class*="border-secondary"] { border-color: rgba(0, 51, 77, .36) !important; }
 .fumo-route-body [class*="shadow"] { box-shadow: none !important; }
