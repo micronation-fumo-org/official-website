@@ -60,3 +60,123 @@
 .Article-base {
     @apply bg-white rounded-lg shadow-sm border border-border/60 overflow-hidden p-5 sm:p-8 lg:p-12 prose prose-slate max-w-none prose-headings:text-primary prose-h1:text-center prose-h1:text-3xl prose-h2:border-l-4 prose-h2:border-secondary prose-h2:pl-4 prose-h2:py-1 prose-h2:mt-12 prose-h3:text-xl prose-h3:mt-8 prose-p:leading-8 prose-blockquote:border-secondary prose-blockquote:bg-muted/40 prose-blockquote:rounded-r-md prose-table:text-sm
 }
+
+html.dark .fumo-admin-page .Div-base {
+    background-color: #202328 !important;
+    border-color: #363a40 !important;
+}
+
+html.dark .fumo-admin-page .fumo-admin-container [class*="bg-white"] {
+    background-color: #252a30 !important;
+}
+
+html.dark .fumo-admin-page .fumo-admin-container > [class*="bg-white"] {
+    background-color: #202328 !important;
+    border-color: #363a40 !important;
+}
+
+html.dark .fumo-admin-page input::placeholder,
+html.dark .fumo-admin-page textarea::placeholder {
+    color: #a2a7ae !important;
+    opacity: 1;
+}
+
+html.dark .fumo-admin-page input[type="checkbox"] {
+    accent-color: #a99bed;
+}
+
+html.dark .fumo-admin-page :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea, button):focus-visible {
+    outline: 2px solid rgba(127, 182, 202, .72) !important;
+    outline-offset: 2px;
+}
+
+html.dark .fumo-admin-page button:not([class*="bg-primary"]):not([aria-pressed="true"]):not(:disabled):hover {
+    background-color: rgba(255, 255, 255, .07) !important;
+}
+
+/* Keep Admin's status colors readable without changing other routes or light mode. */
+html.dark .fumo-admin-page {
+    color-scheme: dark;
+}
+
+html.dark .fumo-admin-page [class*="bg-blue-50"],
+html.dark .fumo-admin-page [class*="bg-indigo-50"],
+html.dark .fumo-admin-page [class*="bg-orange-50"] {
+    background-color: rgba(95, 126, 167, .16) !important;
+}
+
+html.dark .fumo-admin-page [class*="bg-blue-100"] {
+    background-color: rgba(72, 134, 204, .18) !important;
+}
+
+html.dark .fumo-admin-page [class*="bg-orange-100"] {
+    background-color: rgba(202, 132, 55, .17) !important;
+}
+
+html.dark .fumo-admin-page [class*="bg-red-100"] {
+    background-color: rgba(220, 90, 90, .16) !important;
+}
+
+html.dark .fumo-admin-page [class*="border-blue-200"],
+html.dark .fumo-admin-page [class*="border-indigo-100"],
+html.dark .fumo-admin-page [class*="border-indigo-200"],
+html.dark .fumo-admin-page [class*="border-indigo-400"] {
+    border-color: rgba(127, 182, 202, .34) !important;
+}
+
+html.dark .fumo-admin-page [class*="border-orange-200"] {
+    border-color: rgba(232, 174, 103, .34) !important;
+}
+
+html.dark .fumo-admin-page [class*="border-amber-300"] {
+    border-color: rgba(229, 201, 129, .42) !important;
+}
+
+html.dark .fumo-admin-page [class*="text-blue-900"],
+html.dark .fumo-admin-page [class*="text-blue-800"],
+html.dark .fumo-admin-page [class*="text-blue-600"] {
+    color: #9fc9f5 !important;
+}
+
+html.dark .fumo-admin-page [class*="text-indigo-950"],
+html.dark .fumo-admin-page [class*="text-indigo-900"] {
+    color: #c5bafa !important;
+}
+
+html.dark .fumo-admin-page [class*="text-orange-800"],
+html.dark .fumo-admin-page [class*="text-orange-700"],
+html.dark .fumo-admin-page [class*="text-orange-600"] {
+    color: #f0b978 !important;
+}
+
+html.dark .fumo-admin-page [class*="text-red-800"],
+html.dark .fumo-admin-page [class*="text-red-600"] {
+    color: #f19a9a !important;
+}
+
+html.dark .fumo-admin-page [class*="text-green-800"],
+html.dark .fumo-admin-page [class*="text-green-600"] {
+    color: #86d2b5 !important;
+}
+
+html.dark .fumo-admin-page [class*="text-amber-800"],
+html.dark .fumo-admin-page [class*="text-amber-700"],
+html.dark .fumo-admin-page [class*="text-amber-600"] {
+    color: #e5c981 !important;
+}
+
+html.dark .fumo-admin-page [class*="hover:text-blue-800"]:hover {
+    color: #b9dcff !important;
+}
+
+html.dark .fumo-admin-page [class*="hover:text-orange-800"]:hover {
+    color: #ffd19a !important;
+}
+
+html.dark .fumo-admin-page [class*="hover:text-red-800"]:hover {
+    color: #ffb3b3 !important;
+}
+
+html.dark .fumo-admin-page [class*="hover:text-gray-800"]:hover {
+    color: #eceef0 !important;
+}
