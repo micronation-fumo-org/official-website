@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { googleOAuthStartUrl } from "@/lib/api";
 import { SiteFooter } from "@/components/SiteFooter";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { getSiteNavigationLinks } from "@/data/siteNavigation";
 
 interface LayoutProps { children: ReactNode; }
@@ -228,6 +229,7 @@ export function Layout({ children }: LayoutProps) {
             <Button variant="outline" size="sm" onClick={switchLanguage} aria-label={isEnglish ? "Switch to Traditional Chinese" : "Switch to English"} className="gap-1.5">
               <Languages className="w-4 h-4" /> {isEnglish ? "繁中" : "EN"}
             </Button>
+            <ThemeToggle isEnglish={isEnglish} />
             {user ? (
               <div className="flex items-center gap-2">
                 {isAdmin && <Link href="/admin" className="shrink-0"><Button variant="ghost" size="sm" className="text-secondary text-xs gap-1 whitespace-nowrap"><Shield className="w-3 h-3 shrink-0" />{adminLevelLabel(user.adminLevel)}</Button></Link>}
@@ -324,6 +326,7 @@ export function Layout({ children }: LayoutProps) {
               </>
             )}
             <Button variant="outline" size="sm" onClick={() => { switchLanguage(); closeMenu(); }} className="justify-start gap-2"><Languages className="w-4 h-4" />{isEnglish ? "繁體中文" : "English"}</Button>
+            <ThemeToggle isEnglish={isEnglish} compact={false} className="fumo-theme-toggle--mobile" />
             <div className="border-t border-border pt-3 flex flex-col gap-2">
               {user ? <>
                 <div className="flex items-start gap-2 text-sm font-medium text-foreground min-w-0">

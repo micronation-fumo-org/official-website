@@ -257,3 +257,150 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   .heading-actions .btn { min-height: 40px; font-size: 12px; }
   .content { padding-inline: 16px; }
 }
+
+
+/* Dark mode for the standalone editor and its read-only workspace view. */
+html.dark {
+  color-scheme: dark;
+  --ink: #eceef0;
+  --muted: #a2a7ae;
+  --line: #363a40;
+  --paper: #1d2024;
+  --canvas: #17191c;
+  --blue: #7fb6ca;
+  --blue-soft: #292e34;
+  --green: #84cfb5;
+  --green-muted: #7fb6a3;
+  --green-soft: rgba(90, 174, 143, .14);
+  --gold: #7fb6ca;
+  --shadow: 0 12px 36px rgba(0, 0, 0, .28);
+}
+html.dark body,
+html.dark body.public-mode,
+html.dark .public-page { background: var(--canvas) !important; color: var(--ink) !important; }
+html.dark .sidebar,
+html.dark .workspace-boot-card,
+html.dark .editor-card,
+html.dark .info-card,
+html.dark .public-document { background: var(--paper) !important; color: var(--ink); }
+html.dark .sidebar { border-right-color: var(--line); }
+html.dark .topbar,
+html.dark .public-bar { border-color: var(--line); background: rgba(23, 25, 28, .96); }
+html.dark .workspace-switch,
+html.dark .search input,
+html.dark .markdown-input,
+html.dark .share-slug,
+html.dark .share-url { border-color: var(--line); background: #202328 !important; color: var(--ink) !important; }
+html.dark .workspace-switch:hover,
+html.dark .nav-btn:hover,
+html.dark .doc-link:hover,
+html.dark .add-doc:hover,
+html.dark .tool-btn:hover,
+html.dark .btn:hover { border-color: #4a5058; background: #292d32 !important; color: var(--blue) !important; }
+html.dark .nav-btn,
+html.dark .doc-link,
+html.dark .add-doc,
+html.dark .tool-btn,
+html.dark .shortcut-row,
+html.dark .activity-main,
+html.dark .preview-body,
+html.dark .banner-copy,
+html.dark .public-document .preview-body { color: #c4c8ce !important; }
+html.dark .nav-btn.active,
+html.dark .doc-link.selected { border-color: rgba(127, 182, 202, .3); background: rgba(127, 182, 202, .12) !important; color: var(--blue) !important; box-shadow: inset 2px 0 var(--blue); }
+html.dark .workspace-switch,
+html.dark .crumb b,
+html.dark .doc-title,
+html.dark .public-heading h1,
+html.dark .public-brand,
+html.dark .info-title,
+html.dark .preview-body h1,
+html.dark .preview-body h2,
+html.dark .preview-body h3,
+html.dark .preview-body strong,
+html.dark .banner-copy strong,
+html.dark .activity-main,
+html.dark .profile-name { color: var(--ink) !important; }
+html.dark .crumb,
+html.dark .brand-sub,
+html.dark .workspace-kicker,
+html.dark .nav-label,
+html.dark .doc-meta,
+html.dark .info-subtle,
+html.dark .activity-time,
+html.dark .tool-label,
+html.dark .pane-head,
+html.dark .editor-footer,
+html.dark .public-meta,
+html.dark .shortcut-row .key,
+html.dark .local-note,
+html.dark .profile-role { color: var(--muted) !important; }
+html.dark .local-note,
+html.dark .view-mode,
+html.dark .preview-body th,
+html.dark .preview-body tr:nth-child(even) td,
+html.dark .preview-body pre,
+html.dark .preview-body code,
+html.dark .shortcut-row .key,
+html.dark .context-banner,
+html.dark .public-notice,
+html.dark .share-dialog .share-warning,
+html.dark .activity-mini,
+html.dark .activity-chip { background: #252a30 !important; color: #c4c8ce !important; }
+html.dark .btn,
+html.dark .heading-actions .btn,
+html.dark .top-action,
+html.dark .theme-toggle { border-color: var(--line); background: #202328; color: var(--ink); }
+html.dark .btn-primary { border-color: #7fb6ca; background: #7fb6ca !important; color: #111518 !important; }
+html.dark .btn-primary:hover { border-color: #98c9d8; background: #98c9d8 !important; color: #111518 !important; }
+html.dark .editor-toolbar,
+html.dark .pane-head,
+html.dark .editor-footer,
+html.dark .editor-pane,
+html.dark .activity-row,
+html.dark .public-footer,
+html.dark .preview-body h2,
+html.dark .preview-body hr,
+html.dark .preview-body th,
+html.dark .preview-body td { border-color: var(--line) !important; }
+html.dark .preview-body blockquote { border-left-color: var(--blue); background: rgba(127, 182, 202, .1) !important; color: #c4c8ce !important; }
+html.dark .preview-body th,
+html.dark .preview-body code,
+html.dark .preview-body strong,
+html.dark .banner-link,
+html.dark .share-dialog h2 { color: var(--blue) !important; }
+html.dark .share-dialog,
+html.dark .share-dialog-inner { border-color: var(--line); background: var(--paper); color: var(--ink); }
+html.dark .share-dialog p,
+html.dark .share-dialog .share-hint,
+html.dark .share-dialog .share-warning,
+html.dark .share-slug-prefix { color: #c4c8ce !important; }
+html.dark .share-dialog .share-hint code { background: #252a30; color: var(--blue); }
+html.dark .saved-indicator,
+html.dark .share-dialog .share-feedback { color: #86d2b5 !important; }
+html.dark .fumo-theme-toggle { color: var(--blue); }
+html.dark .fumo-theme-toggle:hover { border-color: #4a5058; background: #292d32; }
+html.dark .share-dialog::backdrop { background: rgba(0, 0, 0, .68); }
+html.dark .fumo-theme-toggle:focus-visible { outline-color: rgba(127, 182, 202, .65); }
+
+.theme-toggle {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0;
+  background: var(--paper);
+  color: var(--blue);
+  font-size: 17px;
+  line-height: 1;
+}
+.theme-toggle:hover { background: var(--blue-soft); }
+#workspaceThemeToggle { display: inline-grid !important; }
+#themeHint { display: none !important; }
+.public-bar .theme-toggle { flex: 0 0 34px; }
+
+html.dark .theme-toggle { color: var(--blue) !important; }
+html.dark .theme-toggle:hover { border-color: #4a5058; background: #292d32; }

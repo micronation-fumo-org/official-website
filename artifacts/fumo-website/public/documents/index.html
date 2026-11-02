@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#f5f7fb">
 <meta name="description" content="FUMO 成員文件工作區：以 Markdown 編寫、整理與預覽組織文件。">
 <title>FUMO 文件工作區</title>
+<script src="/documents/theme.js"></script>
 <link rel="icon" href="/fumo-badge.webp" type="image/webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -83,6 +84,7 @@ main{min-width:0}.topbar{height:60px;border-bottom:1px solid var(--line);backgro
       <div class="crumb">聯合微國家組織　/　<b>成員文件</b></div>
       <div class="top-spacer"></div>
       <label class="search"><span class="search-icon">⌕</span><input id="search" type="search" placeholder="搜尋文件…" aria-label="搜尋文件"><span class="shortcut">/</span></label>
+      <button class="top-action theme-toggle" id="workspaceThemeToggle" type="button" data-theme-toggle aria-label="切換至深色模式" aria-pressed="false" title="切換至深色模式"><span data-theme-icon aria-hidden="true">☾</span></button>
       <button class="top-action" id="themeHint" title="文件工作區">⌘</button>
       <span class="online" title="本機工作區"></span>
     </header>
@@ -123,6 +125,7 @@ main{min-width:0}.topbar{height:60px;border-bottom:1px solid var(--line);backgro
     <a class="public-brand" href="/" id="backToWorkspace"><span class="public-mark"><img src="/fumo-badge.webp" alt="FUMO 徽章"></span><span>FUMO 文件工作區</span></a>
     <span class="public-label">唯讀公開頁面</span>
     <span class="public-bar-spacer"></span>
+    <button class="theme-toggle" id="publicThemeToggle" type="button" data-theme-toggle aria-label="切換至深色模式" aria-pressed="false" title="切換至深色模式"><span data-theme-icon aria-hidden="true">☾</span></button>
     <button class="btn" id="publicCopyBtn" type="button">複製連結</button>
   </header>
   <section class="public-content">

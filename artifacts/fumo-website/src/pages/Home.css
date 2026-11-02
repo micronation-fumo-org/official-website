@@ -193,3 +193,42 @@
   .fumo-home { scroll-behavior: auto; }
   .fumo-home *, .fumo-home *::before, .fumo-home *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+html.dark .fumo-home {
+  --fumo-blue: #7fb6ca;
+  --fumo-ink: #eceef0;
+  --fumo-muted: #a2a7ae;
+  --fumo-line: #363a40;
+  --fumo-paper: #17191c;
+  --fumo-soft: #202328;
+  --fumo-body-copy: #c4c8ce;
+  --fumo-body-strong: #d9dce0;
+  color-scheme: dark;
+}
+html.dark .fumo-global-nav { background: rgba(23, 25, 28, .94); border-color: rgba(255, 255, 255, .09); }
+html.dark .fumo-brand-name,
+html.dark .fumo-nav-links a,
+html.dark .fumo-authenticated-nav a,
+html.dark .fumo-account-link { color: var(--fumo-ink); }
+html.dark .fumo-nav-links a:hover,
+html.dark .fumo-authenticated-nav a:hover,
+html.dark .fumo-account-link:hover { color: var(--fumo-blue); }
+html.dark .fumo-hero-description,
+html.dark .fumo-section-intro,
+html.dark .fumo-about-copy p,
+html.dark .fumo-organ-description,
+html.dark .fumo-organ li { color: var(--fumo-body-copy); }
+html.dark .fumo-organ li { border-color: var(--fumo-line); }
+html.dark .fumo-join { background: #25292e; color: #eceef0; }
+html.dark .fumo-join .fumo-section-index { color: #a2a7ae; }
+html.dark .fumo-join p:not(.fumo-section-index) { color: #c4c8ce; }
+html.dark .fumo-home .fumo-theme-toggle { color: var(--fumo-blue); }
+html.dark .fumo-home .fumo-theme-toggle:hover { background: #292d32; color: #a3d1e0; }
+html.dark .fumo-footer-group a { color: var(--fumo-body-copy); }
+html.dark .fumo-footer-disclaimer { color: var(--fumo-muted); }
+
+.fumo-home .fumo-theme-toggle { color: var(--fumo-blue); }
+.fumo-home .fumo-theme-toggle:hover { background: var(--fumo-soft); color: var(--fumo-blue); }
+.fumo-home .fumo-theme-toggle:focus-visible { outline-color: rgba(0, 51, 77, .5); }
+html.dark .fumo-home .fumo-theme-toggle:focus-visible { outline-color: rgba(127, 182, 202, .65); }

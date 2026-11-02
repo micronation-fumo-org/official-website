@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { googleOAuthStartUrl } from "@/lib/api";
 import { SiteFooter } from "@/components/SiteFooter";
 import { getSiteNavigationLinks } from "@/data/siteNavigation";
@@ -115,6 +116,7 @@ export default function Home() {
             ))}
           </nav>
           <div className="fumo-nav-actions">
+            <ThemeToggle isEnglish={isEnglish} />
             <button className="fumo-language-button" id="language-toggle" type="button" onClick={toggleLanguage} aria-label={text("切換至英文", "Switch to Traditional Chinese")}>
               {isEnglish ? "繁中" : "EN"}
             </button>
