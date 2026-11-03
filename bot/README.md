@@ -19,7 +19,7 @@
 
 伺服器備份不包含訊息、成員名單、Bot／整合管理的身分組或串文內容。還原會套用來源備份的 `@everyone` 基礎權限，並新增身分組與頻道；不會刪除既有頻道或自訂身分組。重複還原可能建立重複項目；還原時需給 Bot `Manage Roles` 與 `Manage Channels` 權限。來源備份若有管理員權限，也會照樣重建，請只還原可信任的備份。已離開目標伺服器的成員覆寫會略過。
 
-這兩個指令的授權 ID 會由 Discord Bot application owner 資料即時取得並快取；伺服器擁有者、具備 `Manage Guild`／`Administrator` 的成員及 `FUMO_BOT_ADMIN_IDS` 清單都不能代替 Bot application owner 使用或確認。
+主程式以共用的 `OWNER_ID` 變數保存 Discord Bot application owner ID，透過 Discord application 資料動態取得，後續指令可重用；不需要在 Wispbyte 手動設定此值。伺服器擁有者、具備 `Manage Guild`／`Administrator` 的成員及 `FUMO_BOT_ADMIN_IDS` 清單都不能代替 Bot application owner 使用或確認 `/伺服器備份`、`/伺服器還原`。
 
 ## 本機啟動
 

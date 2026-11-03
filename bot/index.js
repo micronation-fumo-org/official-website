@@ -114,17 +114,17 @@ const commands = [
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 const pendingGuildRestores = new Map();
-let BOT_OWNER_ID = "";
+let OWNER_ID = "";
 
 function canManage(interaction) {
   return ADMIN_IDS.has(interaction.user.id) || Boolean(interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild));
 }
 
-async function getBotOwnerId() {
+async function getOwnerId() {
   const application = await client.application.fetch();
-  BOT_OWNER_ID = extractApplicationOwnerId(application.owner);
-  if (!BOT_OWNER_ID) throw new Error("Discord 未提供有效的 Bot application owner ID");
-  return BOT_OWNER_ID;
+  OWNER_ID = extractApplicationOwnerId(application.owner);
+  if (!OWNER_ID) throw new Error("Discord 未提供有效的 Bot application owner ID");
+  return OWNER_ID;
 }
 
 async function fumoFetch(path) {
@@ -430,15 +430,14 @@ async function handleGuildRestoreButton(interaction) {
     return;
   }
   await interaction.deferUpdate();
-  let botOwnerId;
   try {
-    botOwnerId = await getBotOwnerId();
+    await getOwnerId();
   } catch (error) {
     console.error("Could not verify Bot application owner", error?.stack || error);
     await interaction.followUp({ content: "目前無法確認 Discord Bot 應用程式擁有者，操作已拒絕；請稍後重試。", ephemeral: true });
     return;
   }
-  if (interaction.guildId !== pending.guildId || !isBotOwner(interaction.user.id, botOwnerId) || interaction.user.id !== pending.ownerId || pending.ownerId !== botOwnerId) {
+  if (interaction.guildId !== pending.guildId || !isBotOwner(interaction.user.id, OWNER_ID) || interaction.user.id !== pending.ownerId || pending.ownerId !== OWNER_ID) {
     await interaction.followUp({ content: "只有此 Discord Bot 應用程式的擁有者可以確認。", ephemeral: true });
     return;
   }
@@ -506,15 +505,14 @@ async function handleInteraction(interaction) {
   logAction("command.received", { command: interaction.commandName, userId: interaction.user.id, username: interaction.user.username, guildId: interaction.guildId, channelId: interaction.channelId });
   if (interaction.commandName === "伺服器備份" || interaction.commandName === "伺服器還原") {
     await interaction.deferReply({ ephemeral: true });
-    let botOwnerId;
     try {
-      botOwnerId = await getBotOwnerId();
+      await getOwnerId();
     } catch (error) {
       console.error("Could not verify Bot application owner", error?.stack || error);
       await interaction.editReply("目前無法確認 Discord Bot 應用程式擁有者，操作已拒絕；請稍後重試。");
       return;
     }
-    if (!isBotOwner(interaction.user.id, botOwnerId)) {
+    if (!isBotOwner(interaction.user.id, OWNER_ID)) {
       await interaction.editReply("此指令僅限 Discord Bot 應用程式的擁有者使用。");
       return;
     }
@@ -562,7 +560,7 @@ async function handleInteraction(interaction) {
       pendingGuildRestores.set(restoreId, {
         backup,
         guildId: interaction.guildId,
-        ownerId: botOwnerId,
+        ownerId: OWNER_ID,
         expiresAt: Date.now() + 10 * 60 * 1000,
       });
       const row = new ActionRowBuilder().addComponents(
@@ -727,7 +725,7 @@ client.once("ready", async readyClient => {
   console.log(`Logged in as ${readyClient.user.tag}`);
   logAction("bot.ready", { botUserId: readyClient.user.id, guildId: GUILD_ID || null, port: BOT_HTTP_PORT });
   try {
-    await getBotOwnerId();
+    await getOwnerId();
     logAction("bot.application_owner.loaded");
   } catch (error) {
     console.error("Bot application owner lookup failed; owner-only commands will fail closed until Discord can be reached", error?.stack || error);

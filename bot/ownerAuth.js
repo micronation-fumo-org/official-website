@@ -14,9 +14,9 @@ export function extractApplicationOwnerId(owner) {
   return typeof owner.id === "string" && SNOWFLAKE_PATTERN.test(owner.id) ? owner.id : "";
 }
 
-export function isBotOwner(userId, botOwnerId) {
+export function isBotOwner(userId, ownerId) {
   return typeof userId === "string"
-    && typeof botOwnerId === "string"
-    && SNOWFLAKE_PATTERN.test(botOwnerId)
-    && userId === botOwnerId;
+    && typeof ownerId === "string"
+    && SNOWFLAKE_PATTERN.test(ownerId)
+    && userId === ownerId;
 }
