@@ -41,6 +41,15 @@ function serializeOverwrites(channel) {
   }));
 }
 
+function serializeUserLimit(value) {
+  if (value === undefined || value === null) return 0;
+  if (typeof value === "string" && /^\d+$/.test(value)) {
+    const numericValue = Number(value);
+    if (Number.isSafeInteger(numericValue)) return numericValue;
+  }
+  return value;
+}
+
 function serializeChannel(channel) {
   const entry = {
     id: channel.id,
@@ -56,7 +65,7 @@ function serializeChannel(channel) {
     nsfw: channel.nsfw,
     rateLimitPerUser: channel.rateLimitPerUser,
     bitrate: channel.bitrate,
-    userLimit: channel.userLimit,
+    userLimit: VOICE_CHANNEL_TYPES.has(channel.type) ? serializeUserLimit(channel.userLimit) : undefined,
     rtcRegion: channel.rtcRegion,
     videoQualityMode: channel.videoQualityMode,
     defaultAutoArchiveDuration: channel.defaultAutoArchiveDuration,
@@ -274,7 +283,7 @@ function channelCreateOptions(channel, parentId, permissionOverwrites) {
   }
   if (VOICE_CHANNEL_TYPES.has(channel.type)) {
     if (channel.bitrate !== undefined) options.bitrate = channel.bitrate;
-    if (channel.userLimit !== undefined) options.userLimit = channel.userLimit;
+    if (channel.userLimit !== undefined && channel.userLimit !== null) options.userLimit = channel.userLimit;
     if (channel.rtcRegion !== undefined) options.rtcRegion = channel.rtcRegion;
     if (channel.videoQualityMode !== undefined) options.videoQualityMode = channel.videoQualityMode;
   }

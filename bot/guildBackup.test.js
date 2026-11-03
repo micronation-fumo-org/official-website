@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { ChannelType } from "discord.js";
+import { ChannelType, Client, VoiceChannel } from "discord.js";
 import {
   createGuildBackup,
   loadLatestGuildBackup,
@@ -66,6 +66,35 @@ function validBackup() {
   return createGuildBackup(sourceGuild());
 }
 
+function addVoiceChannel(guild, id, name, userLimit, type = ChannelType.GuildVoice) {
+  const channel = {
+    id,
+    name,
+    type,
+    position: 3,
+    parentId: null,
+    permissionOverwrites: { cache: new Map() },
+  };
+  if (arguments.length >= 4) channel.userLimit = userLimit;
+  guild.channels.cache.set(id, channel);
+  return guild;
+}
+
+function addDiscordVoiceChannel(client, guild, id, name, userLimit) {
+  const data = {
+    id,
+    guild_id: guild.id,
+    name,
+    type: ChannelType.GuildVoice,
+    position: 3,
+    parent_id: null,
+    permission_overwrites: [],
+  };
+  if (arguments.length >= 5) data.user_limit = userLimit;
+  guild.channels.cache.set(id, new VoiceChannel(guild, data, client));
+  return guild;
+}
+
 test("serializes restorable roles and channels while omitting managed roles and threads", () => {
   const backup = validBackup();
   assert.equal(backup.schemaVersion, 1);
@@ -80,6 +109,42 @@ test("serializes restorable roles and channels while omitting managed roles and 
     { name: "投票", moderated: true, emoji: { id: "888888888888888888", name: null } },
   ]);
   assert.equal(validateGuildBackup(backup), backup);
+});
+
+test("serializes Discord.js voice capacity values as bounded integer defaults", async () => {
+  const client = new Client({ intents: [] });
+  try {
+    const guild = sourceGuild();
+    addDiscordVoiceChannel(client, guild, "888888888888888881", "語音字串容量", "12");
+    addDiscordVoiceChannel(client, guild, "888888888888888882", "未設定容量");
+    addDiscordVoiceChannel(client, guild, "888888888888888883", "空值容量", null);
+    addDiscordVoiceChannel(client, guild, "888888888888888884", "數字容量", 99);
+
+    const backup = createGuildBackup(guild);
+    const limits = new Map(backup.channels
+      .filter(channel => channel.type === ChannelType.GuildVoice)
+      .map(channel => [channel.name, channel.userLimit]));
+
+    assert.equal(limits.get("語音字串容量"), 12);
+    assert.equal(limits.get("未設定容量"), 0);
+    assert.equal(limits.get("空值容量"), 0);
+    assert.equal(limits.get("數字容量"), 99);
+    assert.throws(() => createGuildBackup(addDiscordVoiceChannel(client, sourceGuild(), "888888888888888885", "超限容量", "100")), /語音頻道人數上限格式錯誤/);
+  } finally {
+    await client.destroy();
+  }
+});
+
+test("keeps uploaded backup user limits strictly numeric and within Discord bounds", () => {
+  const guild = addVoiceChannel(sourceGuild(), "888888888888888881", "語音", 12);
+  const backup = createGuildBackup(guild);
+  const voiceChannel = backup.channels.find(channel => channel.type === ChannelType.GuildVoice);
+  voiceChannel.userLimit = "12";
+
+  assert.throws(() => validateGuildBackup(backup), /語音頻道人數上限格式錯誤/);
+  assert.throws(() => parseGuildBackup(Buffer.from(JSON.stringify(backup))), /語音頻道人數上限格式錯誤/);
+  voiceChannel.userLimit = 100;
+  assert.throws(() => validateGuildBackup(backup), /語音頻道人數上限格式錯誤/);
 });
 
 test("parses a JSON backup and rejects malformed or unsupported structures", () => {
@@ -113,6 +178,15 @@ test("saves local snapshots atomically and chooses the most recent valid backup"
 
 test("restores roles, categories, channel permission mappings, and skips absent members", async () => {
   const backup = validBackup();
+  backup.channels.push({
+    id: "888888888888888881",
+    name: "未限制語音",
+    type: ChannelType.GuildVoice,
+    position: 3,
+    parentId: "555555555555555555",
+    permissionOverwrites: [],
+    userLimit: null,
+  });
   let roleSequence = 0;
   let channelSequence = 0;
   const createdRoles = [];
@@ -149,7 +223,7 @@ test("restores roles, categories, channel permission mappings, and skips absent 
 
   const result = await restoreGuildBackup(targetGuild, backup);
   assert.equal(result.createdRoles, 1);
-  assert.equal(result.createdChannels, 3);
+  assert.equal(result.createdChannels, 4);
   assert.equal(result.skippedOverwrites, 1);
   assert.equal(result.skippedChannels, 0);
   assert.equal(result.roleOrderRestored, true);
@@ -168,4 +242,5 @@ test("restores roles, categories, channel permission mappings, and skips absent 
     { name: "草案", moderated: false, emoji: { id: null, name: "📌" } },
     { name: "投票", moderated: true, emoji: { id: "888888888888888888", name: null } },
   ]);
+  assert.equal(Object.hasOwn(createdChannels[3].options, "userLimit"), false);
 });
