@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { ChannelType, Client, VoiceChannel } from "discord.js";
+import { ChannelType, Client, StageChannel, VoiceChannel } from "discord.js";
 import {
   createGuildBackup,
   loadLatestGuildBackup,
@@ -80,18 +80,19 @@ function addVoiceChannel(guild, id, name, userLimit, type = ChannelType.GuildVoi
   return guild;
 }
 
-function addDiscordVoiceChannel(client, guild, id, name, userLimit) {
+function addDiscordVoiceChannel(client, guild, id, name, userLimit, type = ChannelType.GuildVoice) {
   const data = {
     id,
     guild_id: guild.id,
     name,
-    type: ChannelType.GuildVoice,
+    type,
     position: 3,
     parent_id: null,
     permission_overwrites: [],
   };
   if (arguments.length >= 5) data.user_limit = userLimit;
-  guild.channels.cache.set(id, new VoiceChannel(guild, data, client));
+  const ChannelClass = type === ChannelType.GuildStageVoice ? StageChannel : VoiceChannel;
+  guild.channels.cache.set(id, new ChannelClass(guild, data, client));
   return guild;
 }
 
@@ -120,10 +121,11 @@ test("serializes Discord.js voice capacity values as bounded integer defaults", 
     addDiscordVoiceChannel(client, guild, "888888888888888883", "空值容量", null);
     addDiscordVoiceChannel(client, guild, "888888888888888884", "數字容量", 99);
     addDiscordVoiceChannel(client, guild, "888888888888888886", "BigInt 容量", 42n);
+    addDiscordVoiceChannel(client, guild, "888888888888888888", "Stage 頻道容量", 0, ChannelType.GuildStageVoice);
 
     const backup = createGuildBackup(guild);
     const limits = new Map(backup.channels
-      .filter(channel => channel.type === ChannelType.GuildVoice)
+      .filter(channel => [ChannelType.GuildVoice, ChannelType.GuildStageVoice].includes(channel.type))
       .map(channel => [channel.name, channel.userLimit]));
 
     assert.equal(limits.get("語音字串容量"), 12);
@@ -131,6 +133,7 @@ test("serializes Discord.js voice capacity values as bounded integer defaults", 
     assert.equal(limits.get("空值容量"), 0);
     assert.equal(limits.get("數字容量"), 99);
     assert.equal(limits.get("BigInt 容量"), 42);
+    assert.equal(limits.get("Stage 頻道容量"), 0);
     assert.throws(() => createGuildBackup(addDiscordVoiceChannel(client, sourceGuild(), "888888888888888885", "超限容量", "100")), /語音頻道人數上限格式錯誤/);
     assert.throws(() => createGuildBackup(addDiscordVoiceChannel(client, sourceGuild(), "888888888888888887", "超限 BigInt 容量", 100n)), /語音頻道人數上限格式錯誤/);
   } finally {
@@ -148,6 +151,26 @@ test("keeps uploaded backup user limits strictly numeric and within Discord boun
   assert.throws(() => parseGuildBackup(Buffer.from(JSON.stringify(backup))), /語音頻道人數上限格式錯誤/);
   voiceChannel.userLimit = 100;
   assert.throws(() => validateGuildBackup(backup), /語音頻道人數上限格式錯誤/);
+});
+
+test("reports safe channel and value diagnostics for unsupported Discord.js voice limits", async () => {
+  const client = new Client({ intents: [] });
+  try {
+    const sensitiveLikeValue = { token: "must-not-appear-in-error", toString() { throw new Error("must not be called"); } };
+    const guild = addDiscordVoiceChannel(client, sourceGuild(), "888888888888888889", "有未支援容量", sensitiveLikeValue);
+
+    assert.throws(() => createGuildBackup(guild), error => {
+      assert.match(error.message, /語音頻道人數上限格式錯誤/);
+      assert.match(error.message, /channelId=888888888888888889/);
+      assert.match(error.message, /channelType=2/);
+      assert.match(error.message, /valueType=object/);
+      assert.match(error.message, /value=<object>/);
+      assert.doesNotMatch(error.message, /must-not-appear-in-error/);
+      return true;
+    });
+  } finally {
+    await client.destroy();
+  }
 });
 
 test("parses a JSON backup and rejects malformed or unsupported structures", () => {

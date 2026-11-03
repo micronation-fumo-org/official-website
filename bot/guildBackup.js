@@ -54,6 +54,25 @@ function serializeUserLimit(value) {
   return value;
 }
 
+function safeDiagnosticValue(value) {
+  if (value === null) return "null";
+  if (typeof value === "string") {
+    const shortened = value.length > 48 ? `${value.slice(0, 48)}…` : value;
+    return JSON.stringify(shortened);
+  }
+  if (typeof value === "number") return Number.isFinite(value) ? String(value) : String(value);
+  if (typeof value === "bigint") return `${value}n`;
+  return `<${typeof value}>`;
+}
+
+function userLimitErrorMessage(channel, value) {
+  const channelId = typeof channel?.id === "string" && SNOWFLAKE_PATTERN.test(channel.id)
+    ? channel.id
+    : "invalid";
+  const channelType = Number.isInteger(channel?.type) ? String(channel.type) : safeDiagnosticValue(channel?.type);
+  return `語音頻道人數上限格式錯誤（channelId=${channelId}, channelType=${channelType}, valueType=${typeof value}, value=${safeDiagnosticValue(value)}）。`;
+}
+
 function serializeChannel(channel) {
   const entry = {
     id: channel.id,
@@ -185,7 +204,7 @@ export function validateGuildBackup(backup) {
     if (channel.nsfw !== undefined) assert(typeof channel.nsfw === "boolean", "頻道 NSFW 設定格式錯誤。");
     assert(validOptionalInteger(channel.rateLimitPerUser, 0, 21600), "頻道慢速模式格式錯誤。");
     assert(validOptionalInteger(channel.bitrate, 8000, 512000), "語音頻道位元率格式錯誤。");
-    assert(validOptionalInteger(channel.userLimit, 0, 99), "語音頻道人數上限格式錯誤。");
+    assert(validOptionalInteger(channel.userLimit, 0, 99), userLimitErrorMessage(channel, channel.userLimit));
     assert(validOptionalInteger(channel.defaultAutoArchiveDuration, 60, 10080), "串文封存時間格式錯誤。");
     assert(validOptionalInteger(channel.defaultThreadRateLimitPerUser, 0, 21600), "串文慢速模式格式錯誤。");
     if (channel.defaultReactionEmoji !== undefined && channel.defaultReactionEmoji !== null) {
