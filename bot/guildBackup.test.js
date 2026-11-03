@@ -119,6 +119,7 @@ test("serializes Discord.js voice capacity values as bounded integer defaults", 
     addDiscordVoiceChannel(client, guild, "888888888888888882", "未設定容量");
     addDiscordVoiceChannel(client, guild, "888888888888888883", "空值容量", null);
     addDiscordVoiceChannel(client, guild, "888888888888888884", "數字容量", 99);
+    addDiscordVoiceChannel(client, guild, "888888888888888886", "BigInt 容量", 42n);
 
     const backup = createGuildBackup(guild);
     const limits = new Map(backup.channels
@@ -129,7 +130,9 @@ test("serializes Discord.js voice capacity values as bounded integer defaults", 
     assert.equal(limits.get("未設定容量"), 0);
     assert.equal(limits.get("空值容量"), 0);
     assert.equal(limits.get("數字容量"), 99);
+    assert.equal(limits.get("BigInt 容量"), 42);
     assert.throws(() => createGuildBackup(addDiscordVoiceChannel(client, sourceGuild(), "888888888888888885", "超限容量", "100")), /語音頻道人數上限格式錯誤/);
+    assert.throws(() => createGuildBackup(addDiscordVoiceChannel(client, sourceGuild(), "888888888888888887", "超限 BigInt 容量", 100n)), /語音頻道人數上限格式錯誤/);
   } finally {
     await client.destroy();
   }

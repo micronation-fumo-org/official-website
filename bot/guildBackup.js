@@ -43,6 +43,10 @@ function serializeOverwrites(channel) {
 
 function serializeUserLimit(value) {
   if (value === undefined || value === null) return 0;
+  if (typeof value === "bigint") {
+    if (value >= 0n && value <= 99n) return Number(value);
+    return value;
+  }
   if (typeof value === "string" && /^\d+$/.test(value)) {
     const numericValue = Number(value);
     if (Number.isSafeInteger(numericValue)) return numericValue;
