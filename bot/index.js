@@ -10,6 +10,7 @@ import {
   restoreGuildBackup,
   saveGuildBackup,
 } from "./guildBackup.js";
+import { createCountryEmbedData, findCountryMatches, formatCountryMatches, getPublicRepresentativeNames } from "./countryLookup.js";
 import {
   Client,
   GatewayIntentBits,
@@ -87,6 +88,10 @@ const commands = [
   new SlashCommandBuilder()
     .setName("投票狀態")
     .setDescription("查看 FUMO 官方網站 API 狀態"),
+  new SlashCommandBuilder()
+    .setName("國家查詢")
+    .setDescription("查詢 FUMO 成員國與觀察國的公開資料")
+    .addStringOption(option => option.setName("國家").setDescription("輸入國家全名、簡稱或代號").setRequired(true).setMaxLength(100)),
   new SlashCommandBuilder()
     .setName("驗證")
     .setDescription("對照 FUMO 註冊名單並取得對應身分組"),
@@ -604,6 +609,39 @@ async function handleInteraction(interaction) {
       await interaction.editReply(`FUMO API 正常運作。\n網站：${WEBSITE_URL}\n狀態：${health.status || "ok"}`);
     } catch {
       await interaction.editReply("FUMO API 目前無法連線，請稍後再試。");
+    }
+    return;
+  }
+  if (interaction.commandName === "國家查詢") {
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      const query = interaction.options.getString("國家", true);
+      const [membersResult, votersResult] = await Promise.allSettled([
+        fumoFetch("/api/members"),
+        fumoFetch("/api/voters"),
+      ]);
+      if (membersResult.status !== "fulfilled") throw membersResult.reason;
+
+      const matches = findCountryMatches(membersResult.value, query);
+      if (matches.length === 0) {
+        await interaction.editReply("沒有找到相符的成員國／觀察國。請試試完整名稱、簡稱或國家代號。");
+        return;
+      }
+      if (matches.length > 1) {
+        await interaction.editReply({ content: `找到多個相符國家，請改用更完整的名稱或代號：\n${formatCountryMatches(matches)}`, allowedMentions: { parse: [] } });
+        return;
+      }
+
+      const state = matches[0];
+      const representativesAvailable = votersResult.status === "fulfilled" && Array.isArray(votersResult.value);
+      const representatives = representativesAvailable
+        ? getPublicRepresentativeNames(votersResult.value, state.fullName)
+        : [];
+      const embed = createCountryEmbedData(state, representatives, WEBSITE_URL, { representativesAvailable });
+      await interaction.editReply({ embeds: [embed], allowedMentions: { parse: [] } });
+    } catch (error) {
+      console.error("Country lookup failed", error?.stack || error);
+      await interaction.editReply("國家查詢目前無法連線至 FUMO 官方 API，請稍後再試。");
     }
     return;
   }
