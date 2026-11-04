@@ -4,10 +4,32 @@ import { ChevronDown, ChevronRight, Menu, X, Shield, LogIn, UserPlus, LogOut, Us
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { charterUrlEn, charterUrlZh } from "@/data/regulations";
 import { googleOAuthStartUrl } from "@/lib/api";
+import { SiteFooter } from "@/components/SiteFooter";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { getSiteNavigationLinks } from "@/data/siteNavigation";
 
 interface LayoutProps { children: ReactNode; }
+
+function getRouteIndex(location: string, isEnglish: boolean) {
+  const route = location.split("?")[0];
+  if (["/members", "/staff", "/partners", "/acknowledgements"].includes(route)) {
+    return { number: "01", label: isEnglish ? "ORGANISATION" : "組織資訊" };
+  }
+  if (["/regulations", "/charter", "/privacy", "/terms"].includes(route)) {
+    return { number: "02", label: isEnglish ? "CHARTER & POLICY" : "憲章與政策" };
+  }
+  if (["/votes", "/vote-records", "/attendance"].includes(route) || route.startsWith("/votes/")) {
+    return { number: "03", label: isEnglish ? "DELIBERATION" : "議事與投票" };
+  }
+  if (["/login", "/register"].includes(route)) {
+    return { number: "04", label: isEnglish ? "ACCOUNT" : "帳戶" };
+  }
+  if (["/admin", "/bot-admin"].includes(route)) {
+    return { number: "05", label: isEnglish ? "ADMINISTRATION" : "管理" };
+  }
+  return { number: "06", label: isEnglish ? "FUMO" : "聯合微國家組織" };
+}
 
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
@@ -20,53 +42,29 @@ export function Layout({ children }: LayoutProps) {
   const { user, logout, isAdmin } = useAuth();
   const { language, setLanguage, isEnglish } = useLanguage();
 
-  const allNavLinks = isEnglish
-    ? [
-        { href: "/", label: "Home" },
-        { href: "/members", label: "Member States" },
-        { href: "/staff", label: "Positions" },
-        { href: "/vote-records", label: "Vote records" },
-        { href: "/attendance", label: "Attendance" },
-        { href: "/votes", label: "Voting" },
-        { href: "/regulations", label: "Regulations" },
-        { href: "/charter", label: "Charter" },
-        { href: "/partners", label: "Partner Organizations" },
-        { href: "/acknowledgements", label: "Acknowledgements" },
-        { href: "/documents", label: "Member documents" },
-      ]
-    : [
-        { href: "/", label: "首頁" },
-        { href: "/members", label: "會員國" },
-        { href: "/staff", label: "職位報告" },
-        { href: "/vote-records", label: "投票紀錄" },
-        { href: "/attendance", label: "出席簽到" },
-        { href: "/votes", label: "投票" },
-        { href: "/regulations", label: "法規" },
-        { href: "/charter", label: "憲章" },
-        { href: "/partners", label: "合作組織" },
-        { href: "/acknowledgements", label: "致謝名單" },
-        { href: "/documents", label: "文件工作區" },
-      ];
+  const allNavLinks = getSiteNavigationLinks(isEnglish);
   const votingPaths = new Set(["/vote-records", "/attendance", "/votes"]);
-  const morePaths = new Set(["/staff", "/partners", "/acknowledgements", "/regulations", "/charter", "/documents"]);
+  const morePaths = new Set(["/staff", "/partners", "/acknowledgements", "/regulations", "/documents"]);
   const navLinks = allNavLinks.filter((link) => !morePaths.has(link.href) && !votingPaths.has(link.href));
   const votingNavLinks = allNavLinks.filter((link) => votingPaths.has(link.href));
   const discordInviteUrl = "https://discord.com/invite/MuSM3yXrQh";
   const moreNavLinks = allNavLinks.filter((link) => morePaths.has(link.href));
-  const footerGroups = [
-    {
-      title: isEnglish ? "Main pages" : "主要頁面",
-      links: allNavLinks.filter((link) => ["/", "/members", "/staff", "/partners", "/acknowledgements", "/documents"].includes(link.href)),
-    },
-    {
-      title: isEnglish ? "Voting" : "投票相關",
-      links: allNavLinks.filter((link) => ["/votes", "/vote-records", "/attendance"].includes(link.href)),
-    },
-    {
-      title: isEnglish ? "Organization" : "組織資訊",
-      links: allNavLinks.filter((link) => ["/regulations", "/charter"].includes(link.href)),
-    },
-  ];
+  const homepageNavLinks = isEnglish
+    ? [
+        { href: "/#about", label: "About" },
+        { href: "/#pillars", label: "Pillars" },
+        { href: "/#organs", label: "Organs" },
+        { href: "/members", label: "Members" },
+        { href: "/charter", label: "Charter" },
+      ]
+    : [
+        { href: "/#about", label: "組織" },
+        { href: "/#pillars", label: "核心支柱" },
+        { href: "/#organs", label: "主要機構" },
+        { href: "/members", label: "會員國" },
+        { href: "/charter", label: "憲章" },
+      ];
+  const pageIndex = getRouteIndex(location, isEnglish);
 
   const adminLevelLabel = (level: number) => {
     if (level >= 9) return isEnglish ? "Super Admin" : "最高管理員";
@@ -121,30 +119,22 @@ export function Layout({ children }: LayoutProps) {
     return isEnglish ? message.en : message.zh;
   };
 
+  if (location === "/") return <>{children}</>;
+
   return (
-    <div className="min-h-screen flex flex-col bg-background font-sans">
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-90 shrink-0">
-            <img src="/fumo-flag.png" alt="FUMO Flag" className="h-10 w-10 object-contain shadow-sm border border-border/50" />
-            <div className="flex flex-col">
-              <span className="text-lg font-bold leading-tight tracking-wide text-primary">聯微 FUMO</span>
-            </div>
+    <div className="fumo-inner-site min-h-screen flex flex-col bg-background font-sans">
+      <header className="fumo-shell-header sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="fumo-shell-nav-inner container mx-auto px-4 h-16 flex items-center justify-between gap-4">
+          <Link href="/" className="fumo-shell-brand flex items-center gap-3 transition-opacity hover:opacity-90 shrink-0">
+            <span className="fumo-shell-brand-mark" aria-hidden="true">FUMO</span>
+            <span className="fumo-shell-brand-name">{isEnglish ? "Federation of United Micronations Organisation" : "聯合微國家組織"}</span>
           </Link>
 
-          <nav className="hidden lg:flex min-w-0 flex-1 items-center justify-center gap-4 xl:gap-5" aria-label={isEnglish ? "Main navigation" : "主要導覽"}>
-            <a
-              href={discordInviteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="whitespace-nowrap text-sm font-medium text-secondary transition-colors hover:text-secondary/80"
-            >
-              {isEnglish ? "Join Discord" : "加入 Discord"}
-            </a>
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href} className={`text-sm font-medium transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>
+          <nav className={`fumo-shell-links hidden lg:flex min-w-0 flex-1 items-center justify-center gap-4 xl:gap-5 ${user ? "fumo-shell-links-auth-hidden" : ""}`} aria-label={isEnglish ? "Main navigation" : "主要導覽"}>
+            {homepageNavLinks.map((link) => (
+              <a key={link.href} href={link.href} className={`text-sm font-medium transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>
                 {link.label}
-              </Link>
+              </a>
             ))}
             <div
               className="relative flex h-full items-center"
@@ -214,6 +204,7 @@ export function Layout({ children }: LayoutProps) {
               </Button>
               <div className={`absolute right-0 top-full z-50 min-w-52 pt-2 transition-opacity duration-150 ${isDesktopMoreOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
                 <div role="menu" aria-label={isEnglish ? "More pages" : "更多頁面"} className="rounded-md border border-border bg-background p-2 shadow-lg">
+                  <a href={discordInviteUrl} target="_blank" rel="noopener noreferrer" role="menuitem" onClick={() => setIsDesktopMoreOpen(false)} className="block rounded-sm px-3 py-2 text-sm text-foreground/80 transition-colors hover:bg-muted hover:text-secondary">{isEnglish ? "Join Discord" : "加入 Discord"}</a>
                   {moreNavLinks.map((link) => (
                     link.href === "/documents" ? (
                       <a key={link.href} href="/documents/" role="menuitem" onClick={() => setIsDesktopMoreOpen(false)} className="block rounded-sm px-3 py-2 text-sm text-foreground/80 transition-colors hover:bg-muted hover:text-secondary">{link.label}</a>
@@ -234,10 +225,11 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </nav>
 
-          <div className="hidden lg:flex items-center gap-2 shrink-0">
+          <div className="fumo-shell-actions hidden lg:flex items-center gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={switchLanguage} aria-label={isEnglish ? "Switch to Traditional Chinese" : "Switch to English"} className="gap-1.5">
               <Languages className="w-4 h-4" /> {isEnglish ? "繁中" : "EN"}
             </Button>
+            <ThemeToggle isEnglish={isEnglish} />
             {user ? (
               <div className="flex items-center gap-2">
                 {isAdmin && <Link href="/admin" className="shrink-0"><Button variant="ghost" size="sm" className="text-secondary text-xs gap-1 whitespace-nowrap"><Shield className="w-3 h-3 shrink-0" />{adminLevelLabel(user.adminLevel)}</Button></Link>}
@@ -253,19 +245,35 @@ export function Layout({ children }: LayoutProps) {
             )}
           </div>
 
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => isMobileMenuOpen ? closeMenu() : setIsMobileMenuOpen(true)} aria-label={isEnglish ? "Open menu" : "開啟選單"}>
+          <Button variant="ghost" size="icon" className="fumo-shell-menu-toggle lg:hidden" onClick={() => isMobileMenuOpen ? closeMenu() : setIsMobileMenuOpen(true)} aria-label={isEnglish ? "Open menu" : "開啟選單"}>
             {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
 
+        {user && (
+          <nav className="fumo-shell-auth-nav hidden lg:flex" aria-label={isEnglish ? "All pages" : "所有頁面"}>
+            {allNavLinks.map((link) => link.href === "/documents" ? (
+              <a key={link.href} href="/documents/">{link.label}</a>
+            ) : (
+              <Link key={link.href} href={link.href} aria-current={location === link.href ? "page" : undefined}>{link.label}</Link>
+            ))}
+          </nav>
+        )}
+
         {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-border bg-background py-4 px-4 flex flex-col gap-3 shadow-lg absolute w-full">
+          <div className="fumo-shell-mobile-menu lg:hidden border-t border-border bg-background py-4 px-4 flex flex-col gap-3 shadow-lg absolute w-full">
             <a href={discordInviteUrl} target="_blank" rel="noopener noreferrer" onClick={closeMenu} className="py-2 text-sm font-medium text-secondary transition-colors hover:text-secondary/80">
               {isEnglish ? "Join Discord" : "加入 Discord"}
             </a>
-            {navLinks.map((link) => (
-              <Link key={link.href} href={link.href} onClick={closeMenu} className={`text-sm font-medium py-2 transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>{link.label}</Link>
-            ))}
+            {user ? allNavLinks.map((link) => link.href === "/documents" ? (
+              <a key={link.href} href="/documents/" onClick={closeMenu} className="py-2 text-sm font-medium text-foreground/80 transition-colors hover:text-secondary">{link.label}</a>
+            ) : (
+              <Link key={link.href} href={link.href} onClick={closeMenu} className={`py-2 text-sm font-medium transition-colors hover:text-secondary ${location === link.href ? "font-bold text-secondary" : "text-foreground/80"}`}>{link.label}</Link>
+            )) : (
+              <>
+                {navLinks.map((link) => (
+                  <Link key={link.href} href={link.href} onClick={closeMenu} className={`text-sm font-medium py-2 transition-colors hover:text-secondary ${location === link.href ? "text-secondary font-bold" : "text-foreground/80"}`}>{link.label}</Link>
+                ))}
             <div className="border-y border-border py-1.5">
               <Button
                 type="button"
@@ -315,7 +323,10 @@ export function Layout({ children }: LayoutProps) {
                 </div>
               )}
             </div>
+              </>
+            )}
             <Button variant="outline" size="sm" onClick={() => { switchLanguage(); closeMenu(); }} className="justify-start gap-2"><Languages className="w-4 h-4" />{isEnglish ? "繁體中文" : "English"}</Button>
+            <ThemeToggle isEnglish={isEnglish} compact={false} className="fumo-theme-toggle--mobile" />
             <div className="border-t border-border pt-3 flex flex-col gap-2">
               {user ? <>
                 <div className="flex items-start gap-2 text-sm font-medium text-foreground min-w-0">
@@ -336,48 +347,13 @@ export function Layout({ children }: LayoutProps) {
       </header>
 
       {googleStatus && <div className="container mx-auto px-4 pt-3"><div className={`flex items-start justify-between gap-3 rounded-md border p-3 text-sm ${googleStatus === "connected" || googleStatus === "login" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`} role={googleStatus === "connected" || googleStatus === "login" ? "status" : "alert"}><span>{googleStatusText(googleStatus)}</span><button type="button" onClick={() => setGoogleStatus(null)} aria-label={isEnglish ? "Dismiss" : "關閉提示"} className="shrink-0 font-bold">×</button></div></div>}
-      <main className="flex-1 w-full">{children}</main>
-
-      <footer className="bg-primary text-primary-foreground border-t border-primary/20 py-10 mt-auto">
-        <div className="container mx-auto max-w-6xl px-4">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-[1.2fr_1fr_1fr] md:gap-10">
-            <div>
-              <div className="flex items-center gap-3 mb-3"><img src="/fumo-flag.png" alt="FUMO Flag" className="h-9 w-9 rounded-sm object-contain shadow-sm" /><div><h3 className="font-bold text-lg leading-tight">聯微 FUMO</h3><p className="text-xs text-primary-foreground/60">Federation of United Micronations Organisation</p></div></div>
-              <p className="text-primary-foreground/70 text-sm max-w-sm leading-6">{isEnglish ? "United in determination, advancing together." : "眾志成城，攜手共進。"}</p>
-            </div>
-            <div>
-              <h4 className="font-bold mb-3 text-secondary">{isEnglish ? "Site navigation" : "網站導覽"}</h4>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-4">
-                {footerGroups.map((group) => (
-                  <div key={group.title}>
-                    <h5 className="mb-2 text-xs font-semibold tracking-wide text-primary-foreground/55">{group.title}</h5>
-                    <div className="flex flex-col gap-2">{group.links.map((link) => link.href === "/documents" ? <a key={link.href} href="/documents/" className="text-sm text-primary-foreground/80 transition-colors hover:text-secondary">{link.label}</a> : <Link key={link.href} href={link.href} className="text-sm text-primary-foreground/80 transition-colors hover:text-secondary">{link.label}</Link>)}</div>
-                  </div>
-                ))}
-                <Link href="/admin" className="text-sm text-primary-foreground/80 transition-colors hover:text-secondary sm:col-span-3 sm:mt-1 flex items-center gap-1"><Shield className="h-3 w-3" />{isEnglish ? "Admin panel" : "管理面板"}</Link>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-bold mb-3 text-secondary">{isEnglish ? "Official resources" : "官方資源"}</h4>
-              <div className="grid grid-cols-1 gap-2"><a href="https://hackmd.io/@C_MoBbG-Q1CbFG1gDVFrcg/HJeBOxjctGl" target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Regulations directory" : "法規目錄"}</a><a href={isEnglish ? charterUrlEn : charterUrlZh} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Charter" : "憲章"}</a><Link href="/privacy" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Privacy policy" : "隱私權政策"}</Link><Link href="/terms" className="text-sm text-primary-foreground/80 hover:text-secondary transition-colors">{isEnglish ? "Terms of use" : "使用條款"}</Link></div>
-            </div>
-          </div>
-          <div className="mt-8 rounded-xl border border-primary-foreground/10 bg-primary-foreground/[0.04] px-4 py-4 shadow-inner sm:px-5">
-            <div className="flex flex-col gap-3 text-xs text-primary-foreground/65 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="font-semibold text-primary-foreground/85">© {new Date().getFullYear()} FUMO</span>
-                <span className="hidden text-primary-foreground/30 sm:inline" aria-hidden="true">•</span>
-                <span>{isEnglish ? "All rights reserved." : "所有權利保留。"}</span>
-              </div>
-              <a href="https://damcurryrice.com" target="_blank" rel="noopener noreferrer" aria-label={isEnglish ? "Visit Dam Curry Rice website" : "前往蛋包咖哩飯網站"} className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary-foreground/15 px-3 py-1.5 font-medium text-primary-foreground/80 transition-colors hover:border-secondary/60 hover:bg-secondary/10 hover:text-secondary">
-                <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{isEnglish ? "Website by FUMO & Dam Curry Rice" : "FUMO × 蛋包咖哩飯"}</span>
-              </a>
-              {isAdmin && <Link href="/bot-admin" className="inline-flex w-fit items-center gap-1.5 rounded-full border border-primary-foreground/15 px-3 py-1.5 font-medium text-primary-foreground/80 transition-colors hover:border-secondary/60 hover:bg-secondary/10 hover:text-secondary"><Shield className="h-3.5 w-3.5" aria-hidden="true" /><span>{isEnglish ? "Discord Bot admin" : "Discord Bot 後台"}</span></Link>}
-            </div>
-          </div>
+      <main className="fumo-route-main flex-1 w-full">
+        <div className="fumo-page-index" aria-label={isEnglish ? "Page index" : "頁面索引"}>
+          <span>{pageIndex.number}</span><span>{pageIndex.label}</span>
         </div>
-      </footer>
+        <div className="fumo-route-body">{children}</div>
+      </main>
+      <SiteFooter />
     </div>
   );
 }

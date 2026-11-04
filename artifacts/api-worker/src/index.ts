@@ -776,7 +776,8 @@ app.get("/api/admin/bot/status", async c => {
   const actor = await currentAccount(c);
   if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
   const result = await botApiJson(c.env, "/healthz");
-  return c.json(result.data, (result.ok ? 200 : result.status) as any);
+  const data = result.data && typeof result.data === "object" ? result.data as Record<string, unknown> : {};
+  return c.json(result.ok ? { ...data, apiFeatures: { announcementMode: true } } : result.data, (result.ok ? 200 : result.status) as any);
 });
 app.get("/api/admin/bot/channels", async c => {
   const actor = await currentAccount(c);
@@ -787,10 +788,17 @@ app.get("/api/admin/bot/channels", async c => {
 app.post("/api/admin/bot/announce", async c => {
   const actor = await currentAccount(c);
   if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
-  const body = z.object({ channelId: z.string().regex(/^\d{15,25}$/), title: z.string().trim().min(1).max(256), content: z.string().trim().min(1).max(1900), roleId: z.string().regex(/^\d{17,20}$/).optional().or(z.literal("")), author: z.string().trim().min(1).max(80).optional() }).safeParse(await parseJson(c));
+  const body = z.object({ channelId: z.string().regex(/^\d{15,25}$/), mode: z.enum(["embed", "text"]).default("embed"), title: z.string().trim().max(256).optional().default(""), content: z.string().trim().min(1).max(1900), roleId: z.string().regex(/^\d{17,20}$/).optional().or(z.literal("")), author: z.string().trim().min(1).max(80).optional() }).superRefine((data, context) => {
+    if (data.mode === "embed" && !data.title) context.addIssue({ code: "custom", path: ["title"], message: "Embed 公告需要標題。" });
+  }).safeParse(await parseJson(c));
   if (!body.success) return c.json({ error: "公告標題、內容或頻道格式不正確。" }, 400);
+  if (body.data.mode === "text") {
+    const status = await botApiJson(c.env, "/healthz");
+    const features = (status.data as { features?: { announcementText?: boolean } } | null)?.features;
+    if (!status.ok || features?.announcementText !== true) return c.json({ error: "目前 Discord Bot 尚未支援純文字公告；請先更新並重新部署 Bot runtime。" }, 409);
+  }
   const result = await botApiJson(c.env, "/announce", { method: "POST", body: JSON.stringify({ ...body.data, author: actor.voter_name }) });
-  if (result.ok) background(c, auditStatement(c.env.DB, actor, "discord.announce", "discord_channel", body.data.channelId, { title: body.data.title }).run());
+  if (result.ok) background(c, auditStatement(c.env.DB, actor, "discord.announce", "discord_channel", body.data.channelId, { mode: body.data.mode, title: body.data.title }).run());
   return c.json(result.data, (result.ok ? 200 : result.status) as any);
 });
  app.get("/api/admin/accounts", async c => { const a = await ((await currentAccount(c))?.admin_level ?? 0) >= ADMIN_TIER1 ? await currentAccount(c) : null; if (!a) return c.json({ error: "管理員權限不足。" }, 403); const rows = await c.env.DB.prepare("SELECT a.voter_id, a.voter_name, a.country_name, a.admin_level, a.created_at, g.google_email FROM voter_accounts a LEFT JOIN google_account_links g ON g.voter_id = a.voter_id ORDER BY a.created_at ASC").all(); return c.json((rows.results ?? []).map((row: any) => ({ voterId: row.voter_id, voterName: row.voter_name, countryName: row.country_name, googleEmail: row.google_email || null, adminLevel: row.admin_level, createdAt: row.created_at }))); });

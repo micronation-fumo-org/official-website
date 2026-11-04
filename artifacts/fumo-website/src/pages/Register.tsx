@@ -1,7 +1,7 @@
 import { toChineseError } from "@/lib/errorMessage";
 import { useState } from "react";
 import { AlertTriangle, Link2, UserPlus } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
@@ -74,9 +74,9 @@ export default function Register() {
       <div className="container mx-auto px-4 max-w-md">
         <Card className="border-border/60 bg-white shadow-sm">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-primary flex items-center justify-center gap-2">
+            <h1 className="text-2xl font-bold text-primary flex items-center justify-center gap-2 text-center">
               <UserPlus className="w-6 h-6" />{isEnglish ? "Create a FUMO account" : "註冊 FUMO 帳戶"}
-            </CardTitle>
+            </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {isEnglish ? "Choose ID and password, or Google. ID registration requires an entry in the official registration list." : "可選擇 ID 與密碼，或使用 Google 註冊；ID 必須已列於官方註冊名單。"}
             </p>

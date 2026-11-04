@@ -25,6 +25,7 @@ import Partners from "@/pages/Partners";
 import Acknowledgements from "@/pages/Acknowledgements";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { applySeoMetadata, getRouteSeo } from "@/lib/seo";
 
@@ -76,11 +77,13 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <LanguageProvider>
-          <AuthProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <Router />
-            </WouterRouter>
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <Router />
+              </WouterRouter>
+            </AuthProvider>
+          </ThemeProvider>
         </LanguageProvider>
         <Toaster />
       </TooltipProvider>

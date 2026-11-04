@@ -1,5 +1,16 @@
 import dotenv from "dotenv";
+import { randomUUID } from "node:crypto";
 import { startWebhookRelay } from "./webhookRelay.js";
+import { extractApplicationOwnerId, isBotOwner } from "./ownerAuth.js";
+import {
+  createGuildBackup,
+  getBackupDirectory,
+  loadLatestGuildBackup,
+  readBackupAttachment,
+  restoreGuildBackup,
+  saveGuildBackup,
+} from "./guildBackup.js";
+import { createCountryEmbedData, findCountryMatches, formatCountryMatches, getPublicRepresentativeNames } from "./countryLookup.js";
 import {
   Client,
   GatewayIntentBits,
@@ -68,6 +79,7 @@ const commands = [
     .setDescription("在 FUMO 官方公告頻道發布公告")
     .addStringOption(option => option.setName("標題").setDescription("公告標題").setRequired(true).setMaxLength(256))
     .addStringOption(option => option.setName("內容").setDescription("公告內容").setRequired(true).setMaxLength(1900))
+    .addStringOption(option => option.setName("格式").setDescription("公告呈現格式，預設為 Embed").addChoices({ name: "視覺化 Embed", value: "embed" }, { name: "純文字", value: "text" }).setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild.toString()),
   new SlashCommandBuilder()
     .setName("身分組檢查")
@@ -76,6 +88,10 @@ const commands = [
   new SlashCommandBuilder()
     .setName("投票狀態")
     .setDescription("查看 FUMO 官方網站 API 狀態"),
+  new SlashCommandBuilder()
+    .setName("國家查詢")
+    .setDescription("查詢 FUMO 成員國與觀察國的公開資料")
+    .addStringOption(option => option.setName("國家").setDescription("輸入國家全名、簡稱或代號").setRequired(true).setMaxLength(100)),
   new SlashCommandBuilder()
     .setName("驗證")
     .setDescription("對照 FUMO 註冊名單並取得對應身分組"),
@@ -92,12 +108,28 @@ const commands = [
     .setDescription("讓 FUMO Bot 發送文字訊息")
     .addStringOption(option => option.setName("內容").setDescription("Bot 要說的內容").setRequired(true).setMaxLength(1900))
     .addStringOption(option => option.setName("回覆id").setDescription("可選；要回覆的同頻道訊息 ID").setRequired(false).setMaxLength(25)),
+  new SlashCommandBuilder()
+    .setName("伺服器備份")
+    .setDescription("備份伺服器的身分組、頻道與權限架構（僅限 Bot 應用程式擁有者）"),
+  new SlashCommandBuilder()
+    .setName("伺服器還原")
+    .setDescription("從本機最新備份或 JSON 檔建立伺服器架構（僅限 Bot 應用程式擁有者）")
+    .addAttachmentOption(option => option.setName("備份檔").setDescription("選填；上傳先前下載的伺服器備份 JSON 檔").setRequired(false)),
 ].map(command => command.toJSON());
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
+const pendingGuildRestores = new Map();
+let OWNER_ID = "";
 
 function canManage(interaction) {
   return ADMIN_IDS.has(interaction.user.id) || Boolean(interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild));
+}
+
+async function getOwnerId() {
+  const application = await client.application.fetch();
+  OWNER_ID = extractApplicationOwnerId(application.owner);
+  if (!OWNER_ID) throw new Error("Discord 未提供有效的 Bot application owner ID");
+  return OWNER_ID;
 }
 
 async function fumoFetch(path) {
@@ -113,15 +145,23 @@ async function registerCommands() {
   console.log(`Registered ${commands.length} slash commands${GUILD_ID ? ` in guild ${GUILD_ID}` : " globally"}.`);
 }
 
-async function postAnnouncement(title, content, author) {
+async function postAnnouncement(title, content, author, mode = "embed") {
   const channel = await client.channels.fetch(ANNOUNCEMENT_CHANNEL_ID);
   if (!channel?.isTextBased() || !channel.isSendable()) throw new Error("Announcement channel is not writable");
   const roleMention = ANNOUNCEMENT_ROLE_ID ? `<@&${ANNOUNCEMENT_ROLE_ID}>` : "";
-  const message = await channel.send({
-    content: roleMention,
-    embeds: [{ title: `📢 ${title}`, description: content, color: 0x5865f2, url: WEBSITE_URL, footer: { text: `FUMO 官方網站 · 發布者 ${author}` }, timestamp: new Date().toISOString() }],
-    allowedMentions: ANNOUNCEMENT_ROLE_ID ? { roles: [ANNOUNCEMENT_ROLE_ID] } : { parse: [] },
-  });
+  const allowedMentions = ANNOUNCEMENT_ROLE_ID ? { roles: [ANNOUNCEMENT_ROLE_ID] } : { parse: [] };
+  let message;
+  if (mode === "text") {
+    const plainText = [roleMention, title, content].filter(Boolean).join("\n\n");
+    if (plainText.length > 2000) throw new Error("Plain-text announcement exceeds Discord's 2000 character limit");
+    message = await channel.send({ content: plainText, allowedMentions });
+  } else {
+    message = await channel.send({
+      content: roleMention,
+      embeds: [{ title: `📢 ${title}`, description: content, color: 0x5865f2, url: WEBSITE_URL, footer: { text: `FUMO 官方網站 · 發布者 ${author}` }, timestamp: new Date().toISOString() }],
+      allowedMentions,
+    });
+  }
   return message.url;
 }
 
@@ -375,7 +415,78 @@ async function sendLongReply(interaction, text) {
   for (const chunk of chunks.slice(1)) await interaction.followUp({ content: chunk });
 }
 
+function prunePendingGuildRestores() {
+  const now = Date.now();
+  for (const [id, pending] of pendingGuildRestores) {
+    if (pending.expiresAt <= now) pendingGuildRestores.delete(id);
+  }
+}
+
+async function handleGuildRestoreButton(interaction) {
+  const [, action, restoreId] = interaction.customId.split(":");
+  const pending = pendingGuildRestores.get(restoreId);
+  if (!pending || pending.expiresAt <= Date.now()) {
+    pendingGuildRestores.delete(restoreId);
+    await interaction.reply({ content: "這個還原確認已失效；請重新執行 /伺服器還原。", ephemeral: true });
+    return;
+  }
+  if (action !== "confirm" && action !== "cancel") {
+    await interaction.reply({ content: "無效的還原操作。", ephemeral: true });
+    return;
+  }
+  await interaction.deferUpdate();
+  try {
+    await getOwnerId();
+  } catch (error) {
+    console.error("Could not verify Bot application owner", error?.stack || error);
+    await interaction.followUp({ content: "目前無法確認 Discord Bot 應用程式擁有者，操作已拒絕；請稍後重試。", ephemeral: true });
+    return;
+  }
+  if (interaction.guildId !== pending.guildId || !isBotOwner(interaction.user.id, OWNER_ID) || interaction.user.id !== pending.ownerId || pending.ownerId !== OWNER_ID) {
+    await interaction.followUp({ content: "只有此 Discord Bot 應用程式的擁有者可以確認。", ephemeral: true });
+    return;
+  }
+  if (action === "cancel") {
+    pendingGuildRestores.delete(restoreId);
+    await interaction.editReply({ content: "已取消伺服器還原；沒有建立任何項目。", components: [] });
+    return;
+  }
+
+  pendingGuildRestores.delete(restoreId);
+  try {
+    const result = await restoreGuildBackup(interaction.guild, pending.backup);
+    logAction("guild.restore.completed", {
+      userId: interaction.user.id,
+      guildId: interaction.guildId,
+      sourceGuildId: pending.backup.sourceGuild.id,
+      createdRoles: result.createdRoles,
+      createdChannels: result.createdChannels,
+      skippedOverwrites: result.skippedOverwrites,
+      skippedChannels: result.skippedChannels,
+    });
+    const details = [
+      `伺服器架構還原完成：建立 ${result.createdRoles} 個身分組、${result.createdChannels} 個頻道。`,
+      result.skippedOverwrites ? `略過 ${result.skippedOverwrites} 個無法對應的權限覆寫（角色不存在，或指定成員尚未加入）。` : "所有可對應的權限覆寫均已建立。",
+      result.skippedChannels ? `另略過 ${result.skippedChannels} 個缺少分類的頻道。` : "",
+      result.everyonePermissionsUpdated ? "@everyone 基礎權限已依備份套用。" : "",
+      result.roleOrderRestored ? "身分組順序已按備份排列。" : "",
+    ].filter(Boolean).join("\n");
+    await interaction.editReply({ content: details, components: [] });
+  } catch (error) {
+    console.error("Guild restore failed", error?.stack || error);
+    logAction("guild.restore.failed", { userId: interaction.user.id, guildId: interaction.guildId, error: String(error) });
+    await interaction.editReply({
+      content: `伺服器還原未能完成：${String(error?.message || error).slice(0, 1200)}\n若部分項目已建立，請先檢查目前伺服器再決定是否重試；還原不會刪除既有頻道或自訂身分組，但 @everyone 權限會依備份更新。`,
+      components: [],
+    });
+  }
+}
+
 async function handleInteraction(interaction) {
+  if (interaction.isButton() && interaction.customId.startsWith("guild_restore:")) {
+    await handleGuildRestoreButton(interaction);
+    return;
+  }
   if (interaction.isButton() && interaction.customId === "fumo_verify_member") {
     await interaction.deferReply({ ephemeral: true });
     try {
@@ -397,6 +508,100 @@ async function handleInteraction(interaction) {
   }
   if (!interaction.isChatInputCommand()) return;
   logAction("command.received", { command: interaction.commandName, userId: interaction.user.id, username: interaction.user.username, guildId: interaction.guildId, channelId: interaction.channelId });
+  if (interaction.commandName === "伺服器備份" || interaction.commandName === "伺服器還原") {
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      await getOwnerId();
+    } catch (error) {
+      console.error("Could not verify Bot application owner", error?.stack || error);
+      await interaction.editReply("目前無法確認 Discord Bot 應用程式擁有者，操作已拒絕；請稍後重試。");
+      return;
+    }
+    if (!isBotOwner(interaction.user.id, OWNER_ID)) {
+      await interaction.editReply("此指令僅限 Discord Bot 應用程式的擁有者使用。");
+      return;
+    }
+    if (!interaction.guild || !interaction.guildId) {
+      await interaction.editReply("請在伺服器頻道使用此指令。");
+      return;
+    }
+    try {
+      if (interaction.commandName === "伺服器備份") {
+        await interaction.guild.roles.fetch();
+        await interaction.guild.channels.fetch();
+        const backup = createGuildBackup(interaction.guild);
+        let savedLocally = true;
+        try {
+          await saveGuildBackup(backup);
+        } catch (error) {
+          savedLocally = false;
+          console.error("Could not save guild backup locally", error?.stack || error);
+        }
+        const fileName = `server-backup-${interaction.guild.id}-${backup.createdAt.slice(0, 10)}.json`;
+        const file = Buffer.from(`${JSON.stringify(backup, null, 2)}\n`, "utf8");
+        logAction("guild.backup.created", {
+          userId: interaction.user.id,
+          guildId: interaction.guildId,
+          roleCount: backup.roles.length,
+          channelCount: backup.channels.length,
+          savedLocally,
+        });
+        await interaction.editReply({
+          content: `已備份「${interaction.guild.name}」：${backup.roles.length} 個身分組、${backup.channels.length} 個頻道。${savedLocally ? `\n備份已保存於 Bot 本機目錄：${getBackupDirectory()}。` : "\n警告：Bot 本機保存失敗，請下載下方附件自行保管，並檢查備份目錄設定。"}\n此 JSON 附件可用於之後的 /伺服器還原。`,
+          files: [{ attachment: file, name: fileName }],
+        });
+        return;
+      }
+
+      const attachment = interaction.options.getAttachment("備份檔");
+      let backup;
+      if (attachment) {
+        backup = await readBackupAttachment(attachment);
+      } else {
+        backup = (await loadLatestGuildBackup()).backup;
+      }
+      prunePendingGuildRestores();
+      const restoreId = randomUUID();
+      pendingGuildRestores.set(restoreId, {
+        backup,
+        guildId: interaction.guildId,
+        ownerId: OWNER_ID,
+        expiresAt: Date.now() + 10 * 60 * 1000,
+      });
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(`guild_restore:confirm:${restoreId}`).setLabel("確認開始還原").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(`guild_restore:cancel:${restoreId}`).setLabel("取消").setStyle(ButtonStyle.Secondary),
+      );
+      logAction("guild.restore.awaiting_confirmation", {
+        userId: interaction.user.id,
+        guildId: interaction.guildId,
+        sourceGuildId: backup.sourceGuild.id,
+        roleCount: backup.roles.length,
+        channelCount: backup.channels.length,
+        attachedFile: Boolean(attachment),
+      });
+      await interaction.editReply({
+        content: [
+          `將從「${backup.sourceGuild.name}」（來源 ID：${backup.sourceGuild.id}）建立 ${backup.roles.length} 個身分組及 ${backup.channels.length} 個頻道。`,
+          "還原會更新目標伺服器的 @everyone 基礎權限，並新增備份中的身分組與頻道；不會刪除或覆蓋現有自訂身分組、頻道。重複執行可能產生重複項目。",
+          "頻道權限會依備份重建；備份內的管理員權限也會保留。只使用你信任的備份。",
+          "沒有包含訊息、成員名單或 Bot 管理的整合身分組。Bot 需要 Manage Roles 與 Manage Channels 權限。",
+          "請在 10 分鐘內由 Discord Bot 應用程式擁有者確認。",
+        ].join("\n"),
+        components: [row],
+      });
+    } catch (error) {
+      console.error(`Guild ${interaction.commandName} failed`, error?.stack || error);
+      logAction(`guild.${interaction.commandName === "伺服器備份" ? "backup" : "restore"}.failed`, { userId: interaction.user.id, guildId: interaction.guildId, error: String(error) });
+      const message = interaction.commandName === "伺服器還原" && /找不到.*備份/.test(String(error?.message || error))
+        ? error.message
+        : interaction.commandName === "伺服器還原"
+          ? `讀取備份失敗：${String(error?.message || error).slice(0, 1000)}`
+          : "建立備份失敗，請稍後重試並確認 Bot 能讀取頻道及身分組。";
+      await interaction.editReply({ content: message, components: [] });
+    }
+    return;
+  }
   if (interaction.commandName === "投票狀態") {
     await interaction.deferReply({ ephemeral: true });
     try {
@@ -404,6 +609,39 @@ async function handleInteraction(interaction) {
       await interaction.editReply(`FUMO API 正常運作。\n網站：${WEBSITE_URL}\n狀態：${health.status || "ok"}`);
     } catch {
       await interaction.editReply("FUMO API 目前無法連線，請稍後再試。");
+    }
+    return;
+  }
+  if (interaction.commandName === "國家查詢") {
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      const query = interaction.options.getString("國家", true);
+      const [membersResult, votersResult] = await Promise.allSettled([
+        fumoFetch("/api/members"),
+        fumoFetch("/api/voters"),
+      ]);
+      if (membersResult.status !== "fulfilled") throw membersResult.reason;
+
+      const matches = findCountryMatches(membersResult.value, query);
+      if (matches.length === 0) {
+        await interaction.editReply("沒有找到相符的成員國／觀察國。請試試完整名稱、簡稱或國家代號。");
+        return;
+      }
+      if (matches.length > 1) {
+        await interaction.editReply({ content: `找到多個相符國家，請改用更完整的名稱或代號：\n${formatCountryMatches(matches)}`, allowedMentions: { parse: [] } });
+        return;
+      }
+
+      const state = matches[0];
+      const representativesAvailable = votersResult.status === "fulfilled" && Array.isArray(votersResult.value);
+      const representatives = representativesAvailable
+        ? getPublicRepresentativeNames(votersResult.value, state.fullName)
+        : [];
+      const embed = createCountryEmbedData(state, representatives, WEBSITE_URL, { representativesAvailable });
+      await interaction.editReply({ embeds: [embed], allowedMentions: { parse: [] } });
+    } catch (error) {
+      console.error("Country lookup failed", error?.stack || error);
+      await interaction.editReply("國家查詢目前無法連線至 FUMO 官方 API，請稍後再試。");
     }
     return;
   }
@@ -482,13 +720,16 @@ async function handleInteraction(interaction) {
   if (interaction.commandName === "公告") {
     await interaction.deferReply({ ephemeral: true });
     try {
-      const url = await postAnnouncement(interaction.options.getString("標題", true), interaction.options.getString("內容", true), interaction.user.username);
-      logAction("announcement.sent", { userId: interaction.user.id, channelId: ANNOUNCEMENT_CHANNEL_ID, messageUrl: url, title: interaction.options.getString("標題", true), content: interaction.options.getString("內容", true) });
+      const title = interaction.options.getString("標題", true);
+      const content = interaction.options.getString("內容", true);
+      const mode = interaction.options.getString("格式") || "embed";
+      const url = await postAnnouncement(title, content, interaction.user.username, mode);
+      logAction("announcement.sent", { userId: interaction.user.id, channelId: ANNOUNCEMENT_CHANNEL_ID, messageUrl: url, mode, title, content });
       await interaction.editReply(`公告已發布：${url}`);
     } catch (error) {
       console.error("Announcement failed", error);
       logAction("announcement.failed", { userId: interaction.user.id, error: String(error) });
-      await interaction.editReply("公告發布失敗，請確認 Bot 有公告頻道的 View Channel、Send Messages 與 Embed Links 權限。");
+      await interaction.editReply("公告發布失敗，請確認公告頻道的 View Channel 與 Send Messages 權限；Embed 模式另需 Embed Links。");
     }
     return;
   }
@@ -518,9 +759,15 @@ async function handleInteraction(interaction) {
   }
 }
 
-client.once("ready", readyClient => {
+client.once("ready", async readyClient => {
   console.log(`Logged in as ${readyClient.user.tag}`);
   logAction("bot.ready", { botUserId: readyClient.user.id, guildId: GUILD_ID || null, port: BOT_HTTP_PORT });
+  try {
+    await getOwnerId();
+    logAction("bot.application_owner.loaded");
+  } catch (error) {
+    console.error("Bot application owner lookup failed; owner-only commands will fail closed until Discord can be reached", error?.stack || error);
+  }
   startWebhookRelay({ client, guildId: GUILD_ID, channelId: ANNOUNCEMENT_CHANNEL_ID, websiteUrl: WEBSITE_URL, secret: WEBHOOK_SECRET, path: WEBHOOK_PATH, port: BOT_HTTP_PORT, mentionRoleId: ANNOUNCEMENT_ROLE_ID, mentionEvents: BOT_MENTION_EVENTS, defaultAuthor: ANNOUNCEMENT_AUTHOR, logAction });
   registerCommands().catch(error => { console.error("Command registration failed", error); process.exitCode = 1; });
 });

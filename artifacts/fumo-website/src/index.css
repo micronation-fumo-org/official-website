@@ -67,79 +67,80 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  /* FUMO Colors: Blue (#00334D) -> 200 100% 15%, Yellow (var(--gold)) -> 41 64% 59% */
+  /* FUMO editorial palette: neutral ink, white paper, restrained blue. */
   --background: 0 0% 100%;
-  --foreground: 200 100% 15.1%;
-  --border: 214 32% 91%;
+  --foreground: 240 3% 12%;
+  --border: 240 5% 84%;
   --card: 0 0% 100%;
-  --card-foreground: 200 100% 15.1%;
-  --card-border: 214 32% 91%;
+  --card-foreground: 240 3% 12%;
+  --card-border: 240 5% 84%;
   --sidebar: 0 0% 98%;
-  --sidebar-foreground: 200 100% 15.1%;
-  --sidebar-border: 214 32% 91%;
+  --sidebar-foreground: 240 3% 12%;
+  --sidebar-border: 240 5% 84%;
   --sidebar-primary: 200 100% 15.1%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 210 40% 96.1%;
   --sidebar-accent-foreground: 200 100% 15.1%;
   --sidebar-ring: 200 100% 15.1%;
   --popover: 0 0% 100%;
-  --popover-foreground: 200 100% 15.1%;
-  --popover-border: 214 32% 91%;
+  --popover-foreground: 240 3% 12%;
+  --popover-border: 240 5% 84%;
   --primary: 200 100% 15.1%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 41 63.8% 58.8%;
+  --secondary: 200 100% 15.1%;
   --secondary-foreground: 0 0% 100%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
+  --muted: 240 5% 96%;
+  --muted-foreground: 240 3% 45%;
+  --accent: 240 5% 96%;
   --accent-foreground: 200 100% 15.1%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 98%;
-  --input: 214 32% 91%;
+  --input: 240 5% 84%;
   --ring: 200 100% 15.1%;
 
-  --app-font-sans: "Playfair Display", Georgia, serif;
-  --app-font-serif: Roboto, Aptos, Georgia, serif;
+  --app-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --app-font-serif: Georgia, "Noto Serif TC", serif;
   --app-font-mono: Menlo, monospace;
-  --radius: 0.25rem;
+  --radius: 0.2rem;
 }
 
 .dark {
   --button-outline: rgba(255,255,255, .10);
   --badge-outline: rgba(255,255,255, .05);
-  --opaque-button-border-intensity: 9;
+  --opaque-button-border-intensity: 10;
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  --background: 200 100% 10%;
-  --foreground: 0 0% 100%;
-  --border: 200 50% 20%;
-  --card: 200 100% 14%;
-  --card-foreground: 0 0% 100%;
-  --card-border: 200 50% 20%;
-  --sidebar: 200 100% 10%;
-  --sidebar-foreground: 0 0% 100%;
-  --sidebar-border: 200 50% 20%;
-  --sidebar-primary: 41 64% 59%;
-  --sidebar-primary-foreground: 200 100% 10%;
-  --sidebar-accent: 200 100% 18%;
-  --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-ring: 41 64% 59%;
-  --popover: 200 100% 14%;
-  --popover-foreground: 0 0% 100%;
-  --popover-border: 200 50% 20%;
-  --primary: 41 64% 59%;
-  --primary-foreground: 200 100% 10%;
-  --secondary: 200 100% 15%;
-  --secondary-foreground: 0 0% 100%;
-  --muted: 200 100% 18%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 200 100% 18%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 62.8% 30.6%;
+  color-scheme: dark;
+  --background: 220 7% 9%;
+  --foreground: 220 14% 93%;
+  --border: 220 7% 23%;
+  --card: 220 7% 12%;
+  --card-foreground: 220 14% 93%;
+  --card-border: 220 7% 23%;
+  --sidebar: 220 7% 11%;
+  --sidebar-foreground: 220 14% 93%;
+  --sidebar-border: 220 7% 23%;
+  --sidebar-primary: 198 41% 66%;
+  --sidebar-primary-foreground: 220 8% 10%;
+  --sidebar-accent: 220 7% 18%;
+  --sidebar-accent-foreground: 220 14% 93%;
+  --sidebar-ring: 198 41% 66%;
+  --popover: 220 7% 14%;
+  --popover-foreground: 220 14% 93%;
+  --popover-border: 220 7% 25%;
+  --primary: 198 41% 66%;
+  --primary-foreground: 220 8% 10%;
+  --secondary: 198 41% 66%;
+  --secondary-foreground: 220 8% 10%;
+  --muted: 220 6% 17%;
+  --muted-foreground: 220 7% 68%;
+  --accent: 220 6% 18%;
+  --accent-foreground: 220 14% 93%;
+  --destructive: 0 52% 38%;
   --destructive-foreground: 0 0% 98%;
-  --input: 200 50% 20%;
-  --ring: 41 64% 59%;
+  --input: 220 7% 26%;
+  --ring: 198 41% 66%;
 }
 
 @layer base {

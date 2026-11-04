@@ -124,15 +124,16 @@ function renderPage(title, articleHtml, created) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#073b52">
+  <meta name="theme-color" content="#ffffff">
   <meta name="description" content="FUMO 成員文件工作區的唯讀公開快照。">
+  <script src="/documents/theme.js"></script>
   <link rel="icon" href="/fumo-badge.webp" type="image/webp">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
   <title>${safeTitle}｜FUMO 文件分享</title>
   <style>
-    :root{color-scheme:light;--navy:#00334d;--gold:var(--gold);--ink:#00334d;--muted:var(--muted);--line:#e7ebf1;--paper:#fff;--canvas:#fff;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;color:var(--ink)}
+    :root{color-scheme:light;--navy:#00334d;--gold:#d9af53;--ink:#1d1d1f;--muted:#6e6e73;--line:#d2d2d7;--paper:#fff;--canvas:#fff;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;color:var(--ink)}
     *{box-sizing:border-box}body{margin:0;min-height:100vh;background:var(--canvas);color:var(--ink)}a{color:var(--navy)}
     .bar{min-height:66px;background:#fff;color:var(--navy);display:flex;align-items:center;padding:12px max(20px,calc((100vw - 1040px)/2));gap:13px;border-bottom:1px solid var(--line)}
     .brand{display:flex;align-items:center;gap:10px;color:var(--navy);text-decoration:none;font-weight:700}.brand img{width:37px;height:37px;border:1px solid rgba(0,51,77,.12);border-radius:4px;object-fit:cover}
@@ -146,6 +147,11 @@ function renderPage(title, articleHtml, created) {
     .article code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#f1f5f9;border-radius:3px;padding:.12em .35em;font-size:.9em}.article pre{overflow:auto;background:#f8fafc;border:1px solid var(--line);border-radius:4px;padding:14px}.article pre code{background:none;padding:0;white-space:pre}.article hr{border:0;border-top:1px solid var(--line);margin:1.5em 0}.article .task-item{list-style:none;margin-left:-1.5em}.article .task-check{display:inline-block;width:1.4em;color:#6980a0}
     .table-scroll{overflow:auto;margin:1em 0}table{border-collapse:collapse;width:100%;min-width:360px;font-size:.92em}th,td{border:1px solid var(--line);padding:9px 11px;text-align:left}th{background:hsl(210 40% 96.1%);color:var(--navy)}.empty{color:var(--muted)}
     .footer{border-top:1px solid var(--line);margin-top:28px;padding-top:15px;color:var(--muted);font-size:12px;line-height:1.6}.footer a{color:var(--navy);font-weight:650;text-decoration:none}.footer a:hover{text-decoration:underline}
+    html.dark{color-scheme:dark;--navy:#7fb6ca;--gold:#7fb6ca;--ink:#eceef0;--muted:#a2a7ae;--line:#363a40;--paper:#1d2024;--canvas:#17191c}
+    html.dark .bar{background:rgba(23,25,28,.96);color:var(--ink);border-color:var(--line)}html.dark .brand,html.dark .label,html.dark .heading h1,html.dark .article h1,html.dark .article h2,html.dark .article h3,html.dark .article h4{color:var(--ink)}
+    html.dark .paper{background:var(--paper);border-color:var(--line);box-shadow:0 10px 28px rgba(0,0,0,.24)}html.dark .notice,html.dark .article blockquote{background:rgba(127,182,202,.1);color:#c4c8ce;border-color:rgba(127,182,202,.25)}
+    html.dark .article code,html.dark th{background:#252a30;color:var(--navy)}html.dark .article pre{background:#202328;border-color:var(--line)}html.dark th,html.dark td,html.dark .article h2,html.dark .article hr{border-color:var(--line)}html.dark .article .task-check{color:var(--navy)}
+    .theme-toggle{width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--navy);font:inherit;font-size:17px;line-height:1;cursor:pointer}.theme-toggle:hover{background:var(--canvas)}html.dark .theme-toggle{background:#202328;color:var(--navy)}html.dark .theme-toggle:hover{background:#292d32}
     @media(max-width:520px){.bar{min-height:58px;padding:10px 14px;gap:8px}.brand{font-size:13px}.brand img{width:32px;height:32px}.label{font-size:11px}.copy{padding:7px 9px;font-size:12px}.wrap{padding:22px 13px 34px}.paper{padding:20px 17px}.article{font-size:14px}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
   </style>
@@ -155,6 +161,7 @@ function renderPage(title, articleHtml, created) {
   <header class="bar">
     <a class="brand" href="/" aria-label="前往 FUMO 官方網站"><img src="/fumo-badge.webp" alt="FUMO 徽章"><span>FUMO 文件工作區</span></a>
     <span class="label">唯讀公開頁面</span>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="切換至深色模式" aria-pressed="false" title="切換至深色模式"><span data-theme-icon aria-hidden="true">☾</span></button>
     <button class="copy" id="copyShare" type="button">複製連結</button>
   </header>
   <main class="wrap">
