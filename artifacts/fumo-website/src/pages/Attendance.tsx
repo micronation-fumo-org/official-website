@@ -4,8 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, CheckCircle2, ClipboardCheck, LogIn, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiFetch } from "@/lib/api";
@@ -23,6 +25,7 @@ interface AttendanceSession {
   title: string;
   eventDate: string | null;
   isOpen: boolean;
+  isDraft: boolean;
   createdAt: string;
   total: number;
   memberCount: number;
@@ -65,6 +68,7 @@ export default function Attendance() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [isDraft, setIsDraft] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -85,7 +89,7 @@ export default function Attendance() {
       const response = await apiFetch("/api/attendance/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), eventDate: eventDate ? new Date(eventDate).toISOString() : null }),
+        body: JSON.stringify({ title: title.trim(), eventDate: eventDate ? new Date(eventDate).toISOString() : null, isDraft }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "建立出席場次失敗。");
@@ -94,6 +98,7 @@ export default function Attendance() {
     onSuccess: async (data) => {
       setTitle("");
       setEventDate("");
+      setIsDraft(false);
       setFormError(null);
       setSelectedId(data.id);
       await queryClient.invalidateQueries({ queryKey: ["attendance-sessions"] });
@@ -139,9 +144,11 @@ export default function Attendance() {
 
   const sessions = sessionsQuery.data ?? [];
   const detail = selectedQuery.data;
-  const sessionStateLabel = (open: boolean) => open
-    ? (isEnglish ? "Check-in open" : "簽到開放中")
-    : (isEnglish ? "Closed" : "已關閉");
+  const sessionStateLabel = (open: boolean, draft: boolean) => draft
+    ? (isEnglish ? "Private draft" : "未公開草稿")
+    : open
+      ? (isEnglish ? "Check-in open" : "簽到開放中")
+      : (isEnglish ? "Closed" : "已關閉");
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8 sm:py-10">
@@ -163,6 +170,15 @@ export default function Attendance() {
               <Input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} placeholder={isEnglish ? "Session name (e.g. 43rd Regular Assembly)" : "場次名稱（例如：第 43 次例行大會）"} aria-label={isEnglish ? "Session name" : "場次名稱"} />
               <Input type="datetime-local" value={eventDate} onChange={(event) => setEventDate(event.target.value)} aria-label={isEnglish ? "Session date and time" : "場次日期與時間"} />
               <Button type="submit" className="min-h-11" disabled={createMutation.isPending}>{createMutation.isPending ? (isEnglish ? "Creating…" : "建立中…") : (isEnglish ? "Create session" : "建立場次")}</Button>
+              <div className="flex items-start gap-3 md:col-span-3">
+                <Checkbox id="attendance-session-draft" checked={isDraft} onCheckedChange={(checked) => setIsDraft(checked === true)} className="mt-0.5 h-5 w-5" />
+                <div>
+                  <Label htmlFor="attendance-session-draft" className="min-h-6 cursor-pointer">
+                    {isEnglish ? "Create as a private draft" : "先建立為未公開草稿"}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">{isEnglish ? "Only admins can view it. An admin must open check-in to publish the session." : "僅管理員可見；管理員手動開放簽到後，場次才會公開並開始接受簽到。"}</p>
+                </div>
+              </div>
             </form>
             {formError && <p className="mt-2 text-sm text-red-600" role="alert">{formError}</p>}
           </CardContent>
@@ -191,7 +207,7 @@ export default function Attendance() {
                         <h3 className="H3">{session.title}</h3>
                         <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays className="h-3.5 w-3.5 shrink-0" />{formatDate(session.eventDate, isEnglish)}</p>
                       </div>
-                      <Badge variant={session.isOpen ? "default" : "secondary"} className="shrink-0">{sessionStateLabel(session.isOpen)}</Badge>
+                      <Badge variant={session.isOpen ? "default" : "secondary"} className="shrink-0">{sessionStateLabel(session.isOpen, session.isDraft)}</Badge>
                     </div>
                     <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span>{isEnglish ? `${session.total} states` : `${session.total} 國`}</span>
@@ -228,7 +244,7 @@ export default function Attendance() {
                     <CardTitle className="break-words text-lg text-primary">{detail.title}</CardTitle>
                     <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground"><CalendarDays className="h-4 w-4 shrink-0" />{formatDate(detail.eventDate, isEnglish)}</p>
                   </div>
-                  <Badge variant={detail.isOpen ? "default" : "secondary"}>{sessionStateLabel(detail.isOpen)}</Badge>
+                  <Badge variant={detail.isOpen ? "default" : "secondary"}>{sessionStateLabel(detail.isOpen, detail.isDraft)}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4 p-4 pt-0 sm:px-6 sm:pb-6">
@@ -259,9 +275,12 @@ export default function Attendance() {
                 {actionError && <p className="text-sm text-red-600" role="alert">{actionError}</p>}
                 {isAdmin && (
                   <div className="flex flex-col items-stretch gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-muted-foreground">{isEnglish ? "Session control" : "場次管理"}</p>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{isEnglish ? "Session control" : "場次管理"}</p>
+                      {detail.isDraft && <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Private to admins until you open check-in." : "目前只有管理員可見；開放簽到後才會公開。"}</p>}
+                    </div>
                     <Button variant={detail.isOpen ? "outline" : "default"} className="min-h-10 w-full sm:w-auto" disabled={toggleMutation.isPending} onClick={() => toggleMutation.mutate({ id: detail.id, isOpen: !detail.isOpen })}>
-                      {detail.isOpen ? (isEnglish ? "Close check-in" : "關閉簽到") : (isEnglish ? "Reopen check-in" : "重新開放簽到")}
+                      {detail.isOpen ? (isEnglish ? "Close check-in" : "關閉簽到") : detail.isDraft ? (isEnglish ? "Open check-in and publish" : "開放簽到並公開場次") : (isEnglish ? "Reopen check-in" : "重新開放簽到")}
                     </Button>
                   </div>
                 )}

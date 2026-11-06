@@ -674,45 +674,49 @@ app.post("/api/admin/votes/:voteId/publish", async c => {
 app.get("/api/attendance/sessions", async c => {
   const actor = await currentAccount(c);
   const countryName = actor?.country_name ?? "";
-  const result = await c.env.DB.prepare(`SELECT s.id, s.title, s.event_date, s.is_open, s.created_at,
+  const canManageSessions = Boolean(actor && actor.admin_level >= ADMIN_TIER1);
+  const result = await c.env.DB.prepare(`SELECT s.id, s.title, s.event_date, s.is_open, s.is_draft, s.created_at,
       COUNT(r.id) AS total,
       COALESCE(SUM(CASE WHEN r.country_status = 'member' THEN 1 ELSE 0 END), 0) AS member_count,
       COALESCE(SUM(CASE WHEN r.country_status = 'observer' THEN 1 ELSE 0 END), 0) AS observer_count,
       COALESCE(MAX(CASE WHEN r.country_name = ? THEN 1 ELSE 0 END), 0) AS has_attended
     FROM attendance_sessions s LEFT JOIN attendance_records r ON r.session_id = s.id
+    WHERE (? = 1 OR s.is_draft = 0)
     GROUP BY s.id ORDER BY s.is_open DESC, COALESCE(s.event_date, s.created_at) DESC, s.id DESC LIMIT 100`)
-    .bind(countryName).all<{ id: number; title: string; event_date: string | null; is_open: number; created_at: string; total: number; member_count: number; observer_count: number; has_attended: number }>();
+    .bind(countryName, canManageSessions ? 1 : 0).all<{ id: number; title: string; event_date: string | null; is_open: number; is_draft: number; created_at: string; total: number; member_count: number; observer_count: number; has_attended: number }>();
   return c.json({ sessions: (result.results ?? []).map(row => ({
-    id: row.id, title: row.title, eventDate: row.event_date, isOpen: Boolean(row.is_open), createdAt: row.created_at,
+    id: row.id, title: row.title, eventDate: row.event_date, isOpen: Boolean(row.is_open), isDraft: Boolean(row.is_draft), createdAt: row.created_at,
     total: Number(row.total), memberCount: Number(row.member_count), observerCount: Number(row.observer_count), hasAttended: Boolean(row.has_attended),
   })) }, 200, { "Cache-Control": "private, no-store" });
 });
 app.post("/api/attendance/sessions", async c => {
   const actor = await currentAccount(c);
   if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "需要一階管理員權限。" }, 403);
-  const body = z.object({ title: z.string().trim().min(1).max(120), eventDate: z.string().datetime({ offset: true }).nullable().optional() }).safeParse(await parseJson(c));
+  const body = z.object({ title: z.string().trim().min(1).max(120), eventDate: z.string().datetime({ offset: true }).nullable().optional(), isDraft: z.boolean().optional().default(false) }).safeParse(await parseJson(c));
   if (!body.success) return c.json({ error: "場次名稱或日期格式不正確。" }, 400);
-  const inserted = await c.env.DB.prepare("INSERT INTO attendance_sessions (title, event_date, created_by) VALUES (?, ?, ?)")
-    .bind(body.data.title, body.data.eventDate ?? null, actor.voter_id).run();
+  const isOpen = !body.data.isDraft;
+  const inserted = await c.env.DB.prepare("INSERT INTO attendance_sessions (title, event_date, is_open, is_draft, created_by) VALUES (?, ?, ?, ?, ?)")
+    .bind(body.data.title, body.data.eventDate ?? null, isOpen ? 1 : 0, body.data.isDraft ? 1 : 0, actor.voter_id).run();
   const id = Number(inserted.meta?.last_row_id ?? 0);
   if (!id) return c.json({ error: "建立出席場次失敗。" }, 500);
-  await auditStatement(c.env.DB, actor, "attendance_session.create", "attendance_session", id, { title: body.data.title });
-  return c.json({ success: true, id }, 201);
+  await auditStatement(c.env.DB, actor, "attendance_session.create", "attendance_session", id, { title: body.data.title, isDraft: body.data.isDraft });
+  return c.json({ success: true, id, isOpen, isDraft: body.data.isDraft }, 201);
 });
 app.get("/api/attendance/sessions/:id", async c => {
   const id = Number(c.req.param("id"));
   if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid session ID" }, 400);
-  const session = await c.env.DB.prepare("SELECT id, title, event_date, is_open, created_at FROM attendance_sessions WHERE id = ?").bind(id)
-    .first<{ id: number; title: string; event_date: string | null; is_open: number; created_at: string }>();
+  const session = await c.env.DB.prepare("SELECT id, title, event_date, is_open, is_draft, created_at FROM attendance_sessions WHERE id = ?").bind(id)
+    .first<{ id: number; title: string; event_date: string | null; is_open: number; is_draft: number; created_at: string }>();
   if (!session) return c.json({ error: "Attendance session not found" }, 404);
   const actor = await currentAccount(c);
+  if (session.is_draft && (!actor || actor.admin_level < ADMIN_TIER1)) return c.json({ error: "Attendance session not found" }, 404);
   const rows = await c.env.DB.prepare("SELECT country_name, country_status, attended_at FROM attendance_records WHERE session_id = ? ORDER BY country_status ASC, country_name COLLATE NOCASE ASC")
     .bind(id).all<{ country_name: string; country_status: "member" | "observer"; attended_at: string }>();
   const records = (rows.results ?? []).map(row => ({ countryName: row.country_name, status: row.country_status, attendedAt: row.attended_at }));
   const countryStatus = actor ? (await members()).allStates.find(state => state.fullName === actor.country_name)?.status ?? null : null;
   const myAttendance = actor ? records.find(record => record.countryName === actor.country_name) ?? null : null;
   return c.json({
-    id: session.id, title: session.title, eventDate: session.event_date, isOpen: Boolean(session.is_open), createdAt: session.created_at,
+    id: session.id, title: session.title, eventDate: session.event_date, isOpen: Boolean(session.is_open), isDraft: Boolean(session.is_draft), createdAt: session.created_at,
     total: records.length, memberCount: records.filter(record => record.status === "member").length,
     observerCount: records.filter(record => record.status === "observer").length,
     memberStates: records.filter(record => record.status === "member"), observerStates: records.filter(record => record.status === "observer"),
@@ -726,13 +730,13 @@ app.patch("/api/attendance/sessions/:id", async c => {
   if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Invalid session ID" }, 400);
   const body = z.object({ isOpen: z.boolean() }).safeParse(await parseJson(c));
   if (!body.success) return c.json({ error: "場次狀態不正確。" }, 400);
-  const existing = await c.env.DB.prepare("SELECT id, title FROM attendance_sessions WHERE id = ?").bind(id).first<{ id: number; title: string }>();
+  const existing = await c.env.DB.prepare("SELECT id, title, is_draft FROM attendance_sessions WHERE id = ?").bind(id).first<{ id: number; title: string; is_draft: number }>();
   if (!existing) return c.json({ error: "Attendance session not found" }, 404);
   await c.env.DB.batch([
-    c.env.DB.prepare("UPDATE attendance_sessions SET is_open = ?, updated_at = datetime('now') WHERE id = ?").bind(body.data.isOpen ? 1 : 0, id),
-    auditStatement(c.env.DB, actor, body.data.isOpen ? "attendance_session.reopen" : "attendance_session.close", "attendance_session", id, { title: existing.title }),
+    c.env.DB.prepare("UPDATE attendance_sessions SET is_open = ?, is_draft = ?, updated_at = datetime('now') WHERE id = ?").bind(body.data.isOpen ? 1 : 0, body.data.isOpen ? 0 : existing.is_draft, id),
+    auditStatement(c.env.DB, actor, body.data.isOpen ? "attendance_session.reopen" : "attendance_session.close", "attendance_session", id, { title: existing.title, wasDraft: Boolean(existing.is_draft) }),
   ]);
-  return c.json({ success: true, isOpen: body.data.isOpen });
+  return c.json({ success: true, isOpen: body.data.isOpen, isDraft: body.data.isOpen ? false : Boolean(existing.is_draft) });
 });
 app.post("/api/attendance/sessions/:id/check-in", async c => {
   const id = Number(c.req.param("id"));
