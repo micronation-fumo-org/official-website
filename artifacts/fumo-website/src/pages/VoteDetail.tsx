@@ -362,9 +362,18 @@ export default function VoteDetail() {
               <p className="font-medium text-amber-900">{isEnglish ? "This vote is an unpublished draft." : "此投票目前是未發布草稿，只有管理員可見。"}</p>
               {voteError && <p className="text-sm text-red-700">{voteError}</p>}
               {isAdmin && (
-                <Button className="min-h-11 w-full sm:w-auto" onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
-                  {publishMutation.isPending ? (isEnglish ? "Publishing..." : "發布中...") : (isEnglish ? "Publish draft" : "發布草稿")}
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  {vote.ballotCount === 0 && (
+                    <Link href={`/votes/${encodeURIComponent(vote.publicId || String(vote.id))}/edit`}>
+                      <Button variant="outline" className="min-h-11 w-full sm:w-auto">
+                        {isEnglish ? "Edit draft" : "編輯草稿"}
+                      </Button>
+                    </Link>
+                  )}
+                  <Button className="min-h-11 w-full sm:w-auto" onClick={() => publishMutation.mutate()} disabled={publishMutation.isPending}>
+                    {publishMutation.isPending ? (isEnglish ? "Publishing..." : "發布中...") : (isEnglish ? "Publish draft" : "發布草稿")}
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>

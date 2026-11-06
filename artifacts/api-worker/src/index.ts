@@ -4,6 +4,7 @@ import { z } from "zod";
 import { buildGoogleAuthorizationUrl, createPkceChallenge, fetchGoogleIdentity, randomToken } from "./googleOAuth";
 import { buildDiscordAuthorizationUrl, createPkceChallenge as createDiscordPkceChallenge, fetchDiscordIdentity, randomToken as randomDiscordToken } from "./discordOAuth";
 import { deliverWebhook, dispatchVoteEvent, DISCORD_ROLE_ID, normalizeDiscordRoleIds, normalizeWebhookEvents, runVoteNotificationSweep, validateWebhookUrl, voteWebhookPayload, webhookSecret, webhookSummary, WEBHOOK_EVENTS, type WebhookEvent, type WebhookRow } from "./voteWebhooks";
+import { canEditVoteDraft, validateVoteDraftFields } from "./voteDrafts";
 
 interface Env {
   DB: D1Database;
@@ -531,7 +532,7 @@ app.get("/api/votes", async c => {
   const actor = await currentAccount(c);
   const visibilityFilter = actor && actor.admin_level >= ADMIN_TIER1 ? "" : "WHERE v.is_published = 1";
   const rows = await c.env.DB.prepare(`SELECT v.*, COUNT(b.id) AS ballot_count FROM votes v LEFT JOIN ballots b ON b.vote_id = v.id ${visibilityFilter} GROUP BY v.id ORDER BY v.created_at ASC`).all<VoteRow & { ballot_count: number }>();
-  return c.json((rows.results ?? []).map(v => asVote(v, v.ballot_count)));
+  return c.json((rows.results ?? []).map(v => asVote(v, v.ballot_count)), 200, { "Cache-Control": "private, no-store" });
 });
 app.post("/api/votes", async c => {
   const schema = z.object({
@@ -589,6 +590,63 @@ app.post("/api/votes", async c => {
     if (body.data.publishMode === "immediate") fireVoteEvent(c, "vote.started", created, { details: { reason: "created" } });
   }
   return c.json(created ? asVote(created) : { error: "Failed to create vote" }, created ? 201 : 500);
+});
+app.put("/api/admin/votes/:voteId/draft", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
+  const vote = await voteByPublicId(c.env.DB, c.req.param("voteId"));
+  if (!vote) return c.json({ error: "Vote not found" }, 404);
+
+  const ballotRow = await c.env.DB.prepare("SELECT COUNT(*) AS ballot_count FROM ballots WHERE vote_id = ?")
+    .bind(vote.id).first<{ ballot_count: number }>();
+  if (!canEditVoteDraft(Boolean(vote.is_published), Number(ballotRow?.ballot_count ?? 0))) {
+    return c.json({ error: "只有尚未發布且尚無選票的草稿可以編輯。" }, 409);
+  }
+
+  const customIdSchema = z.string().trim().min(1).max(48)
+    .regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/)
+    .refine(value => !/^\d+$/.test(value), "自訂投票 ID 不可為純數字，以免與既有數字 ID 衝突。")
+    .refine(value => !/^create$/i.test(value), "自訂投票 ID 不可使用保留字 create。");
+  const schema = z.object({
+    name: z.string().trim().min(1),
+    description: z.string().trim().optional().default(""),
+    deadline: z.string().datetime(),
+    options: z.array(z.string().trim().min(1)).min(2),
+    allowMultiple: z.boolean().default(false),
+    customId: customIdSchema.nullable().optional().default(null),
+    regularMeetingNumber: z.number().int().positive().nullable().optional().default(null),
+  });
+  const body = schema.safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "Invalid input", details: body.error.issues }, 400);
+  const fields = body.data;
+  const issues = validateVoteDraftFields(fields);
+  if (issues.length) return c.json({ error: issues[0].message, details: issues.map(issue => ({ path: [issue.path], message: issue.message })) }, 400);
+  const customId = fields.customId || null;
+  if (customId && await c.env.DB.prepare("SELECT id FROM votes WHERE custom_id = ? AND id != ?").bind(customId, vote.id).first()) {
+    return c.json({ error: "此自訂投票 ID 已被使用，請更換其他 ID。" }, 409);
+  }
+
+  try {
+    const updated = await c.env.DB.prepare(`UPDATE votes
+      SET name = ?, description = ?, deadline = ?, options = ?, allow_multiple = ?, custom_id = ?, regular_meeting_number = ?, updated_at = datetime('now')
+      WHERE id = ? AND is_published = 0 AND NOT EXISTS (SELECT 1 FROM ballots WHERE vote_id = ?)`)
+      .bind(fields.name, fields.description, fields.deadline, JSON.stringify(fields.options), fields.allowMultiple ? 1 : 0, customId, fields.regularMeetingNumber, vote.id, vote.id)
+      .run();
+    if (!updated.meta.changes) return c.json({ error: "草稿已發布或已有選票，無法再編輯。" }, 409);
+  } catch (error) {
+    if (customId && /UNIQUE constraint failed:\s*votes\.custom_id/i.test(String(error))) {
+      return c.json({ error: "此自訂投票 ID 已被使用，請更換其他 ID。" }, 409);
+    }
+    throw error;
+  }
+
+  await auditStatement(c.env.DB, actor, "vote.draft.update", "vote", vote.id, {
+    voteName: fields.name,
+    customId: customId ?? "",
+    regularMeetingNumber: fields.regularMeetingNumber ?? 0,
+  }).run();
+  const updatedVote = await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(vote.id).first<VoteRow>();
+  return c.json(updatedVote ? asVote(updatedVote) : { error: "Failed to update vote draft" }, updatedVote ? 200 : 500, { "Cache-Control": "private, no-store" });
 });
 app.post("/api/admin/votes/:voteId/publish", async c => {
   const actor = await currentAccount(c);
@@ -696,7 +754,7 @@ app.get("/api/votes/:id", async c => {
   const actor = await currentAccount(c);
   if (!v || (!v.is_published && (!actor || actor.admin_level < ADMIN_TIER1))) return c.json({ error: "Vote not found" }, 404);
   const ballots = await c.env.DB.prepare("SELECT * FROM ballots WHERE vote_id = ? ORDER BY created_at ASC").bind(v.id).all<BallotRow>();
-  return c.json({ ...asVote(v, ballots.results.length), ballots: v.is_closed || new Date(v.deadline) < new Date() ? ballots.results.map(b => ({ ...b, selectedOptions: jsonArray<string>(b.selected_options) })) : [] });
+  return c.json({ ...asVote(v, ballots.results.length), ballots: v.is_closed || new Date(v.deadline) < new Date() ? ballots.results.map(b => ({ ...b, selectedOptions: jsonArray<string>(b.selected_options) })) : [] }, 200, { "Cache-Control": "private, no-store" });
 });
 app.post("/api/votes/:id/ballot", async c => {
   const body = z.object({ selectedOptions: z.array(z.string().min(1)) }).safeParse(await parseJson(c));

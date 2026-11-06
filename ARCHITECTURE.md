@@ -146,6 +146,8 @@ Worker 會在記憶體中快取資料約 5 分鐘，減少對 Google Sheet 的�
 | `GET /api/voters` | Google Sheet | 投票代表與資格 |
 | `GET /api/votes` | D1 | 投票列表 |
 | `POST /api/votes` | D1 | 建立投票 |
+| `PUT /api/admin/votes/:voteId/draft` | D1 | 更新尚未發布且沒有選票的投票草稿（管理員限定） |
+| `POST /api/admin/votes/:voteId/publish` | D1 | 管理員明確發布投票草稿 |
 | `GET /api/votes/:id` | D1 | 投票詳情 |
 | `POST /api/votes/:id/ballot` | Google Sheet + D1 | 驗證資格並投票 |
 | `GET /api/votes/:id/results` | D1 | 投票結果 |
@@ -157,6 +159,8 @@ Worker 會在記憶體中快取資料約 5 分鐘，減少對 Google Sheet 的�
 | `DELETE /api/documents/:id` | D1 + FUMO session | 刪除共用文件 |
 | `POST /api/shares` | D1 + FUMO session | 建立唯讀公開快照，可自訂網址尾碼 |
 | `GET /api/shares/:id` | D1 | 免登入讀取公開快照 |
+
+投票草稿沿用既有 D1 `votes` 資料表，不另建儲存區。管理員建立草稿後可在僅管理員可見、標記 `noindex` 的詳情預覽頁編輯；儲存更新不會發布。只有在預覽頁另行選擇「發布草稿」才會公開。API 會拒絕更新已發布或已有選票的投票，且草稿列表與詳情使用 `private, no-store` 快取標頭。
 
 ## 7. 部署架構
 

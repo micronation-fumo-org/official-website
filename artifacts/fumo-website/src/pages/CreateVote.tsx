@@ -1,8 +1,8 @@
 import { toChineseError } from "@/lib/errorMessage";
 import { apiFetch } from "@/lib/api";
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation, useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,17 +17,29 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 type PublishMode = "immediate" | "draft" | "scheduled";
 
-async function createVote(body: {
+type VoteDraftFields = {
   name: string;
   description: string;
   deadline: string;
   options: string[];
   allowMultiple: boolean;
   customId: string | null;
-  regularMeetingNumber: number;
+  regularMeetingNumber: number | null;
+};
+
+type VoteFormSubmission = {
+  draft: VoteDraftFields;
   publishMode: PublishMode;
   startsAt: string | null;
-}) {
+};
+
+type VoteDraft = VoteDraftFields & {
+  id: number;
+  publicId: string;
+  isPublished: boolean;
+};
+
+async function createVote(body: VoteDraftFields & { publishMode: PublishMode; startsAt: string | null }) {
   const res = await apiFetch("/api/votes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -38,11 +50,45 @@ async function createVote(body: {
   return data;
 }
 
+async function fetchVoteDraft(id: string): Promise<VoteDraft> {
+  const res = await apiFetch(`/api/votes/${encodeURIComponent(id)}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "載入投票草稿失敗。");
+  if (data.isPublished) throw new Error("此投票已發布，無法編輯草稿。");
+  return data;
+}
+
+async function updateVoteDraft(id: string, body: VoteDraftFields) {
+  const res = await apiFetch(`/api/admin/votes/${encodeURIComponent(id)}/draft`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "更新投票草稿失敗。");
+  return data;
+}
+
+function toLocalDateTime(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 export default function CreateVote() {
   const { isEnglish } = useLanguage();
+  const params = useParams<{ id: string }>();
+  const editId = params.id;
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { user, isAdmin } = useAuth();
+  const draftQuery = useQuery({
+    queryKey: ["vote-draft-edit", editId],
+    queryFn: () => fetchVoteDraft(editId!),
+    enabled: Boolean(editId && isAdmin),
+    staleTime: Infinity,
+    retry: false,
+  });
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
@@ -50,14 +96,31 @@ export default function CreateVote() {
   const [allowMultiple, setAllowMultiple] = useState(false);
   const [customId, setCustomId] = useState("");
   const [regularMeetingNumber, setRegularMeetingNumber] = useState("");
-  const [publishMode, setPublishMode] = useState<PublishMode>("immediate");
+  const [publishMode, setPublishMode] = useState<PublishMode>("draft");
   const [startsAt, setStartsAt] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const draft = draftQuery.data;
+    if (!draft || !editId || loadedDraftId === editId) return;
+    setName(draft.name);
+    setDescription(draft.description || "");
+    setDeadline(toLocalDateTime(draft.deadline));
+    setOptions(draft.options.length ? draft.options : ["", ""]);
+    setAllowMultiple(draft.allowMultiple);
+    setCustomId(draft.customId || "");
+    setRegularMeetingNumber(draft.regularMeetingNumber == null ? "" : String(draft.regularMeetingNumber));
+    setLoadedDraftId(editId);
+  }, [draftQuery.data, editId, loadedDraftId]);
 
   const mutation = useMutation({
-    mutationFn: createVote,
+    mutationFn: (submission: VoteFormSubmission) => editId
+      ? updateVoteDraft(editId, submission.draft)
+      : createVote({ ...submission.draft, publishMode: submission.publishMode, startsAt: submission.startsAt }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["votes"] });
+      queryClient.invalidateQueries({ queryKey: ["vote", data.publicId || data.id] });
       setLocation(`/votes/${encodeURIComponent(data.publicId || data.id)}`);
     },
     onError: (err: Error) => {
@@ -121,15 +184,17 @@ export default function CreateVote() {
       return;
     }
     mutation.mutate({
-      name: name.trim(),
-      description: description.trim(),
-      deadline: new Date(deadline).toISOString(),
-      options: validOptions,
-      allowMultiple,
-      customId: normalizedCustomId || null,
-      regularMeetingNumber: Number(regularMeetingNumber),
-      publishMode,
-      startsAt: startsAtIso,
+      draft: {
+        name: name.trim(),
+        description: description.trim(),
+        deadline: new Date(deadline).toISOString(),
+        options: validOptions,
+        allowMultiple,
+        customId: normalizedCustomId || null,
+        regularMeetingNumber: Number(regularMeetingNumber),
+      },
+      publishMode: editId ? "draft" : publishMode,
+      startsAt: editId ? null : startsAtIso,
     });
   };
 
@@ -148,17 +213,36 @@ export default function CreateVote() {
     );
   }
 
+  if (editId && (draftQuery.isLoading || (draftQuery.data && loadedDraftId !== editId))) {
+    return <div className="min-h-screen bg-muted/20 px-4 py-12 text-center text-muted-foreground">{isEnglish ? "Loading draft..." : "載入投票草稿中…"}</div>;
+  }
+
+  if (editId && (draftQuery.isError || !draftQuery.data)) {
+    const loadError = draftQuery.error instanceof Error ? toChineseError(draftQuery.error) : (isEnglish ? "This draft is unavailable." : "無法載入此投票草稿。" );
+    return (
+      <div className="min-h-screen bg-muted/20 px-4 py-12">
+        <div className="mx-auto max-w-xl rounded-md border border-border bg-white p-6 text-center">
+          <h1 className="mb-2 text-xl font-bold text-primary">{isEnglish ? "Draft unavailable" : "無法編輯此草稿"}</h1>
+          <p className="mb-5 text-sm text-muted-foreground">{loadError}</p>
+          <Link href="/votes"><Button variant="outline">{isEnglish ? "Back to voting" : "返回投票列表"}</Button></Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-muted/20 py-6 sm:py-12">
       <div className="container mx-auto px-3 sm:px-4 max-w-2xl">
-        <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">{isEnglish ? "Create vote" : "創建投票 Create Vote"}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">{editId ? (isEnglish ? "Edit vote draft" : "編輯投票草稿") : (isEnglish ? "Create vote" : "創建投票 Create Vote")}</h1>
         <p className="text-muted-foreground mb-5 sm:mb-8">
-          {isEnglish ? "Set up a new vote for member-state representatives." : "設定一個新的投票，讓成員國代表進行投票。"}
+          {editId
+            ? (isEnglish ? "Update the private draft, review it, then publish only when you choose." : "修改僅管理員可見的草稿；儲存後返回私密預覽，只有你明確選擇發布時才會公開。")
+            : (isEnglish ? "Set up a new vote for member-state representatives." : "設定一個新的投票，讓成員國代表進行投票。")}
         </p>
 
         <Card className="border-border/60 bg-white">
           <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
-            <CardTitle className="text-lg font-bold text-primary">{isEnglish ? "Vote configuration" : "投票設定 Vote Configuration"}</CardTitle>
+            <CardTitle className="text-lg font-bold text-primary">{editId ? (isEnglish ? "Draft configuration" : "草稿設定") : (isEnglish ? "Vote configuration" : "投票設定 Vote Configuration")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5 p-4 sm:space-y-6 sm:p-6">
             <div>
@@ -206,6 +290,13 @@ export default function CreateVote() {
               </p>
             </div>
 
+            {editId && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                {isEnglish ? "This remains a private draft while you edit. Saving returns to the preview; publishing is a separate action." : "編輯期間仍是僅管理員可見的草稿。儲存後會返回預覽；發布是另一個獨立動作。"}
+              </p>
+            )}
+
+            {!editId && (
             <div>
               <Label>{isEnglish ? "Publishing mode" : "發佈方式"}</Label>
               <RadioGroup
@@ -249,6 +340,7 @@ export default function CreateVote() {
                 </div>
               )}
             </div>
+            )}
 
             <div>
               <Label htmlFor="desc">{isEnglish ? "Description" : "說明 Description"}</Label>
@@ -335,12 +427,14 @@ export default function CreateVote() {
               >
                 <CheckCircle2 className="w-4 h-4 mr-1" />
                 {mutation.isPending
-                  ? (isEnglish ? "Creating..." : "建立中...")
-                  : publishMode === "draft"
-                    ? (isEnglish ? "Save draft" : "儲存草稿")
-                    : publishMode === "scheduled"
-                      ? (isEnglish ? "Schedule vote" : "建立預約投票")
-                      : (isEnglish ? "Publish vote" : "立即發布投票")}
+                  ? (editId ? (isEnglish ? "Saving..." : "儲存中…") : (isEnglish ? "Creating..." : "建立中..."))
+                  : editId
+                    ? (isEnglish ? "Save changes and preview" : "儲存修改並返回預覽")
+                    : publishMode === "draft"
+                      ? (isEnglish ? "Save draft" : "儲存草稿")
+                      : publishMode === "scheduled"
+                        ? (isEnglish ? "Schedule vote" : "建立預約投票")
+                        : (isEnglish ? "Publish vote" : "立即發布投票")}
               </Button>
               <Button variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => setLocation("/votes")}>
                 {isEnglish ? "Cancel" : "取消"}

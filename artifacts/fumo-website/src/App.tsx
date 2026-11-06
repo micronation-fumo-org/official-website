@@ -59,6 +59,7 @@ function Router() {
         <Route path="/vote-records" component={VoteRecords} />
         <Route path="/attendance" component={Attendance} />
         <Route path="/votes/create" component={CreateVote} />
+        <Route path="/votes/:id/edit" component={CreateVote} />
         <Route path="/votes/:id" component={VoteDetail} />
         <Route path="/admin" component={Admin} />
         <Route path="/bot-admin" component={BotAdmin} />

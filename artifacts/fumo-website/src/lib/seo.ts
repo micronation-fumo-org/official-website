@@ -152,7 +152,7 @@ export function getRouteSeo(path: string, isEnglish = false): SeoMetadata {
   const language = isEnglish ? "en" : "zh-Hant";
   const fixed = routeMetadata[normalized];
   if (fixed) return { ...fixed[isEnglish ? "en" : "zh"], path: normalized, language };
-  if (normalized === "/admin" || normalized === "/login" || normalized === "/register" || normalized === "/votes/create") {
+  if (normalized === "/admin" || normalized === "/login" || normalized === "/register" || normalized === "/votes/create" || /^\/votes\/[^/]+\/edit$/.test(normalized)) {
     return {
       title: isEnglish ? `Account service｜${SITE_NAME}` : `帳戶服務｜${SITE_NAME}`,
       description: isEnglish ? "Sign-in and account administration." : "登入與帳戶管理頁面。",
