@@ -3,6 +3,13 @@ import { randomUUID } from "node:crypto";
 import { startWebhookRelay } from "./webhookRelay.js";
 import { extractApplicationOwnerId, isBotOwner } from "./ownerAuth.js";
 import {
+  createAnnouncementDraft,
+  deleteAnnouncementDraft,
+  getAnnouncementDraft,
+  pruneAnnouncementDrafts,
+  updateAnnouncementDraft,
+} from "./announcementDrafts.js";
+import {
   createGuildBackup,
   getBackupDirectory,
   loadLatestGuildBackup,
@@ -17,10 +24,13 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ModalBuilder,
   PermissionFlagsBits,
   REST,
   Routes,
   SlashCommandBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } from "discord.js";
 
 // Wispbyte may create the managed .env at /home/container or inside /bot.
@@ -80,6 +90,7 @@ const commands = [
     .addStringOption(option => option.setName("標題").setDescription("公告標題").setRequired(true).setMaxLength(256))
     .addStringOption(option => option.setName("內容").setDescription("公告內容").setRequired(true).setMaxLength(1900))
     .addStringOption(option => option.setName("格式").setDescription("公告呈現格式，預設為 Embed").addChoices({ name: "視覺化 Embed", value: "embed" }, { name: "純文字", value: "text" }).setRequired(false))
+    .addBooleanOption(option => option.setName("草稿").setDescription("先建立私人預覽，可編輯；按下發布才會發送").setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild.toString()),
   new SlashCommandBuilder()
     .setName("身分組檢查")
@@ -119,6 +130,8 @@ const commands = [
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] });
 const pendingGuildRestores = new Map();
+const pendingAnnouncementDrafts = new Map();
+const publishingAnnouncementDrafts = new Set();
 let OWNER_ID = "";
 
 function canManage(interaction) {
@@ -482,7 +495,123 @@ async function handleGuildRestoreButton(interaction) {
   }
 }
 
+function announcementDraftResponse(draft, notice = "草稿已建立。") {
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`announcement_draft:edit:${draft.id}`).setLabel("編輯草稿").setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`announcement_draft:send:${draft.id}`).setLabel("發布公告").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`announcement_draft:discard:${draft.id}`).setLabel("丟棄草稿").setStyle(ButtonStyle.Secondary),
+  );
+  return {
+    content: `${notice}\n這是只有你可見的私人草稿，尚未發布；按下「發布公告」後才會送至公告頻道。`,
+    embeds: [{
+      title: draft.title,
+      description: draft.content,
+      color: 0x5865f2,
+      footer: { text: `格式：${draft.mode === "text" ? "純文字" : "視覺化 Embed"} · 草稿 30 分鐘後到期` },
+    }],
+    components: [row],
+    allowedMentions: { parse: [] },
+  };
+}
+
+function announcementDraftModal(draft) {
+  return new ModalBuilder()
+    .setCustomId(`announcement_draft:save:${draft.id}`)
+    .setTitle("編輯公告草稿")
+    .addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId("draft_title").setLabel("公告標題").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(256).setValue(draft.title),
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder().setCustomId("draft_content").setLabel("公告內容").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(1900).setValue(draft.content),
+      ),
+    );
+}
+
+async function handleAnnouncementDraftInteraction(interaction) {
+  const isButton = interaction.isButton() && interaction.customId.startsWith("announcement_draft:");
+  const isModal = interaction.isModalSubmit() && interaction.customId.startsWith("announcement_draft:");
+  if (!isButton && !isModal) return false;
+
+  if (!canManage(interaction)) {
+    await interaction.reply({ content: "只有 FUMO 管理員或具備管理伺服器權限的成員可以使用此草稿。", ephemeral: true });
+    return true;
+  }
+
+  const [namespace, action, id, ...extra] = interaction.customId.split(":");
+  if (namespace !== "announcement_draft" || !id || extra.length > 0) {
+    await interaction.reply({ content: "草稿操作無效，請重新建立草稿。", ephemeral: true });
+    return true;
+  }
+  const identity = { id, userId: interaction.user.id, guildId: interaction.guildId };
+  const draft = getAnnouncementDraft(pendingAnnouncementDrafts, identity);
+  if (!draft) {
+    await interaction.reply({ content: "此草稿不存在、已到期，或不是由你建立。", ephemeral: true });
+    return true;
+  }
+
+  if (isButton && action === "edit") {
+    await interaction.showModal(announcementDraftModal(draft));
+    return true;
+  }
+
+  if (isModal && action === "save") {
+    try {
+      const updated = updateAnnouncementDraft(pendingAnnouncementDrafts, identity, {
+        title: interaction.fields.getTextInputValue("draft_title").trim(),
+        content: interaction.fields.getTextInputValue("draft_content").trim(),
+      });
+      if (!updated) {
+        await interaction.reply({ content: "此草稿不存在或已到期，請重新建立。", ephemeral: true });
+        return true;
+      }
+      logAction("announcement.draft.edited", { userId: interaction.user.id, guildId: interaction.guildId, draftId: id, title: updated.title });
+      await interaction.update(announcementDraftResponse(updated, "草稿已更新。"));
+    } catch (error) {
+      console.error("Announcement draft edit failed", error?.stack || error);
+      await interaction.reply({ content: "草稿未更新：標題與內容不可空白，且必須符合 Discord 字數限制。", ephemeral: true });
+    }
+    return true;
+  }
+
+  if (!isButton || (action !== "send" && action !== "discard")) {
+    await interaction.reply({ content: "草稿操作無效，請重新建立草稿。", ephemeral: true });
+    return true;
+  }
+
+  if (action === "discard") {
+    await interaction.deferUpdate();
+    deleteAnnouncementDraft(pendingAnnouncementDrafts, identity);
+    logAction("announcement.draft.discarded", { userId: interaction.user.id, guildId: interaction.guildId, draftId: id });
+    await interaction.editReply({ content: "草稿已丟棄。", embeds: [], components: [] });
+    return true;
+  }
+
+  if (publishingAnnouncementDrafts.has(id)) {
+    await interaction.reply({ content: "此草稿正在發布，請稍候。", ephemeral: true });
+    return true;
+  }
+  publishingAnnouncementDrafts.add(id);
+  try {
+    await interaction.deferUpdate();
+    try {
+      const url = await postAnnouncement(draft.title, draft.content, interaction.user.username, draft.mode);
+      deleteAnnouncementDraft(pendingAnnouncementDrafts, identity);
+      logAction("announcement.sent", { userId: interaction.user.id, channelId: ANNOUNCEMENT_CHANNEL_ID, messageUrl: url, mode: draft.mode, title: draft.title, content: draft.content, fromDraft: true });
+      await interaction.editReply({ content: `公告已發布：${url}`, embeds: [], components: [] });
+    } catch (error) {
+      console.error("Announcement draft publish failed", error?.stack || error);
+      logAction("announcement.draft.publish_failed", { userId: interaction.user.id, guildId: interaction.guildId, draftId: id, error: String(error) });
+      await interaction.editReply(announcementDraftResponse(draft, "公告發布失敗，草稿仍保留，可稍後重試。"));
+    }
+  } finally {
+    publishingAnnouncementDrafts.delete(id);
+  }
+  return true;
+}
+
 async function handleInteraction(interaction) {
+  if (await handleAnnouncementDraftInteraction(interaction)) return;
   if (interaction.isButton() && interaction.customId.startsWith("guild_restore:")) {
     await handleGuildRestoreButton(interaction);
     return;
@@ -719,17 +848,34 @@ async function handleInteraction(interaction) {
   }
   if (interaction.commandName === "公告") {
     await interaction.deferReply({ ephemeral: true });
+    const makeDraft = interaction.options.getBoolean("草稿") === true;
     try {
       const title = interaction.options.getString("標題", true);
       const content = interaction.options.getString("內容", true);
       const mode = interaction.options.getString("格式") || "embed";
+      if (makeDraft) {
+        pruneAnnouncementDrafts(pendingAnnouncementDrafts);
+        const draft = createAnnouncementDraft(pendingAnnouncementDrafts, {
+          id: randomUUID(),
+          userId: interaction.user.id,
+          guildId: interaction.guildId,
+          title,
+          content,
+          mode,
+        });
+        logAction("announcement.draft.created", { userId: interaction.user.id, guildId: interaction.guildId, draftId: draft.id, mode, title });
+        await interaction.editReply(announcementDraftResponse(draft));
+        return;
+      }
       const url = await postAnnouncement(title, content, interaction.user.username, mode);
       logAction("announcement.sent", { userId: interaction.user.id, channelId: ANNOUNCEMENT_CHANNEL_ID, messageUrl: url, mode, title, content });
       await interaction.editReply(`公告已發布：${url}`);
     } catch (error) {
       console.error("Announcement failed", error);
-      logAction("announcement.failed", { userId: interaction.user.id, error: String(error) });
-      await interaction.editReply("公告發布失敗，請確認公告頻道的 View Channel 與 Send Messages 權限；Embed 模式另需 Embed Links。");
+      logAction(makeDraft ? "announcement.draft.create_failed" : "announcement.failed", { userId: interaction.user.id, error: String(error) });
+      await interaction.editReply(makeDraft
+        ? "公告草稿建立失敗，請確認標題與內容未留白，且符合 Discord 字數限制。"
+        : "公告發布失敗，請確認公告頻道的 View Channel 與 Send Messages 權限；Embed 模式另需 Embed Links。");
     }
     return;
   }
