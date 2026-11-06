@@ -1,5 +1,6 @@
 import { toChineseError } from "@/lib/errorMessage";
 import { apiFetch } from "@/lib/api";
+import { getVoteDraftEditId, parseVoteDraftResponse, type VoteDraftRecord } from "@/lib/voteDraftForm";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
@@ -33,12 +34,6 @@ type VoteFormSubmission = {
   startsAt: string | null;
 };
 
-type VoteDraft = VoteDraftFields & {
-  id: number;
-  publicId: string;
-  isPublished: boolean;
-};
-
 async function createVote(body: VoteDraftFields & { publishMode: PublishMode; startsAt: string | null }) {
   const res = await apiFetch("/api/votes", {
     method: "POST",
@@ -50,12 +45,14 @@ async function createVote(body: VoteDraftFields & { publishMode: PublishMode; st
   return data;
 }
 
-async function fetchVoteDraft(id: string): Promise<VoteDraft> {
-  const res = await apiFetch(`/api/votes/${encodeURIComponent(id)}`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "載入投票草稿失敗。");
-  if (data.isPublished) throw new Error("此投票已發布，無法編輯草稿。");
-  return data;
+async function fetchVoteDraft(id: string): Promise<VoteDraftRecord> {
+  const res = await apiFetch(`/api/votes/${encodeURIComponent(id)}`, { cache: "no-store" });
+  const payload = await res.json();
+  if (!res.ok) throw new Error(payload.error || "載入投票草稿失敗。");
+  const draft = parseVoteDraftResponse(payload);
+  if (draft.isPublished) throw new Error("此投票已發布，無法編輯草稿。");
+  if (draft.ballotCount > 0) throw new Error("已有選票的投票不可編輯。");
+  return draft;
 }
 
 async function updateVoteDraft(id: string, body: VoteDraftFields) {
@@ -75,10 +72,12 @@ function toLocalDateTime(value: string): string {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
-export default function CreateVote() {
+type CreateVoteRouteProps = { params?: Record<string, unknown> };
+
+export default function CreateVote({ params: routeParams }: CreateVoteRouteProps = {}) {
   const { isEnglish } = useLanguage();
-  const params = useParams<{ id: string }>();
-  const editId = params.id;
+  const contextParams = useParams<Record<string, unknown>>();
+  const editId = getVoteDraftEditId(routeParams, contextParams);
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { user, isAdmin } = useAuth();
@@ -86,7 +85,8 @@ export default function CreateVote() {
     queryKey: ["vote-draft-edit", editId],
     queryFn: () => fetchVoteDraft(editId!),
     enabled: Boolean(editId && isAdmin),
-    staleTime: Infinity,
+    staleTime: 0,
+    refetchOnMount: "always",
     retry: false,
   });
   const [name, setName] = useState("");
