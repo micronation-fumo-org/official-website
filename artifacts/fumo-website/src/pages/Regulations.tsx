@@ -105,7 +105,7 @@ export default function Regulations() {
                       <p className="text-sm text-foreground/70">{isEnglish ? `Official document: ${reg.nameEn || reg.name}.` : (reg.description || "暫無說明。")}</p>
                     </CardContent>
                     <CardFooter className="pt-4 border-t border-border/40">
-                      <Button asChild variant="ghost" className="w-full text-secondary hover:text-secondary hover:bg-secondary/10 justify-between">
+                      <Button asChild variant="ghost" className="w-full text-primary hover:text-primary hover:bg-secondary/10 justify-between">
                         <a href={`https://hackmd.io/${isEnglish ? (reg.hackmdPathEn || reg.hackmdPath) : reg.hackmdPath}`} target="_blank" rel="noopener noreferrer">
                           {isEnglish ? "Read full text" : "閱讀全文"}
                           <ExternalLink className="w-4 h-4" />
