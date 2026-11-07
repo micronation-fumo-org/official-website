@@ -5,7 +5,7 @@ import { buildGoogleAuthorizationUrl, createPkceChallenge, fetchGoogleIdentity, 
 import { buildDiscordAuthorizationUrl, createPkceChallenge as createDiscordPkceChallenge, fetchDiscordIdentity, randomToken as randomDiscordToken } from "./discordOAuth";
 import { deliverWebhook, dispatchVoteEvent, DISCORD_ROLE_ID, normalizeDiscordRoleIds, normalizeWebhookEvents, runVoteNotificationSweep, validateWebhookUrl, voteWebhookPayload, webhookSecret, webhookSummary, WEBHOOK_EVENTS, type WebhookEvent, type WebhookRow } from "./voteWebhooks";
 import { canEditVoteDraft, validateVoteDraftFields } from "./voteDrafts";
-
+import { hasValidBotBearerToken, storedUtcInstantToIso } from "./botVoteAnnouncements";
 interface Env {
   DB: D1Database;
   CORS_ORIGIN?: string;
@@ -17,6 +17,7 @@ interface Env {
   DISCORD_CLIENT_SECRET?: string;
   DISCORD_REDIRECT_URI?: string;
   BOT_API_URL?: string;
+  FUMO_BOT_API_SECRET?: string;
 }
 type Variables = { account: Account | null };
 type App = Hono<{ Bindings: Env; Variables: Variables }>;
@@ -528,6 +529,139 @@ app.get("/api/vote-records", async c => {
   }
 });
 
+app.get("/api/internal/bot/vote-announcements/due", async c => {
+  if (!hasValidBotBearerToken(c.env.FUMO_BOT_API_SECRET, c.req.header("Authorization"))) {
+    return c.json({ error: "Unauthorized" }, 401, { "Cache-Control": "no-store" });
+  }
+  const rows = await c.env.DB.prepare(`
+    SELECT v.id, v.name, v.description, v.deadline, v.custom_id, v.regular_meeting_number, v.starts_at
+    FROM votes v
+    WHERE v.is_published = 1
+      AND v.is_closed = 0
+      AND v.notify_started_at IS NULL
+      AND v.regular_meeting_number IS NOT NULL
+      AND v.regular_meeting_number > 0
+      AND datetime(v.deadline) > datetime('now')
+      AND (v.starts_at IS NULL OR datetime(v.starts_at) <= datetime('now'))
+      AND NOT EXISTS (
+        SELECT 1 FROM vote_announcement_deliveries d
+        WHERE d.vote_id = v.id
+          AND (d.status = 'sent' OR (d.status IN ('sending', 'pending') AND datetime(d.lease_expires_at) > datetime('now')))
+      )
+    ORDER BY COALESCE(v.starts_at, v.created_at)
+    LIMIT 50
+  `).all<VoteRow>();
+  const items = (rows.results ?? []).map(vote => ({
+    id: vote.id,
+    publicId: vote.custom_id || String(vote.id),
+    regularMeetingNumber: vote.regular_meeting_number,
+    name: vote.name,
+    description: vote.description,
+    startsAt: storedUtcInstantToIso(vote.starts_at),
+    deadline: storedUtcInstantToIso(vote.deadline) ?? vote.deadline,
+    isPublished: true,
+    isClosed: false,
+  }));
+  return c.json({ items }, 200, { "Cache-Control": "no-store" });
+});
+
+app.post("/api/internal/bot/vote-announcements/:voteId/claim", async c => {
+  if (!hasValidBotBearerToken(c.env.FUMO_BOT_API_SECRET, c.req.header("Authorization"))) {
+    return c.json({ error: "Unauthorized" }, 401, { "Cache-Control": "no-store" });
+  }
+  const voteId = Number(c.req.param("voteId"));
+  if (!Number.isSafeInteger(voteId) || voteId < 1) return c.json({ error: "Invalid vote ID" }, 400);
+  const body = z.object({ claimToken: z.string().uuid() }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "Invalid claim token" }, 400);
+
+  await c.env.DB.prepare(`
+    INSERT INTO vote_announcement_deliveries
+      (vote_id, status, claim_token, lease_expires_at, attempts, created_at, updated_at)
+    SELECT v.id, 'sending', ?, datetime('now', '+5 minutes'), 1, datetime('now'), datetime('now')
+    FROM votes v
+    WHERE v.id = ? AND v.is_published = 1 AND v.is_closed = 0
+      AND v.notify_started_at IS NULL
+      AND v.regular_meeting_number IS NOT NULL AND v.regular_meeting_number > 0
+      AND datetime(v.deadline) > datetime('now')
+      AND (v.starts_at IS NULL OR datetime(v.starts_at) <= datetime('now'))
+    ON CONFLICT(vote_id) DO UPDATE SET
+      status = 'sending',
+      claim_token = excluded.claim_token,
+      lease_expires_at = excluded.lease_expires_at,
+      attempts = vote_announcement_deliveries.attempts + 1,
+      last_error = NULL,
+      updated_at = datetime('now')
+    WHERE vote_announcement_deliveries.status != 'sent'
+      AND (vote_announcement_deliveries.lease_expires_at IS NULL
+        OR datetime(vote_announcement_deliveries.lease_expires_at) <= datetime('now'))
+  `).bind(body.data.claimToken, voteId).run();
+
+  const claimed = await c.env.DB.prepare(`
+    SELECT v.id, v.name, v.description, v.deadline, v.custom_id, v.regular_meeting_number, v.starts_at
+    FROM votes v
+    JOIN vote_announcement_deliveries d ON d.vote_id = v.id
+    WHERE v.id = ? AND d.status = 'sending' AND d.claim_token = ?
+  `).bind(voteId, body.data.claimToken).first<VoteRow>();
+  if (!claimed) return c.json({ claimed: false }, 200, { "Cache-Control": "no-store" });
+  return c.json({
+    claimed: true,
+    claimToken: body.data.claimToken,
+    vote: {
+      id: claimed.id,
+      publicId: claimed.custom_id || String(claimed.id),
+      regularMeetingNumber: claimed.regular_meeting_number,
+      name: claimed.name,
+      description: claimed.description,
+      startsAt: storedUtcInstantToIso(claimed.starts_at),
+      deadline: storedUtcInstantToIso(claimed.deadline) ?? claimed.deadline,
+      isPublished: true,
+      isClosed: false,
+    },
+  }, 200, { "Cache-Control": "no-store" });
+});
+
+app.post("/api/internal/bot/vote-announcements/:voteId/sent", async c => {
+  if (!hasValidBotBearerToken(c.env.FUMO_BOT_API_SECRET, c.req.header("Authorization"))) {
+    return c.json({ error: "Unauthorized" }, 401, { "Cache-Control": "no-store" });
+  }
+  const voteId = Number(c.req.param("voteId"));
+  if (!Number.isSafeInteger(voteId) || voteId < 1) return c.json({ error: "Invalid vote ID" }, 400);
+  const body = z.object({ claimToken: z.string().uuid(), discordMessageId: z.string().regex(/^\d{15,25}$/) }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "Invalid sent receipt" }, 400);
+  const updated = await c.env.DB.prepare(`
+    UPDATE vote_announcement_deliveries
+    SET status = 'sent', claim_token = NULL, lease_expires_at = NULL,
+      discord_message_id = ?, sent_at = datetime('now'), last_error = NULL, updated_at = datetime('now')
+    WHERE vote_id = ? AND status = 'sending' AND claim_token = ?
+  `).bind(body.data.discordMessageId, voteId, body.data.claimToken).run();
+  if (Number(updated.meta?.changes ?? 0) > 0) return c.json({ success: true }, 200, { "Cache-Control": "no-store" });
+  const existing = await c.env.DB.prepare("SELECT status, discord_message_id FROM vote_announcement_deliveries WHERE vote_id = ?")
+    .bind(voteId).first<{ status: string; discord_message_id: string | null }>();
+  if (existing?.status === "sent" && existing.discord_message_id === body.data.discordMessageId) {
+    return c.json({ success: true, alreadySent: true }, 200, { "Cache-Control": "no-store" });
+  }
+  return c.json({ error: "Claim expired or no longer belongs to this Bot request" }, 409, { "Cache-Control": "no-store" });
+});
+
+app.post("/api/internal/bot/vote-announcements/:voteId/failed", async c => {
+  if (!hasValidBotBearerToken(c.env.FUMO_BOT_API_SECRET, c.req.header("Authorization"))) {
+    return c.json({ error: "Unauthorized" }, 401, { "Cache-Control": "no-store" });
+  }
+  const voteId = Number(c.req.param("voteId"));
+  if (!Number.isSafeInteger(voteId) || voteId < 1) return c.json({ error: "Invalid vote ID" }, 400);
+  const body = z.object({ claimToken: z.string().uuid(), error: z.string().max(500).optional().default("Announcement send failed") }).safeParse(await parseJson(c));
+  if (!body.success) return c.json({ error: "Invalid failure receipt" }, 400);
+  const updated = await c.env.DB.prepare(`
+    UPDATE vote_announcement_deliveries
+    SET status = 'pending', claim_token = NULL, lease_expires_at = datetime('now', '+1 minute'),
+      last_error = ?, updated_at = datetime('now')
+    WHERE vote_id = ? AND status = 'sending' AND claim_token = ?
+  `).bind(body.data.error, voteId, body.data.claimToken).run();
+  return Number(updated.meta?.changes ?? 0) > 0
+    ? c.json({ success: true }, 200, { "Cache-Control": "no-store" })
+    : c.json({ error: "Claim expired or no longer belongs to this Bot request" }, 409, { "Cache-Control": "no-store" });
+});
+
 app.get("/api/votes", async c => {
   const actor = await currentAccount(c);
   const visibilityFilter = actor && actor.admin_level >= ADMIN_TIER1 ? "" : "WHERE v.is_published = 1";
@@ -583,11 +717,7 @@ app.post("/api/votes", async c => {
   const id = Number(batch[0]?.meta?.last_row_id ?? 0);
   const created = id > 0 ? await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(id).first<VoteRow>() : null;
   if (created) {
-    if (body.data.publishMode === "immediate") {
-      await c.env.DB.prepare("UPDATE votes SET notify_started_at = datetime('now') WHERE id = ?").bind(created.id).run();
-    }
     fireVoteEvent(c, "vote.created", created, { details: { publishMode: body.data.publishMode, createdBy: actor.voter_name } });
-    if (body.data.publishMode === "immediate") fireVoteEvent(c, "vote.started", created, { details: { reason: "created" } });
   }
   return c.json(created ? asVote(created) : { error: "Failed to create vote" }, created ? 201 : 500);
 });
@@ -661,13 +791,7 @@ app.post("/api/admin/votes/:voteId/publish", async c => {
   ]);
   const published = await c.env.DB.prepare("SELECT * FROM votes WHERE id = ?").bind(vote.id).first<VoteRow>();
   if (published) {
-    const startsAt = published.starts_at ? Date.parse(published.starts_at) : null;
-    const openNow = (startsAt === null || !Number.isFinite(startsAt) || startsAt <= Date.now())
-      && !published.is_closed
-      && Date.parse(published.deadline) > Date.now();
-    if (openNow) await c.env.DB.prepare("UPDATE votes SET notify_started_at = datetime('now') WHERE id = ?").bind(published.id).run();
     fireVoteEvent(c, "vote.published", published, { details: { publishedBy: actor.voter_name } });
-    if (openNow) fireVoteEvent(c, "vote.started", published, { details: { reason: "published" } });
   }
   return c.json({ success: true, vote: published ? asVote(published) : asVote({ ...vote, is_published: 1 }) });
 });

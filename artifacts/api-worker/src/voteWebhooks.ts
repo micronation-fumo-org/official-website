@@ -12,7 +12,6 @@
 export const WEBHOOK_EVENTS = [
   "vote.created",
   "vote.published",
-  "vote.started",
   "vote.closing_soon",
   "vote.closed",
   "ballot.cast",
@@ -24,7 +23,6 @@ export type WebhookDeliveryEvent = WebhookEvent | "webhook.test";
 export const WEBHOOK_EVENT_LABELS: Record<WebhookEvent, { zh: string; en: string }> = {
   "vote.created": { zh: "投票建立", en: "Vote created" },
   "vote.published": { zh: "草稿發布", en: "Draft published" },
-  "vote.started": { zh: "投票開始", en: "Voting started" },
   "vote.closing_soon": { zh: "即將截止", en: "Closing soon" },
   "vote.closed": { zh: "投票結束", en: "Vote closed" },
   "ballot.cast": { zh: "收到選票", en: "Ballot cast" },
@@ -229,8 +227,7 @@ function summaryLine(event: WebhookEvent, name: string, publicId: string, deadli
   const label = WEBHOOK_EVENT_LABELS[event]?.zh ?? event;
   const link = `${SITE_ORIGIN}/votes/${encodeURIComponent(publicId)}`;
   const parts = [`[FUMO] ${label}：${name}（${publicId}）`];
-  if (event === "vote.started" && deadline) parts.push(`截止 ${deadline}`);
-  else if (event === "vote.closing_soon" && deadline) parts.push(`將於 ${deadline} 截止`);
+  if (event === "vote.closing_soon" && deadline) parts.push(`將於 ${deadline} 截止`);
   else if (event === "vote.closed" && deadline) parts.push(`已於 ${deadline} 結束`);
   else if (event === "vote.created" && startsAt) parts.push(`預約開始 ${startsAt}`);
   parts.push(link);
@@ -257,7 +254,6 @@ function boundedText(value: unknown, maxLength: number): string {
 const DISCORD_EVENT_STYLE: Record<WebhookDeliveryEvent, { title: string; color: number }> = {
   "vote.created": { title: "🗳️ 新投票已建立", color: 0x5865f2 },
   "vote.published": { title: "📢 投票已發布", color: 0x3ba55c },
-  "vote.started": { title: "🟢 投票開始", color: 0x00a884 },
   "vote.closing_soon": { title: "⏳ 投票即將截止", color: 0xfaa61a },
   "vote.closed": { title: "🔒 投票已結束", color: 0xed4245 },
   "ballot.cast": { title: "✅ 收到新選票", color: 0x3498db },
@@ -287,7 +283,6 @@ export function discordWebhookPayload(
     if (publicId) fields.push({ name: "投票 ID", value: publicId, inline: true });
     if (typeof vote.regularMeetingNumber === "number") fields.push({ name: "例行大會", value: `第 ${vote.regularMeetingNumber} 次`, inline: true });
     if (typeof vote.startsAt === "string" && vote.startsAt) fields.push({ name: "開始時間", value: boundedText(vote.startsAt, 100), inline: true });
-    else if (event === "vote.started") fields.push({ name: "開始時間", value: "立即開始", inline: true });
     if (typeof vote.deadline === "string" && vote.deadline) fields.push({ name: "截止時間", value: boundedText(vote.deadline, 100), inline: true });
     if (typeof vote.ballotCount === "number") fields.push({ name: "目前票數", value: String(vote.ballotCount), inline: true });
   }
@@ -436,20 +431,18 @@ export async function dispatchVoteEvent(
 }
 
 export interface SweepResult {
-  started: number;
   closingSoon: number;
   closed: number;
 }
 
 /**
- * Announces time-driven transitions: a scheduled vote opening, a vote entering
- * its final day, and a vote that reached its deadline without being closed
- * manually. Notification markers make every transition fire exactly once.
+ * Sends deadline notifications. The FUMO Discord Bot owns vote-start notices;
+ * these webhook events remain for closing-soon and closed transitions.
  */
 export async function runVoteNotificationSweep(env: Database, now = Date.now()): Promise<SweepResult> {
-  const result: SweepResult = { started: 0, closingSoon: 0, closed: 0 };
+  const result: SweepResult = { closingSoon: 0, closed: 0 };
   const rows = await env.DB.prepare(
-    "SELECT * FROM votes WHERE is_published = 1 AND (notify_started_at IS NULL OR notify_closing_soon_at IS NULL OR notify_closed_at IS NULL)",
+    "SELECT * FROM votes WHERE is_published = 1 AND (notify_closing_soon_at IS NULL OR notify_closed_at IS NULL)",
   ).all<VoteRecord>();
   for (const vote of rows.results ?? []) {
     const deadline = Date.parse(vote.deadline.includes("T") ? vote.deadline : `${vote.deadline.replace(" ", "T")}Z`);
@@ -468,14 +461,6 @@ export async function runVoteNotificationSweep(env: Database, now = Date.now()):
       continue;
     }
 
-    if (!vote.notify_started_at && !isClosed && !expired && (startsAt === null || startsAt <= now)) {
-      const marked = await markNotified(env, vote.id, "notify_started_at");
-      if (marked) {
-        result.started++;
-        await dispatchVoteEvent(env, "vote.started", voteWebhookPayload(vote, "vote.started", { details: { reason: "scheduled" } }));
-      }
-    }
-
     if (!vote.notify_closing_soon_at && !isClosed && !expired && (startsAt === null || startsAt <= now) && Number.isFinite(deadline) && deadline - now <= CLOSING_SOON_MS) {
       const marked = await markNotified(env, vote.id, "notify_closing_soon_at");
       if (marked) {
@@ -489,7 +474,7 @@ export async function runVoteNotificationSweep(env: Database, now = Date.now()):
   return result;
 }
 
-export async function markNotified(env: Database, voteId: number, column: "notify_started_at" | "notify_closing_soon_at" | "notify_closed_at"): Promise<boolean> {
+export async function markNotified(env: Database, voteId: number, column: "notify_closing_soon_at" | "notify_closed_at"): Promise<boolean> {
   const updated = await env.DB.prepare(
     `UPDATE votes SET ${column} = datetime('now') WHERE id = ? AND ${column} IS NULL`,
   )

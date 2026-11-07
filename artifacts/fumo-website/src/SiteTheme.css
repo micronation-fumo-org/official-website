@@ -538,3 +538,250 @@ html.dark .fumo-route-body :focus-visible { outline-color: rgba(127, 182, 202, .
 }
 html.dark .fumo-theme-toggle { color: var(--site-blue); }
 html.dark .fumo-theme-toggle--mobile { border-color: var(--site-line); }
+
+
+/* Voting routes: quiet, editorial controls instead of boxed tiles. */
+.fumo-voting-page {
+  --vote-blue: #00334d;
+  --vote-ink: #1d1d1f;
+  --vote-muted: #6e6e73;
+  --vote-line: #d2d2d7;
+  --vote-paper: #fff;
+  --vote-soft: #f5f5f7;
+  background: var(--vote-paper) !important;
+  color: var(--vote-ink);
+}
+.fumo-voting-page .container {
+  padding-inline: var(--site-gutter, clamp(22px, 5.6vw, 84px)) !important;
+}
+.fumo-voting-page .fumo-voting-heading {
+  max-width: 760px;
+  margin-inline: 0;
+  text-align: left;
+}
+.fumo-voting-page .fumo-voting-heading h1 {
+  margin-bottom: 12px !important;
+  font-size: clamp(34px, 4vw, 46px) !important;
+  text-align: left;
+}
+.fumo-voting-page .fumo-voting-heading p {
+  max-width: 660px;
+  margin: 0 0 20px;
+  color: var(--vote-muted);
+}
+.fumo-voting-page .fumo-voting-heading a { display: inline-flex; }
+.fumo-vote-list {
+  display: block !important;
+  border-top: 1px solid var(--vote-line);
+}
+.fumo-vote-entry { border-bottom: 1px solid var(--vote-line); }
+.fumo-vote-link {
+  display: block;
+  color: inherit;
+  outline-offset: 3px;
+}
+.fumo-voting-page .fumo-vote-card {
+  height: auto !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transition: background-color .18s ease;
+}
+.fumo-vote-link:hover .fumo-vote-card { background: var(--vote-soft) !important; }
+.fumo-voting-page .fumo-vote-card > div:first-child { padding: 16px 12px 8px !important; }
+.fumo-voting-page .fumo-vote-card > div:last-child { padding: 0 12px 16px !important; }
+.fumo-voting-page .fumo-vote-card [class*="text-primary"] { color: var(--vote-blue) !important; }
+.fumo-vote-index h2 { margin-top: 34px; }
+
+.fumo-voting-page button:not([role="checkbox"]):not([role="radio"]) {
+  min-height: 38px;
+  height: auto;
+  border-radius: 3px !important;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: none !important;
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease;
+}
+.fumo-voting-page button:not([role="checkbox"]):not([role="radio"]):not(.bg-primary):not(.fumo-icon-button) {
+  border-color: var(--vote-line) !important;
+  background: var(--vote-paper) !important;
+  color: var(--vote-ink) !important;
+}
+.fumo-voting-page button:not(:disabled):not([role="checkbox"]):not([role="radio"]):not(.bg-primary):not(.fumo-icon-button):hover {
+  border-color: #a8a8ad !important;
+  background: var(--vote-soft) !important;
+  color: var(--vote-blue) !important;
+}
+.fumo-voting-page button.bg-primary:not([role="checkbox"]):not([role="radio"]) {
+  border-color: var(--vote-blue) !important;
+  background: var(--vote-blue) !important;
+  color: #fff !important;
+}
+.fumo-voting-page button.bg-primary:not(:disabled):hover {
+  border-color: #002538 !important;
+  background: #002538 !important;
+}
+.fumo-voting-page .fumo-icon-button {
+  min-width: 40px;
+  min-height: 40px;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: #a33a36 !important;
+}
+.fumo-voting-page .fumo-icon-button:hover { background: #fbf1f0 !important; color: #842c29 !important; }
+.fumo-voting-page .fumo-vote-secondary-action { border-color: var(--vote-line) !important; }
+
+.fumo-voting-page :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  min-height: 40px;
+  border-color: var(--vote-line) !important;
+  border-radius: 3px !important;
+  background: #fff;
+  color: var(--vote-ink);
+  box-shadow: none !important;
+}
+.fumo-voting-page textarea { min-height: 88px; }
+.fumo-voting-page input::placeholder,
+.fumo-voting-page textarea::placeholder { color: #77777c; opacity: 1; }
+.fumo-voting-page :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  border-color: var(--vote-blue) !important;
+  outline: 2px solid rgba(0, 51, 77, .22);
+  outline-offset: 1px;
+}
+.fumo-voting-page :is(button, a, input, select, textarea, summary):focus-visible,
+.fumo-voting-page button[role="checkbox"]:focus-visible,
+.fumo-voting-page button[role="radio"]:focus-visible {
+  outline: 2px solid rgba(0, 51, 77, .72) !important;
+  outline-offset: 3px;
+}
+.fumo-voting-page button[role="checkbox"],
+.fumo-voting-page button[role="radio"] {
+  min-width: 20px;
+  min-height: 20px;
+  border-radius: 2px;
+}
+.fumo-voting-page button[role="checkbox"][data-state="checked"],
+.fumo-voting-page button[role="radio"][data-state="checked"] {
+  border-color: var(--vote-blue) !important;
+  background: var(--vote-blue) !important;
+  color: #fff !important;
+}
+
+.fumo-mode-option {
+  position: relative;
+  border: 0 !important;
+  border-bottom: 1px solid var(--vote-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 13px 5px !important;
+  transition: background-color .16s ease, border-color .16s ease;
+}
+.fumo-mode-option:hover { background: var(--vote-soft) !important; }
+.fumo-mode-option.is-selected {
+  border-bottom: 2px solid var(--vote-blue) !important;
+  background: rgba(0, 51, 77, .035) !important;
+}
+.fumo-mode-option:focus-within { outline: 2px solid rgba(0, 51, 77, .58); outline-offset: 3px; }
+.fumo-voting-page .fumo-vote-form-card {
+  border: 0 !important;
+  border-top: 1px solid var(--vote-line) !important;
+  border-bottom: 1px solid var(--vote-line) !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+.fumo-voting-page .fumo-vote-form-card > div:first-child { border-bottom: 1px solid var(--vote-line); }
+.fumo-vote-option-field + .fumo-vote-option-field { margin-top: 10px; }
+
+.fumo-voting-page .fumo-vote-panel {
+  border-right: 0 !important;
+  border-bottom: 1px solid var(--vote-line) !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.fumo-voting-page .fumo-vote-ballot-panel,
+.fumo-voting-page .fumo-vote-results-panel {
+  border-top: 1px solid var(--vote-line) !important;
+  background: #fff !important;
+}
+.fumo-vote-ballot-panel > div:first-child,
+.fumo-vote-results-panel > div:first-child { border-bottom: 1px solid var(--vote-line); }
+.fumo-vote-choice {
+  border: 0 !important;
+  border-bottom: 1px solid var(--vote-line) !important;
+  border-radius: 0 !important;
+  background: transparent;
+  padding: 12px 5px !important;
+  transition: background-color .16s ease;
+}
+.fumo-vote-choice:hover { background: var(--vote-soft); }
+.fumo-vote-choice.is-selected {
+  border-bottom-color: rgba(0, 51, 77, .42) !important;
+  background: rgba(0, 51, 77, .045) !important;
+}
+.fumo-vote-choice:focus-within { outline: 2px solid rgba(0, 51, 77, .58); outline-offset: 2px; }
+.fumo-vote-results-panel [aria-live="polite"] {
+  border: 0 !important;
+  border-left: 2px solid rgba(0, 51, 77, .35) !important;
+  border-radius: 0 !important;
+  background: var(--vote-soft) !important;
+}
+
+.fumo-vote-records .fumo-record-filter {
+  border: 0 !important;
+  border-top: 1px solid var(--vote-line) !important;
+  border-bottom: 1px solid var(--vote-line) !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+.fumo-record-tabs { gap: 18px !important; border-bottom: 1px solid var(--vote-line); }
+.fumo-voting-page .fumo-record-tab {
+  min-height: 42px !important;
+  margin-bottom: -1px;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 8px 2px !important;
+  color: var(--vote-muted) !important;
+  font-weight: 500 !important;
+}
+.fumo-voting-page .fumo-record-tab[aria-selected="true"] {
+  border-bottom-color: var(--vote-blue) !important;
+  color: var(--vote-blue) !important;
+  font-weight: 600 !important;
+}
+.fumo-voting-page .fumo-record-tab:hover { background: transparent !important; color: var(--vote-blue) !important; }
+.fumo-voting-page .fumo-record-card {
+  border: 0 !important;
+  border-top: 1px solid var(--vote-line) !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+.fumo-voting-page .fumo-record-summary {
+  border-radius: 3px !important;
+  background: var(--vote-soft) !important;
+  padding: 12px !important;
+}
+.fumo-voting-page .fumo-record-country-list {
+  display: block !important;
+  border-top: 1px solid var(--vote-line);
+}
+.fumo-voting-page .fumo-record-country {
+  border: 0 !important;
+  border-bottom: 1px solid var(--vote-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 10px 0 !important;
+}
+
+@media (max-width: 620px) {
+  .fumo-voting-page button:not([role="checkbox"]):not([role="radio"]) { min-height: 42px; }
+  .fumo-voting-page .fumo-vote-card > div:first-child { padding: 14px 10px 7px !important; }
+  .fumo-voting-page .fumo-vote-card > div:last-child { padding: 0 10px 14px !important; }
+  .fumo-record-tabs { gap: 12px !important; }
+  .fumo-voting-page .fumo-record-filter > div { padding: 14px !important; }
+}

@@ -1,7 +1,8 @@
 import { toChineseError } from "@/lib/errorMessage";
 import { apiFetch } from "@/lib/api";
 import { getVoteDraftEditId, parseVoteDraftResponse, type VoteDraftRecord } from "@/lib/voteDraftForm";
-import { useEffect, useState } from "react";
+import { formatVoteDateTimeInput, parseVoteDateTimeInput } from "@/lib/voteDateTime";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,16 +67,11 @@ async function updateVoteDraft(id: string, body: VoteDraftFields) {
   return data;
 }
 
-function toLocalDateTime(value: string): string {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "";
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-}
-
 type CreateVoteRouteProps = { params?: Record<string, unknown> };
 
 export default function CreateVote({ params: routeParams }: CreateVoteRouteProps = {}) {
   const { isEnglish } = useLanguage();
+  const voteLocale = isEnglish ? "en-US" : "zh-TW";
   const contextParams = useParams<Record<string, unknown>>();
   const editId = getVoteDraftEditId(routeParams, contextParams);
   const [, setLocation] = useLocation();
@@ -96,23 +92,35 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
   const [allowMultiple, setAllowMultiple] = useState(false);
   const [customId, setCustomId] = useState("");
   const [regularMeetingNumber, setRegularMeetingNumber] = useState("");
+  const meetingLabel = /^\d+$/.test(regularMeetingNumber) ? regularMeetingNumber : "N";
   const [publishMode, setPublishMode] = useState<PublishMode>("draft");
   const [startsAt, setStartsAt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loadedDraftId, setLoadedDraftId] = useState<string | null>(null);
+  const previousVoteLocale = useRef(voteLocale);
+
+  useEffect(() => {
+    const previousLocale = previousVoteLocale.current;
+    if (previousLocale === voteLocale) return;
+    const deadlineDate = parseVoteDateTimeInput(deadline, previousLocale);
+    const startsAtDate = parseVoteDateTimeInput(startsAt, previousLocale);
+    if (deadlineDate) setDeadline(formatVoteDateTimeInput(deadlineDate, voteLocale));
+    if (startsAtDate) setStartsAt(formatVoteDateTimeInput(startsAtDate, voteLocale));
+    previousVoteLocale.current = voteLocale;
+  }, [voteLocale]);
 
   useEffect(() => {
     const draft = draftQuery.data;
     if (!draft || !editId || loadedDraftId === editId) return;
     setName(draft.name);
     setDescription(draft.description || "");
-    setDeadline(toLocalDateTime(draft.deadline));
+    setDeadline(formatVoteDateTimeInput(draft.deadline, voteLocale));
     setOptions(draft.options.length ? draft.options : ["", ""]);
     setAllowMultiple(draft.allowMultiple);
     setCustomId(draft.customId || "");
     setRegularMeetingNumber(draft.regularMeetingNumber == null ? "" : String(draft.regularMeetingNumber));
     setLoadedDraftId(editId);
-  }, [draftQuery.data, editId, loadedDraftId]);
+  }, [draftQuery.data, editId, loadedDraftId, voteLocale]);
 
   const mutation = useMutation({
     mutationFn: (submission: VoteFormSubmission) => editId
@@ -157,27 +165,29 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
       setError("請設定截止日期。");
       return;
     }
-    const deadlineTime = new Date(deadline).getTime();
-    if (!Number.isFinite(deadlineTime) || deadlineTime <= Date.now()) {
+    const deadlineDate = parseVoteDateTimeInput(deadline, voteLocale);
+    if (!deadlineDate || deadlineDate.getTime() <= Date.now()) {
       setError(isEnglish ? "The deadline must be in the future." : "截止時間必須晚於目前時間。");
       return;
     }
+    const deadlineTime = deadlineDate.getTime();
     let startsAtIso: string | null = null;
     if (publishMode === "scheduled") {
       if (!startsAt) {
         setError(isEnglish ? "Choose a start time for the scheduled vote." : "請設定預約投票的開始時間。");
         return;
       }
-      const startsAtTime = new Date(startsAt).getTime();
-      if (!Number.isFinite(startsAtTime) || startsAtTime <= Date.now()) {
+      const startsAtDate = parseVoteDateTimeInput(startsAt, voteLocale);
+      if (!startsAtDate || startsAtDate.getTime() <= Date.now()) {
         setError(isEnglish ? "The start time must be in the future." : "預約開始時間必須晚於目前時間。");
         return;
       }
+      const startsAtTime = startsAtDate.getTime();
       if (deadlineTime <= startsAtTime) {
         setError(isEnglish ? "The deadline must be later than the start time." : "截止時間必須晚於開始時間。");
         return;
       }
-      startsAtIso = new Date(startsAtTime).toISOString();
+      startsAtIso = startsAtDate.toISOString();
     }
     if (validOptions.length < 2) {
       setError("至少需要兩個選項。");
@@ -187,7 +197,7 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
       draft: {
         name: name.trim(),
         description: description.trim(),
-        deadline: new Date(deadline).toISOString(),
+        deadline: deadlineDate.toISOString(),
         options: validOptions,
         allowMultiple,
         customId: normalizedCustomId || null,
@@ -200,7 +210,7 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-muted/20 py-12 flex items-center justify-center">
+      <div className="fumo-voting-page min-h-screen bg-muted/20 py-12 flex items-center justify-center">
         <div className="text-center">
           <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h1 className="text-xl font-bold text-primary mb-2">{isEnglish ? "Administrator permission required" : "需要管理員權限"}</h1>
@@ -214,13 +224,13 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
   }
 
   if (editId && (draftQuery.isLoading || (draftQuery.data && loadedDraftId !== editId))) {
-    return <div className="min-h-screen bg-muted/20 px-4 py-12 text-center text-muted-foreground">{isEnglish ? "Loading draft..." : "載入投票草稿中…"}</div>;
+    return <div className="fumo-voting-page min-h-screen bg-muted/20 px-4 py-12 text-center text-muted-foreground">{isEnglish ? "Loading draft..." : "載入投票草稿中…"}</div>;
   }
 
   if (editId && (draftQuery.isError || !draftQuery.data)) {
     const loadError = draftQuery.error instanceof Error ? toChineseError(draftQuery.error) : (isEnglish ? "This draft is unavailable." : "無法載入此投票草稿。" );
     return (
-      <div className="min-h-screen bg-muted/20 px-4 py-12">
+      <div className="fumo-voting-page min-h-screen bg-muted/20 px-4 py-12">
         <div className="mx-auto max-w-xl rounded-md border border-border bg-white p-6 text-center">
           <h1 className="mb-2 text-xl font-bold text-primary">{isEnglish ? "Draft unavailable" : "無法編輯此草稿"}</h1>
           <p className="mb-5 text-sm text-muted-foreground">{loadError}</p>
@@ -231,7 +241,7 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 py-6 sm:py-12">
+    <div className="fumo-voting-page fumo-vote-form min-h-screen bg-muted/20 py-6 sm:py-12">
       <div className="container mx-auto px-3 sm:px-4 max-w-2xl">
         <h1 className="text-2xl sm:text-3xl font-bold text-primary mb-2">{editId ? (isEnglish ? "Edit vote draft" : "編輯投票草稿") : (isEnglish ? "Create vote" : "創建投票 Create Vote")}</h1>
         <p className="text-muted-foreground mb-5 sm:mb-8">
@@ -240,7 +250,7 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
             : (isEnglish ? "Set up a new vote for member-state representatives." : "設定一個新的投票，讓成員國代表進行投票。")}
         </p>
 
-        <Card className="border-border/60 bg-white">
+        <Card className="fumo-vote-form-card border-border/60 bg-white">
           <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
             <CardTitle className="text-lg font-bold text-primary">{editId ? (isEnglish ? "Draft configuration" : "草稿設定") : (isEnglish ? "Vote configuration" : "投票設定 Vote Configuration")}</CardTitle>
           </CardHeader>
@@ -274,7 +284,7 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
             </div>
 
             <div>
-              <Label htmlFor="regularMeetingNumber">{isEnglish ? "Regular meeting number" : "第幾次例行大會"}</Label>
+              <Label htmlFor="regularMeetingNumber">{isEnglish ? "Regular meeting number (required)" : "第幾次例行大會（必填）"}</Label>
               <Input
                 id="regularMeetingNumber"
                 type="number"
@@ -284,9 +294,10 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
                 onChange={(e) => setRegularMeetingNumber(e.target.value)}
                 placeholder={isEnglish ? "e.g. 12" : "例如：12"}
                 className="mt-1"
+                required
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                {isEnglish ? "Closed votes will be grouped under this meeting on the voting page." : "投票結束後，會在投票列表歸入該次例行大會的獨立分區。"}
+                {isEnglish ? `The Bot uses this number in “第 ${meetingLabel} 次投票會議通知”; it never guesses the number. Closed votes are grouped under this meeting.` : `Bot 會用此數字發布「第 ${meetingLabel} 次投票會議通知」，不會自動猜號；投票結束後也會歸入該次例行大會。`}
               </p>
             </div>
 
@@ -304,31 +315,31 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
                 onValueChange={(value) => setPublishMode(value as PublishMode)}
                 className="mt-2 gap-3"
               >
-                <div onClick={() => setPublishMode("immediate")} className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors focus-within:ring-2 focus-within:ring-primary/30 sm:p-4 ${publishMode === "immediate" ? "border-primary bg-primary/5" : "border-border"}`}>
+                <div onClick={() => setPublishMode("immediate")} className={`fumo-mode-option flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors focus-within:ring-2 focus-within:ring-primary/30 sm:p-4 ${publishMode === "immediate" ? "is-selected border-primary bg-primary/5" : "border-border"}`}>
                   <RadioGroupItem id="publish-immediate" value="immediate" className="mt-1 h-5 w-5" />
                   <div className="min-w-0 flex-1">
                     <Label htmlFor="publish-immediate" className="cursor-pointer break-words">{isEnglish ? "Publish now" : "立即公開"}</Label>
-                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "The vote becomes visible and opens immediately." : "建立後立即公開並開放投票。"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? `The vote opens immediately; the Bot posts “第 ${meetingLabel} 次投票會議通知” to the configured Discord announcement channel.` : `建立後立即公開並開放投票；Bot 會直接在設定的 Discord 公告頻道發布「第 ${meetingLabel} 次投票會議通知」。`}</p>
                   </div>
                 </div>
-                <div onClick={() => setPublishMode("draft")} className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors focus-within:ring-2 focus-within:ring-primary/30 sm:p-4 ${publishMode === "draft" ? "border-primary bg-primary/5" : "border-border"}`}>
+                <div onClick={() => setPublishMode("draft")} className={`fumo-mode-option flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors focus-within:ring-2 focus-within:ring-primary/30 sm:p-4 ${publishMode === "draft" ? "is-selected border-primary bg-primary/5" : "border-border"}`}>
                   <RadioGroupItem id="publish-draft" value="draft" className="mt-1 h-5 w-5" />
                   <div className="min-w-0 flex-1">
                     <Label htmlFor="publish-draft" className="cursor-pointer break-words">{isEnglish ? "Save as draft" : "儲存為草稿"}</Label>
-                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Only administrators can see it until you publish it." : "草稿僅管理員可見；準備好後可從投票詳情手動發布。"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Only administrators can see it; the Bot will not post until you publish it." : "草稿僅管理員可見；發布前 Bot 不會在 Discord 發送通知。"}</p>
                   </div>
                 </div>
-                <div onClick={() => setPublishMode("scheduled")} className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors focus-within:ring-2 focus-within:ring-primary/30 sm:p-4 ${publishMode === "scheduled" ? "border-primary bg-primary/5" : "border-border"}`}>
+                <div onClick={() => setPublishMode("scheduled")} className={`fumo-mode-option flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors focus-within:ring-2 focus-within:ring-primary/30 sm:p-4 ${publishMode === "scheduled" ? "is-selected border-primary bg-primary/5" : "border-border"}`}>
                   <RadioGroupItem id="publish-scheduled" value="scheduled" className="mt-1 h-5 w-5" />
                   <div className="min-w-0 flex-1">
                     <Label htmlFor="publish-scheduled" className="cursor-pointer break-words">{isEnglish ? "Schedule a start" : "預約開始時間"}</Label>
-                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "It is publicly listed as upcoming, then voting opens automatically at the chosen time." : "開始前會公開顯示為「即將開始」，到指定時間自動開放投票。"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? `At the chosen Paris time, voting opens and the Bot directly posts “第 ${meetingLabel} 次投票會議通知” to the configured Discord channel (not via webhook).` : `到指定台北時間自動開放投票，Bot 會直接在設定的 Discord 公告頻道發布「第 ${meetingLabel} 次投票會議通知」（不使用 Webhook）。`}</p>
                   </div>
                 </div>
               </RadioGroup>
               {publishMode === "scheduled" && (
                 <div className="mt-4 min-w-0">
-                  <Label htmlFor="startsAt">{isEnglish ? "Start time" : "開始時間"}</Label>
+                  <Label htmlFor="startsAt">{isEnglish ? "Start time (Paris time)" : "開始時間（台北時間）"}</Label>
                   <Input
                     id="startsAt"
                     type="datetime-local"
@@ -336,7 +347,7 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
                     onChange={(e) => setStartsAt(e.target.value)}
                     className="mt-1 w-full min-w-0"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Uses your device's local time." : "依照此裝置的本地時間設定。"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Enter Europe/Paris local time (including daylight-saving changes); the API stores the equivalent UTC instant." : "使用 Asia/Taipei（UTC+8）輸入；API 會保存對應的 UTC 瞬間。"}</p>
                 </div>
               )}
             </div>
@@ -355,7 +366,7 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
             </div>
 
             <div>
-              <Label htmlFor="deadline">{isEnglish ? "Deadline" : "截止日期 Deadline"}</Label>
+              <Label htmlFor="deadline">{isEnglish ? "Deadline (Paris time)" : "截止時間（台北時間）"}</Label>
               <Input
                 id="deadline"
                 type="datetime-local"
@@ -363,13 +374,14 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
                 onChange={(e) => setDeadline(e.target.value)}
                 className="mt-1"
               />
+              <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? "Enter Europe/Paris local time (including daylight-saving changes); the API stores the equivalent UTC instant." : "使用 Asia/Taipei（UTC+8）輸入；API 會保存對應的 UTC 瞬間。"}</p>
             </div>
 
             <div>
               <Label>{isEnglish ? "Voting options" : "投票選項 Options"}</Label>
               <div className="space-y-2 mt-1">
                 {options.map((opt, idx) => (
-                  <div key={idx} className="flex min-w-0 items-center gap-2">
+                  <div key={idx} className="fumo-vote-option-field flex min-w-0 items-center gap-2">
                     <Input
                       value={opt}
                       onChange={(e) => updateOption(idx, e.target.value)}
@@ -380,8 +392,9 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
                       <Button
                         variant="ghost"
                         size="icon"
+                        aria-label={isEnglish ? `Remove option ${idx + 1}` : `移除選項 ${idx + 1}`}
                         onClick={() => removeOption(idx)}
-                        className="shrink-0 text-red-500 hover:text-red-700"
+                        className="fumo-icon-button shrink-0 text-red-500 hover:text-red-700"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -423,7 +436,7 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
               <Button
                 onClick={handleSubmit}
                 disabled={mutation.isPending}
-                className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
+                className="fumo-vote-primary-action min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
               >
                 <CheckCircle2 className="w-4 h-4 mr-1" />
                 {mutation.isPending
@@ -436,7 +449,7 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
                         ? (isEnglish ? "Schedule vote" : "建立預約投票")
                         : (isEnglish ? "Publish vote" : "立即發布投票")}
               </Button>
-              <Button variant="outline" className="min-h-11 w-full sm:w-auto" onClick={() => setLocation("/votes")}>
+              <Button variant="outline" className="fumo-vote-secondary-action min-h-11 w-full sm:w-auto" onClick={() => setLocation("/votes")}>
                 {isEnglish ? "Cancel" : "取消"}
               </Button>
             </div>

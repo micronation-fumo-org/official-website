@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import { randomUUID } from "node:crypto";
 import { startWebhookRelay } from "./webhookRelay.js";
+import { processDueVoteAnnouncements, voteAnnouncementMarker } from "./voteAnnouncements.js";
 import { extractApplicationOwnerId, isBotOwner } from "./ownerAuth.js";
 import {
   createGuildBackup,
@@ -40,6 +41,7 @@ const GUILD_ID = process.env.DISCORD_GUILD_ID || "";
 const ANNOUNCEMENT_CHANNEL_ID = process.env.ANNOUNCEMENT_CHANNEL_ID;
 const ANNOUNCEMENT_ROLE_ID = process.env.ANNOUNCEMENT_ROLE_ID || "";
 const API_BASE_URL = process.env.FUMO_API_BASE_URL.replace(/\/$/, "");
+const BOT_API_SECRET = process.env.FUMO_BOT_API_SECRET || "";
 const WEBSITE_URL = process.env.FUMO_WEBSITE_URL || "https://www.micronationfumo.org";
 const ADMIN_IDS = new Set((process.env.FUMO_BOT_ADMIN_IDS || "").split(",").map(value => value.trim()).filter(Boolean));
 const MEMBER_ROLE_ID = process.env.FUMO_MEMBER_ROLE_ID || "1248257759195955343";
@@ -49,7 +51,7 @@ const COUNCIL_ROLE_ID = process.env.FUMO_COUNCIL_ROLE_ID || "1540730860624547920
 const WEBHOOK_SECRET = process.env.FUMO_WEBHOOK_SECRET || "";
 const WEBHOOK_PATH = process.env.FUMO_WEBHOOK_PATH || "/fumo/webhook";
 const BOT_HTTP_PORT = Number(process.env.PORT || process.env.BOT_HTTP_PORT || 3000);
-const BOT_MENTION_EVENTS = (process.env.FUMO_BOT_MENTION_EVENTS || "vote.created,vote.published,vote.started,vote.closing_soon,vote.closed").split(",").map(value => value.trim()).filter(Boolean);
+const BOT_MENTION_EVENTS = (process.env.FUMO_BOT_MENTION_EVENTS || "vote.created,vote.published,vote.closing_soon,vote.closed").split(",").map(value => value.trim()).filter(Boolean);
 const ANNOUNCEMENT_AUTHOR = process.env.FUMO_ANNOUNCEMENT_AUTHOR || "FUMO 官方網站 Bot";
 const PROPOSAL_CHANNEL_ID = process.env.FUMO_PROPOSAL_CHANNEL_ID || "1414537668406149140";
 const ADMISSION_CHANNEL_ID = process.env.FUMO_ADMISSION_CHANNEL_ID || PROPOSAL_CHANNEL_ID;
@@ -138,6 +140,23 @@ async function fumoFetch(path) {
   return response.json();
 }
 
+async function fumoBotApi(path, init = {}) {
+  if (!BOT_API_SECRET) throw new Error("FUMO_BOT_API_SECRET is not configured");
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "User-Agent": "FUMO-Discord-Bot/1.0",
+      Authorization: `Bearer ${BOT_API_SECRET}`,
+      ...(init.headers || {}),
+    },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`FUMO Bot API ${response.status}`);
+  return payload;
+}
+
 async function registerCommands() {
   const rest = new REST({ version: "10" }).setToken(BOT_TOKEN);
   const route = GUILD_ID ? Routes.applicationGuildCommands(APPLICATION_ID, GUILD_ID) : Routes.applicationCommands(APPLICATION_ID);
@@ -163,6 +182,82 @@ async function postAnnouncement(title, content, author, mode = "embed") {
     });
   }
   return message.url;
+}
+
+const VOTE_ANNOUNCEMENT_POLL_INTERVAL_MS = 30_000;
+let voteAnnouncementPollInProgress = false;
+
+async function pollVoteAnnouncements() {
+  if (!BOT_API_SECRET || voteAnnouncementPollInProgress || !client.isReady()) return;
+  voteAnnouncementPollInProgress = true;
+  try {
+    const { items = [] } = await fumoBotApi("/api/internal/bot/vote-announcements/due");
+    let announcementChannel;
+    const getAnnouncementChannel = async () => {
+      if (!announcementChannel) {
+        announcementChannel = await client.channels.fetch(ANNOUNCEMENT_CHANNEL_ID);
+        if (!announcementChannel?.isTextBased() || !announcementChannel.isSendable()) {
+          throw new Error("Announcement channel is not writable");
+        }
+      }
+      return announcementChannel;
+    };
+
+    const results = await processDueVoteAnnouncements(items, {
+      websiteUrl: WEBSITE_URL,
+      claim: async voteId => {
+        const claimToken = randomUUID();
+        const result = await fumoBotApi(`/api/internal/bot/vote-announcements/${voteId}/claim`, {
+          method: "POST",
+          body: JSON.stringify({ claimToken }),
+        });
+        return result.claimed ? result : null;
+      },
+      findExisting: async vote => {
+        const channel = await getAnnouncementChannel();
+        const recentMessages = await channel.messages.fetch({ limit: 100 });
+        const marker = voteAnnouncementMarker(vote.id);
+        return recentMessages.find(message => message.author.id === client.user.id
+          && message.embeds.some(embed => embed.footer?.text?.includes(marker))) || null;
+      },
+      send: async (_vote, payload) => {
+        const channel = await getAnnouncementChannel();
+        const roleMention = ANNOUNCEMENT_ROLE_ID ? `<@&${ANNOUNCEMENT_ROLE_ID}>` : "";
+        const allowedMentions = ANNOUNCEMENT_ROLE_ID ? { roles: [ANNOUNCEMENT_ROLE_ID] } : { parse: [] };
+        return channel.send({ content: roleMention, ...payload, allowedMentions });
+      },
+      markSent: async (voteId, claimToken, discordMessageId) => {
+        await fumoBotApi(`/api/internal/bot/vote-announcements/${voteId}/sent`, {
+          method: "POST",
+          body: JSON.stringify({ claimToken, discordMessageId }),
+        });
+      },
+      releaseClaim: async (voteId, claimToken, error) => {
+        if (!claimToken) return;
+        await fumoBotApi(`/api/internal/bot/vote-announcements/${voteId}/failed`, {
+          method: "POST",
+          body: JSON.stringify({ claimToken, error: String(error).slice(0, 400) }),
+        });
+      },
+    });
+    for (const result of results) {
+      logAction("vote.announcement.processed", { voteId: result.voteId, status: result.status });
+    }
+  } catch (error) {
+    console.error("Vote announcement poll failed", error?.message || error);
+  } finally {
+    voteAnnouncementPollInProgress = false;
+  }
+}
+
+function startVoteAnnouncementPolling() {
+  if (!BOT_API_SECRET) {
+    console.warn("Vote announcements are disabled until FUMO_BOT_API_SECRET is configured.");
+    return;
+  }
+  void pollVoteAnnouncements();
+  const timer = setInterval(() => void pollVoteAnnouncements(), VOTE_ANNOUNCEMENT_POLL_INTERVAL_MS);
+  timer.unref?.();
 }
 
 async function postBotSpeech(content, channel, replyId = "") {
@@ -768,6 +863,7 @@ client.once("ready", async readyClient => {
   } catch (error) {
     console.error("Bot application owner lookup failed; owner-only commands will fail closed until Discord can be reached", error?.stack || error);
   }
+  startVoteAnnouncementPolling();
   startWebhookRelay({ client, guildId: GUILD_ID, channelId: ANNOUNCEMENT_CHANNEL_ID, websiteUrl: WEBSITE_URL, secret: WEBHOOK_SECRET, path: WEBHOOK_PATH, port: BOT_HTTP_PORT, mentionRoleId: ANNOUNCEMENT_ROLE_ID, mentionEvents: BOT_MENTION_EVENTS, defaultAuthor: ANNOUNCEMENT_AUTHOR, logAction });
   registerCommands().catch(error => { console.error("Command registration failed", error); process.exitCode = 1; });
 });

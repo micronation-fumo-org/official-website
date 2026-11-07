@@ -32,7 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
-type EventKey = "vote.created" | "vote.published" | "vote.started" | "vote.closing_soon" | "vote.closed" | "ballot.cast";
+type EventKey = "vote.created" | "vote.published" | "vote.closing_soon" | "vote.closed" | "ballot.cast";
 
 interface WebhookItem {
   id: number;
@@ -60,14 +60,13 @@ interface DeliveryItem {
 const EVENT_OPTIONS: { id: EventKey; zh: string; en: string; hintZh: string; hintEn: string; Icon: typeof FileText }[] = [
   { id: "vote.created", zh: "投票建立", en: "Vote created", hintZh: "建立投票時（草稿、預約或立即）", hintEn: "A vote is created (draft, scheduled or live)", Icon: FileText },
   { id: "vote.published", zh: "草稿發布", en: "Draft published", hintZh: "草稿被正式發布時", hintEn: "A draft is published", Icon: PlayCircle },
-  { id: "vote.started", zh: "投票開始", en: "Voting started", hintZh: "開放投票的那一刻", hintEn: "Voting becomes available", Icon: BellRing },
   { id: "vote.closing_soon", zh: "即將截止", en: "Closing soon", hintZh: "截止前 24 小時內提醒一次", hintEn: "One reminder within the final 24 hours", Icon: Timer },
   { id: "vote.closed", zh: "投票結束", en: "Vote closed", hintZh: "手動關閉或截止時間到期", hintEn: "Closed manually or the deadline passed", Icon: Lock },
   { id: "ballot.cast", zh: "收到選票", en: "Ballot cast", hintZh: "有國家完成投票（不含選項）", hintEn: "A country voted (never the choices)", Icon: Vote },
 ];
-const DEFAULT_EVENTS: EventKey[] = ["vote.created", "vote.published", "vote.started", "vote.closing_soon", "vote.closed"];
+const DEFAULT_EVENTS: EventKey[] = ["vote.created", "vote.published", "vote.closing_soon", "vote.closed"];
 const DEFAULT_DISCORD_ROLE_IDS = ["1337422468566093845"];
-const DEFAULT_MENTION_EVENTS: EventKey[] = ["vote.created", "vote.published", "vote.started", "vote.closing_soon", "vote.closed"];
+const DEFAULT_MENTION_EVENTS: EventKey[] = ["vote.created", "vote.published", "vote.closing_soon", "vote.closed"];
 
 const VERIFY_SAMPLE = [
   'const timestamp = req.headers["x-fumo-timestamp"];',
@@ -339,7 +338,7 @@ export default function AdminWebhooks({ isEnglish }: { isEnglish: boolean }) {
         <div className="grid gap-3 sm:grid-cols-3">
           <StatTile Icon={Webhook} label={isEnglish ? "Endpoints" : "端點數量"} value={`${items.length}/10`} />
           <StatTile Icon={Power} label={isEnglish ? "Enabled" : "啟用中"} value={String(enabledCount)} tone={enabledCount > 0 ? "green" : "default"} />
-          <StatTile Icon={BellRing} label={isEnglish ? "Subscribed events" : "已訂閱事件"} value={`${subscribedEvents}/6`} tone={subscribedEvents > 0 ? "amber" : "default"} />
+          <StatTile Icon={BellRing} label={isEnglish ? "Subscribed events" : "已訂閱事件"} value={`${subscribedEvents}/5`} tone={subscribedEvents > 0 ? "amber" : "default"} />
         </div>
 
         <details className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-blue-900">

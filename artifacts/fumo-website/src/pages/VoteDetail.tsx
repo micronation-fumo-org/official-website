@@ -14,6 +14,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { applySeoMetadata } from "@/lib/seo";
+import { formatVoteDateTime, formatVoteTime } from "@/lib/voteDateTime";
 
 interface VoteDetail {
   id: number;
@@ -296,7 +297,7 @@ export default function VoteDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/20 py-6 sm:py-12">
+    <div className="fumo-voting-page fumo-vote-detail min-h-screen bg-muted/20 py-6 sm:py-12">
       <div className="container mx-auto max-w-3xl px-3 sm:px-4">
         <div className="mb-8">
           <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -342,11 +343,11 @@ export default function VoteDetail() {
             )}
             {vote.customId && <span className="break-all">{isEnglish ? "Vote ID" : "投票 ID"}：{vote.customId}</span>}
             {vote.startsAt && (
-              <span className="min-w-0 break-words">{isEnglish ? "Starts" : "開始時間"}：{new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</span>
+              <span className="min-w-0 break-words">{isEnglish ? "Starts" : "開始時間"}：{formatVoteDateTime(vote.startsAt, isEnglish ? "en-US" : "zh-TW")}</span>
             )}
             <span className="flex items-center gap-1">
               <Clock className="h-4 w-4 shrink-0" />
-              <span>{new Date(vote.deadline).toLocaleString("zh-TW")}</span>
+              <span>{formatVoteDateTime(vote.deadline, isEnglish ? "en-US" : "zh-TW")}</span>
             </span>
             <span className="flex items-center gap-1">
               <Users className="h-4 w-4 shrink-0" />
@@ -357,7 +358,7 @@ export default function VoteDetail() {
         </div>
 
         {!vote.isPublished && (
-          <Card className="mb-8 border-amber-200 bg-amber-50">
+          <Card className="fumo-vote-panel fumo-vote-draft-panel mb-8 border-amber-200 bg-amber-50">
             <CardContent className="space-y-3 px-4 pb-4 pt-4 sm:px-6 sm:pb-6 sm:pt-6">
               <p className="font-medium text-amber-900">{isEnglish ? "This vote is an unpublished draft." : "此投票目前是未發布草稿，只有管理員可見。"}</p>
               {voteError && <p className="text-sm text-red-700">{voteError}</p>}
@@ -379,10 +380,10 @@ export default function VoteDetail() {
           </Card>
         )}
         {vote.isPublished && vote.isUpcoming && (
-          <Card className="mb-8 border-primary/20 bg-primary/5">
+          <Card className="fumo-vote-panel fumo-vote-scheduled-panel mb-8 border-primary/20 bg-primary/5">
             <CardContent className="space-y-2 px-4 pb-4 pt-4 sm:px-6 sm:pb-6 sm:pt-6">
               <p className="font-medium text-primary">{isEnglish ? "This vote is scheduled and is not open yet." : "此投票已預約，尚未開放投票。"}</p>
-              {vote.startsAt && <p className="text-sm text-muted-foreground">{isEnglish ? "Voting opens" : "開放時間"}：{new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</p>}
+              {vote.startsAt && <p className="text-sm text-muted-foreground">{isEnglish ? "Voting opens" : "開放時間"}：{formatVoteDateTime(vote.startsAt, isEnglish ? "en-US" : "zh-TW")}</p>}
               <p className="text-sm text-muted-foreground">{isEnglish ? "Voting will open automatically at the scheduled time." : "到達預約時間後，系統會自動開放投票，無需管理員再次操作。"}</p>
             </CardContent>
           </Card>
@@ -390,7 +391,7 @@ export default function VoteDetail() {
 
         {/* Voting Section */}
         {isVotingOpen && (
-          <Card className="mb-8 border-border/60 bg-white">
+          <Card className="fumo-vote-panel fumo-vote-ballot-panel mb-8 border-border/60 bg-white">
             <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
               <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
                 <Vote className="w-5 h-5" />
@@ -424,7 +425,7 @@ export default function VoteDetail() {
                 <label className="block text-sm font-medium mb-3">{isEnglish ? "Choose your voting option" : "選擇您的投票選項"}</label>
                 <div className="space-y-3">
                   {vote.options.map((opt) => (
-                    <div key={opt} className="flex min-h-11 items-start gap-3 rounded-md border border-border/70 p-3">
+                    <div key={opt} className={`fumo-vote-choice flex min-h-11 items-start gap-3 rounded-md border border-border/70 p-3 ${selectedOptions.includes(opt) ? "is-selected" : ""}`}>
                       <Checkbox
                         id={`opt-${opt}`}
                         checked={selectedOptions.includes(opt)}
@@ -506,7 +507,7 @@ export default function VoteDetail() {
 
         {/* Results Section */}
         {results && !vote.isUpcoming && (
-          <Card className="mb-8 border-border/60 bg-white">
+          <Card className="fumo-vote-panel fumo-vote-results-panel mb-8 border-border/60 bg-white">
             <CardHeader className="px-4 pt-4 sm:px-6 sm:pt-6">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-lg font-bold text-primary flex items-center gap-2">
@@ -578,10 +579,7 @@ export default function VoteDetail() {
                             {countryVote.selectedOptions.join("、")}
                           </span>
                           <time className="text-xs text-muted-foreground" dateTime={countryVote.votedAt}>
-                            {new Date(countryVote.votedAt).toLocaleTimeString(isEnglish ? "en-US" : "zh-TW", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {formatVoteTime(countryVote.votedAt, isEnglish ? "en-US" : "zh-TW")}
                           </time>
                         </div>
                       ))}

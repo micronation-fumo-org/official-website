@@ -1,9 +1,10 @@
 # FUMO 前後端分離部署
 
-本專案現在分成兩個可獨立部署的部分：
+本專案分成三個可獨立部署的部分：
 
 - `artifacts/fumo-website`：Vite + React 靜態前端，可部署至 Cloudflare Pages。
 - `artifacts/api-worker`：Cloudflare Worker API，資料儲存在 Cloudflare D1。
+- `bot/`：使用 Discord Bot token 的 Node.js Bot，需在 Wispbyte 獨立更新與重啟。
 
 ## 1. 安裝依賴
 
@@ -36,9 +37,11 @@ pnpm exec wrangler d1 migrations apply fumo-production --local
 pnpm exec wrangler d1 migrations apply fumo-production --remote
 ```
 
-包含管理操作紀錄功能的 Worker 版本，必須先成功套用 `0004_admin_audit_logs.sql` 再部署 Worker。新增自訂投票 ID 與例行大會分區時，先套用 `0005_vote_ids_and_regular_meetings.sql`；新增草稿與預約開始功能時，先套用 `0006_vote_drafts_and_scheduling.sql`；新增 Google 帳戶連結時，先套用 `0007_google_oauth_account_links.sql`；新增 Discord 帳戶連結時，先套用 `0014_discord_oauth_account_links.sql`。這些 migration 只新增資料表與索引，不修改既有帳戶、投票或選票內容。部署前可先執行 `pnpm exec wrangler d1 migrations list fumo-production --remote` 檢查套用狀態。
+包含管理操作紀錄功能的 Worker 版本，必須先成功套用 `0004_admin_audit_logs.sql` 再部署 Worker。新增自訂投票 ID 與例行大會分區時，先套用 `0005_vote_ids_and_regular_meetings.sql`；新增草稿與預約開始功能時，先套用 `0006_vote_drafts_and_scheduling.sql`；新增 Google 帳戶連結時，先套用 `0007_google_oauth_account_links.sql`；新增 Discord 帳戶連結時，先套用 `0014_discord_oauth_account_links.sql`；使用 Bot 直接發送投票開始通知時，先套用 `0016_vote_bot_announcements.sql`。這些 migration 只新增資料表與索引，不修改既有帳戶、投票或選票內容。部署前可先執行 `pnpm exec wrangler d1 migrations list fumo-production --remote` 檢查套用狀態。
 
 管理員建立投票時可選擇立即公開、儲存為僅管理員可見的草稿，或設定未來開始時間。預約投票會公開顯示為「即將開始」，到開始時間後由 API 自動允許投票；投票時間由 API 即時判斷，不依賴排程服務。草稿可由管理員在投票詳情頁手動發布，發布操作會寫入管理操作紀錄。
+
+投票日期輸入與顯示依介面語言決定時區：繁體中文使用 `Asia/Taipei`，英文使用 `Europe/Paris`（包含巴黎夏令時間）；API 與 D1 一律保存 UTC 瞬間。新建投票時由管理員自行輸入並可編輯標題與例會次數；Bot 通知標題依該投票實際保存的名稱和次數動態組成，例如輸入「例行大會」和 `43` 時為「第 43 次例行大會通知」。既有投票仍載入原資料，不會回寫或更改。
 
 Google OAuth 使用 Cloudflare Worker secrets `GOOGLE_CLIENT_ID` 與 `GOOGLE_CLIENT_SECRET`。Google Cloud OAuth 用戶端需登記以下 Authorized redirect URI（必須完全相符）：`https://www.micronationfumo.org/api/auth/google/callback`。Worker 僅請求 `openid email profile` 身分範圍；只將 Google subject 與已驗證電子郵件寫入 D1，不保存 OAuth 存取權杖或更新權杖，也不授權讀取 Google Drive 或 Sheets。第一次綁定必須先以既有 FUMO 帳戶登入；只有已綁定的 Google 帳戶可用於後續登入。
 
@@ -97,7 +100,11 @@ cd /home/container/bot && npm ci --omit=dev && exec node index.js
 
 若只上傳 `bot/` 內容到 `/home/container`，才使用 `npm ci --omit=dev && exec node index.js`。並在 Wispbyte Startup → Environment variables 設定 `BOT_TOKEN`、`DISCORD_APPLICATION_ID`、`DISCORD_GUILD_ID`、`ANNOUNCEMENT_CHANNEL_ID`、`FUMO_API_BASE_URL` 等變數。不要上傳 `bot/.env` 或把 Bot Token 寫入 Git。
 
-Bot 也提供 `/fumo/webhook` 網站事件入口。可在網站 Webhook 管理功能新增 `https://<Wispbyte 公開網址>/fumo/webhook`，讓投票事件由 Bot 身分發送到 Discord；`FUMO_WEBHOOK_SECRET` 可留空，代表不啟用簽名驗證，若 endpoint 對外公開，建議之後再設定 Secret。
+Bot 也提供 `/fumo/webhook` 網站事件入口，可供一般 webhook relay 使用；投票開始通知不再經過這條路徑。
+
+## 投票開始通知的部署順序
+
+為避免舊 `vote.started` Webhook 與新 Bot 公告重複，先套用 `0016_vote_bot_announcements.sql`，在 Cloudflare Worker 與 Wispbyte Bot 設定相同的 `FUMO_BOT_API_SECRET`，再部署 API Worker，最後更新並重啟 Bot。Bot 每 30 秒透過受保護 API poll D1 outbox，使用 Discord Bot token 直接在公告頻道發送「第 N 次投票會議通知」；D1 lease、回執和訊息標記可在重啟後恢復。候選查詢會排除舊 `notify_started_at` 已有值的投票，避免升級後重發舊版已發出的開始公告；新通知則由 outbox 去重。新 Worker 不再發送/提供 `vote.started` Webhook，其餘獨立事件維持原路徑。此通知需要公告頻道的 View Channel、Send Messages、Embed Links 與 Read Message History 權限。
 
 網站 `/bot-admin` 後台會透過 Worker 讀取 Bot 頻道並發布公告；部署 Worker 前請在 `wrangler.toml` 的 `[vars]` 加入 `BOT_API_URL = "https://<Wispbyte 公開網址>"`。只有已登入的 FUMO 管理員可以呼叫 `/api/admin/bot/*`，後台支援 Embed 與純文字公告，且純文字選項會等 API Worker 和 Bot runtime 都回報支援後才可送出。網站 Pages、API Worker 與 Wispbyte Bot 是分開的部署目標；推送 `main` 不會由 repository 內的 GitHub Actions 自動部署 Bot。若 Wispbyte 未設定自動追蹤此 repository/branch，更新 `bot/` 後仍須另行更新並重啟 Wispbyte runtime。
 

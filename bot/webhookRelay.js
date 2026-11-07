@@ -4,11 +4,14 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 const EVENT_TITLES = {
   "vote.created": "🗳️ 新投票已建立",
   "vote.published": "📢 投票已發布",
-  "vote.started": "🟢 投票開始",
   "vote.closing_soon": "⏳ 投票即將截止",
   "vote.closed": "🔒 投票已結束",
   "ballot.cast": "✅ 收到新選票",
 };
+
+export function shouldIgnoreWebhookEvent(event) {
+  return event === "vote.started";
+}
 
 function verifySignature(headers, body, secret) {
   // Secret verification is optional for a private or otherwise protected Wispbyte endpoint.
@@ -108,6 +111,11 @@ export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secr
       const payload = JSON.parse(body);
       const event = request.headers["x-fumo-event"] || payload.event;
       if (typeof event !== "string") throw new Error("Missing event");
+      if (shouldIgnoreWebhookEvent(event)) {
+        logAction("webhook.relay.ignored", { event, reason: "handled_by_bot_vote_outbox" });
+        response.writeHead(204); response.end();
+        return;
+      }
       const channel = await client.channels.fetch(channelId);
       if (!channel?.isTextBased() || !channel.isSendable()) throw new Error("Relay channel is not writable");
       const mention = mentionRoleId && events.has(event) ? `<@&${mentionRoleId}>` : "";

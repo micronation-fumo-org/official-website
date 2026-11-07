@@ -1,5 +1,6 @@
 import { toChineseError } from "@/lib/errorMessage";
 import { apiFetch } from "@/lib/api";
+import { formatVoteDateTime } from "@/lib/voteDateTime";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,16 +61,16 @@ export default function Votes() {
   });
 
   const VoteCard = ({ vote }: { vote: VoteItem }) => {
-    const deadline = new Date(vote.deadline);
     const isActive = vote.isPublished !== false && !vote.isUpcoming && !vote.isClosed && !vote.isExpired;
     return (
       <motion.div
+        className="fumo-vote-entry"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <Link href={`/votes/${encodeURIComponent(vote.publicId || String(vote.id))}`}>
-          <Card className="hover:shadow-md transition-shadow cursor-pointer border-border/60 bg-white h-full">
+        <Link className="fumo-vote-link" href={`/votes/${encodeURIComponent(vote.publicId || String(vote.id))}`}>
+          <Card className="fumo-vote-card hover:shadow-md transition-shadow cursor-pointer border-border/60 bg-white h-full">
             <CardHeader className="p-4 pb-3 sm:p-6 sm:pb-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <CardTitle className="min-w-0 flex-1 break-words text-lg font-bold leading-tight text-primary">
@@ -108,12 +109,12 @@ export default function Votes() {
               {vote.startsAt && (
                 <div className="flex min-w-0 items-start gap-2 text-sm text-muted-foreground">
                   <Clock className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span className="min-w-0 break-words">{isEnglish ? "Starts" : "開始時間"}: {new Date(vote.startsAt).toLocaleString(isEnglish ? "en-US" : "zh-TW")}</span>
+                  <span className="min-w-0 break-words">{isEnglish ? "Starts" : "開始時間"}: {formatVoteDateTime(vote.startsAt, isEnglish ? "en-US" : "zh-TW")}</span>
                 </div>
               )}
               <div className="flex min-w-0 items-start gap-2 text-sm text-muted-foreground">
                 <Clock className="mt-0.5 h-4 w-4 shrink-0" />
-                <span className="min-w-0 break-words">截止日期 Deadline: {deadline.toLocaleString("zh-TW")}</span>
+                <span className="min-w-0 break-words">截止日期 Deadline: {formatVoteDateTime(vote.deadline, isEnglish ? "en-US" : "zh-TW")}</span>
               </div>
               <div className="flex min-w-0 items-start gap-2 text-sm text-muted-foreground">
                 <Vote className="mt-0.5 h-4 w-4 shrink-0" />
@@ -131,9 +132,9 @@ export default function Votes() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/20 py-6 sm:py-12">
+    <div className="fumo-voting-page fumo-vote-index min-h-screen bg-muted/20 py-6 sm:py-12">
       <div className="container mx-auto px-3 sm:px-4">
-        <div className="mb-10 text-center">
+        <div className="fumo-voting-heading mb-10">
           <h1 className="text-3xl sm:text-4xl font-bold text-primary mb-4">{isEnglish ? "Voting" : "投票"}</h1>
           <p className="text-foreground/70 max-w-2xl mx-auto mb-6">
             聯合微國家組織的正式投票。每個國家最多三位代表可以註冊，但每個投票每國只能投一票。只有成員國代表才能投票。
@@ -164,14 +165,14 @@ export default function Votes() {
             {isAdmin && draftVotes.length > 0 && (
               <section className="mb-12" aria-labelledby="draft-votes">
                 <h2 id="draft-votes" className="mb-4 text-lg font-bold text-muted-foreground sm:text-xl">{isEnglish ? "Drafts (administrators only)" : "草稿（僅管理員可見）"} ({draftVotes.length})</h2>
-                <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                <div className="fumo-vote-list grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
                   {draftVotes.map((vote) => <VoteCard key={vote.id} vote={vote} />)}
                 </div>
               </section>
             )}
 
             <h2 className="mb-4 text-lg font-bold text-primary sm:text-xl">{isEnglish ? "Upcoming votes" : "即將開始的投票"} ({upcomingVotes.length})</h2>
-            <div className="mb-8 grid grid-cols-1 gap-4 sm:mb-12 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="fumo-vote-list mb-8 grid grid-cols-1 gap-4 sm:mb-12 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
               {upcomingVotes.length === 0 ? (
                 <p className="text-muted-foreground col-span-full">{isEnglish ? "No upcoming votes" : "目前沒有預約開始的投票"}</p>
               ) : (
@@ -180,7 +181,7 @@ export default function Votes() {
             </div>
 
             <h2 className="mb-4 text-lg font-bold text-primary sm:text-xl">{isEnglish ? "Active votes" : "進行中的投票"} ({activeVotes.length})</h2>
-            <div className="mb-8 grid grid-cols-1 gap-4 sm:mb-12 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="fumo-vote-list mb-8 grid grid-cols-1 gap-4 sm:mb-12 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
               {activeVotes.length === 0 ? (
                 <p className="text-muted-foreground col-span-full">{isEnglish ? "No active votes" : "目前沒有進行中的投票"}</p>
               ) : (
@@ -204,7 +205,7 @@ export default function Votes() {
                       {isEnglish ? `${meetingVotes.length} vote${meetingVotes.length === 1 ? "" : "s"}` : `${meetingVotes.length} 項投票`}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                  <div className="fumo-vote-list grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
                     {meetingVotes.map((vote) => <VoteCard key={vote.id} vote={vote} />)}
                   </div>
                 </section>
