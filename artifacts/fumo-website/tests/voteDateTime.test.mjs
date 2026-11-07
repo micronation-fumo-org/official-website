@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   formatVoteDateTime,
   formatVoteDateTimeInput,
+  formatVoteTime,
   parseVoteDateTimeInput,
   VOTE_TIME_ZONES,
   voteTimeZoneForLocale,
@@ -56,9 +57,12 @@ test("Paris autumn DST fold resolves the repeated local time to standard time", 
 
 test("display labels respect the selected UI time zone", () => {
   const instant = "2026-05-30T16:20:00.000Z";
-  assert.match(formatVoteDateTime(instant, "zh-TW"), /00:20/);
+  assert.match(formatVoteDateTime(instant, "zh-TW"), /00:20.*UTC\+8/);
+  assert.match(formatVoteTime(instant, "zh-TW"), /00:20.*UTC\+8/);
   assert.match(formatVoteDateTime(instant, "en-GB"), /18:20/);
   assert.doesNotMatch(formatVoteDateTime(instant, "en-GB"), /16:20/);
+  assert.match(formatVoteTime(instant, "en-GB"), /18:20/);
+  assert.doesNotMatch(formatVoteTime(instant, "en-GB"), /UTC\+8/);
 });
 
 test("invalid and impossible calendar values are rejected", () => {

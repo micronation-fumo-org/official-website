@@ -32,8 +32,9 @@ test("Bot announcement uses the configured meeting number and both local time zo
   const payload = buildVoteStartAnnouncement(vote, "https://www.micronationfumo.org");
   const embed = payload.embeds[0];
   assert.equal(embed.title, "第 43 次例行大會通知");
-  assert.match(embed.fields[0].value, /台北時間：2026\/03\/29 09:30/);
+  assert.match(embed.fields[0].value, /台北時間（UTC\+8）：2026\/03\/29 09:30/);
   assert.match(embed.fields[0].value, /巴黎時間：2026\/03\/29 03:30/);
+  assert.match(embed.fields[1].value, /台北時間（UTC\+8）：2026\/03\/30 09:30/);
   assert.match(embed.fields[1].value, /巴黎時間：2026\/03\/30 03:30/);
   assert.equal(embed.url, "https://www.micronationfumo.org/votes/FUMO-AG-2026-27");
   assert.match(embed.footer.text, new RegExp(voteAnnouncementMarker(vote.id)));

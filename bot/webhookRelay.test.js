@@ -68,7 +68,7 @@ async function startTestRelay(t) {
     sendVoteEvent: () => fetch(`${baseUrl}/fumo/webhook`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-fumo-event": "vote.published" },
-      body: JSON.stringify({ event: "vote.published", vote: { name: "Test vote" } }),
+      body: JSON.stringify({ event: "vote.published", vote: { name: "Test vote", startsAt: "2026-03-29T01:30:00.000Z", deadline: "2026-03-30T01:30:00.000Z" } }),
     }),
   };
 }
@@ -105,6 +105,15 @@ test("website plain-text announcements allow only their selected roles", async t
   assert.equal(response.status, 200);
   assert.equal(relay.sentPayload().content, "<@&123456789012345678>\n\nAnnouncement body");
   assert.deepEqual(relay.sentPayload().allowedMentions, { roles: ["123456789012345678"] });
+});
+
+test("vote webhook times show Taipei UTC+8 and Paris local time", async t => {
+  const relay = await startTestRelay(t);
+  const response = await relay.sendVoteEvent();
+  assert.equal(response.status, 204);
+  const fields = relay.sentPayload().embeds[0].fields;
+  assert.match(fields.find(field => field.name === "開始時間").value, /台北時間（UTC\+8）：2026\/03\/29 09:30\n巴黎時間：2026\/03\/29 03:30/);
+  assert.match(fields.find(field => field.name === "截止時間").value, /台北時間（UTC\+8）：2026\/03\/30 09:30\n巴黎時間：2026\/03\/30 03:30/);
 });
 
 test("the pre-existing automated vote-event role mention remains unchanged", async t => {

@@ -333,13 +333,13 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
                   <RadioGroupItem id="publish-scheduled" value="scheduled" className="mt-1 h-5 w-5" />
                   <div className="min-w-0 flex-1">
                     <Label htmlFor="publish-scheduled" className="cursor-pointer break-words">{isEnglish ? "Schedule a start" : "預約開始時間"}</Label>
-                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? `At the chosen Paris time, voting opens and the Bot directly posts “第 ${meetingLabel} 次投票會議通知” to the configured Discord channel (not via webhook).` : `到指定台北時間自動開放投票，Bot 會直接在設定的 Discord 公告頻道發布「第 ${meetingLabel} 次投票會議通知」（不使用 Webhook）。`}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{isEnglish ? `At the chosen Paris time, voting opens and the Bot directly posts “第 ${meetingLabel} 次投票會議通知” to the configured Discord channel (not via webhook).` : `到指定台北時間（UTC+8）自動開放投票，Bot 會直接在設定的 Discord 公告頻道發布「第 ${meetingLabel} 次投票會議通知」（不使用 Webhook）。`}</p>
                   </div>
                 </div>
               </RadioGroup>
               {publishMode === "scheduled" && (
                 <div className="mt-4 min-w-0">
-                  <Label htmlFor="startsAt">{isEnglish ? "Start time (Paris time)" : "開始時間（台北時間）"}</Label>
+                  <Label htmlFor="startsAt">{isEnglish ? "Start time (Paris time)" : "開始時間（台北時間，UTC+8）"}</Label>
                   <Input
                     id="startsAt"
                     type="datetime-local"
@@ -366,7 +366,7 @@ export default function CreateVote({ params: routeParams }: CreateVoteRouteProps
             </div>
 
             <div>
-              <Label htmlFor="deadline">{isEnglish ? "Deadline (Paris time)" : "截止時間（台北時間）"}</Label>
+              <Label htmlFor="deadline">{isEnglish ? "Deadline (Paris time)" : "截止時間（台北時間，UTC+8）"}</Label>
               <Input
                 id="deadline"
                 type="datetime-local"

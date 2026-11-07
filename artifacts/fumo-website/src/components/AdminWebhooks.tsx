@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { toChineseError } from "@/lib/errorMessage";
+import { formatVoteDateTime } from "@/lib/voteDateTime";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,9 +108,9 @@ function eventLabel(event: string, isEnglish: boolean) {
   return event;
 }
 
-function formatUtc(value: string, isEnglish: boolean) {
+function formatVoteWebhookTime(value: string, isEnglish: boolean) {
   const parsed = new Date(`${value.replace(" ", "T")}Z`);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString(isEnglish ? "en-US" : "zh-TW", { timeZone: "UTC" });
+  return Number.isNaN(parsed.getTime()) ? value : formatVoteDateTime(parsed, isEnglish ? "en-US" : "zh-TW");
 }
 
 /** Small visual "how it works" strip: event → signed request → receiver. */
@@ -188,7 +189,7 @@ function DeliveryTimeline({ webhookId, isEnglish }: { webhookId: number; isEngli
                 {item.ok ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
                 {item.ok ? (isEnglish ? "Delivered" : "成功") : `${isEnglish ? "Failed" : "失敗"}${item.status_code ? ` · HTTP ${item.status_code}` : ""}`}
               </span>
-              <time className="text-muted-foreground" dateTime={item.created_at}>{formatUtc(item.created_at, isEnglish)} UTC</time>
+              <time className="text-muted-foreground" dateTime={item.created_at}>{formatVoteWebhookTime(item.created_at, isEnglish)}</time>
             </div>
             {!item.ok && item.error && <p className="mt-1 break-words text-[11px] text-red-600">{item.error}</p>}
           </li>

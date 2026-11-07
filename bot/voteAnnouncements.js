@@ -1,4 +1,4 @@
-const VOTE_TIME_ZONES = {
+export const VOTE_TIME_ZONES = {
   taipei: "Asia/Taipei",
   paris: "Europe/Paris",
 };
@@ -9,7 +9,7 @@ function parseInstant(value) {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
-function formatInTimeZone(value, timeZone) {
+export function formatInTimeZone(value, timeZone) {
   const timestamp = parseInstant(value);
   if (timestamp === null) return "";
   const parts = new Map(new Intl.DateTimeFormat("en-US", {
@@ -50,9 +50,9 @@ export function buildVoteStartAnnouncement(vote, websiteUrl) {
   if (!name) throw new Error("Vote name is required for vote announcements");
 
   const startValue = vote.startsAt
-    ? `台北時間：${formatInTimeZone(vote.startsAt, VOTE_TIME_ZONES.taipei)}\n巴黎時間：${formatInTimeZone(vote.startsAt, VOTE_TIME_ZONES.paris)}`
+    ? `台北時間（UTC+8）：${formatInTimeZone(vote.startsAt, VOTE_TIME_ZONES.taipei)}\n巴黎時間：${formatInTimeZone(vote.startsAt, VOTE_TIME_ZONES.paris)}`
     : "立即開始";
-  const deadlineValue = `台北時間：${formatInTimeZone(vote.deadline, VOTE_TIME_ZONES.taipei)}\n巴黎時間：${formatInTimeZone(vote.deadline, VOTE_TIME_ZONES.paris)}`;
+  const deadlineValue = `台北時間（UTC+8）：${formatInTimeZone(vote.deadline, VOTE_TIME_ZONES.taipei)}\n巴黎時間：${formatInTimeZone(vote.deadline, VOTE_TIME_ZONES.paris)}`;
   const description = [name, typeof vote.description === "string" ? vote.description.trim() : ""]
     .filter(Boolean)
     .join("\n\n")

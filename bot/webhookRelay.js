@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { buildRoleMentionOptions, normalizeAnnouncementRoleIds } from "./announcementRoles.js";
+import { formatInTimeZone, VOTE_TIME_ZONES } from "./voteAnnouncements.js";
 
 const EVENT_TITLES = {
   "vote.created": "🗳️ 新投票已建立",
@@ -27,14 +28,21 @@ function verifySignature(headers, body, secret) {
   return timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(actual, "hex"));
 }
 
+function formatVoteNotificationTime(value) {
+  const taipei = formatInTimeZone(value, VOTE_TIME_ZONES.taipei);
+  const paris = formatInTimeZone(value, VOTE_TIME_ZONES.paris);
+  if (!taipei || !paris) return value.slice(0, 100);
+  return `台北時間（UTC+8）：${taipei}\n巴黎時間：${paris}`;
+}
+
 function buildEmbed(payload, event, websiteUrl) {
   const vote = payload.vote && typeof payload.vote === "object" ? payload.vote : {};
   const details = payload.details && typeof payload.details === "object" ? payload.details : {};
   const fields = [];
   if (typeof vote.name === "string" && vote.name) fields.push({ name: "投票主題", value: vote.name.slice(0, 1024) });
   if (typeof vote.publicId === "string" && vote.publicId) fields.push({ name: "投票 ID", value: vote.publicId.slice(0, 100), inline: true });
-  if (typeof vote.startsAt === "string" && vote.startsAt) fields.push({ name: "開始時間", value: vote.startsAt.slice(0, 100), inline: true });
-  if (typeof vote.deadline === "string" && vote.deadline) fields.push({ name: "截止時間", value: vote.deadline.slice(0, 100), inline: true });
+  if (typeof vote.startsAt === "string" && vote.startsAt) fields.push({ name: "開始時間", value: formatVoteNotificationTime(vote.startsAt), inline: false });
+  if (typeof vote.deadline === "string" && vote.deadline) fields.push({ name: "截止時間", value: formatVoteNotificationTime(vote.deadline), inline: false });
   if (event === "ballot.cast") fields.push({ name: "隱私", value: "不包含投票選項", inline: true });
   const description = typeof vote.description === "string" && vote.description ? vote.description.slice(0, 1200) : typeof payload.text === "string" ? payload.text.slice(0, 1200) : "";
   return {

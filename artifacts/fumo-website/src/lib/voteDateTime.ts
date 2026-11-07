@@ -20,6 +20,10 @@ export function voteTimeZoneForLocale(locale = "zh-TW"): VoteTimeZone {
   return locale.toLowerCase().startsWith("en") ? VOTE_TIME_ZONES.en : VOTE_TIME_ZONES.zh;
 }
 
+function withTimeZoneLabel(value: string, timeZone: VoteTimeZone): string {
+  return timeZone === VOTE_TIME_ZONES.zh ? `${value}（UTC+8）` : value;
+}
+
 function formatterForTimeZone(timeZone: string): Intl.DateTimeFormat {
   let formatter = partsFormatters.get(timeZone);
   if (!formatter) {
@@ -114,8 +118,9 @@ export function parseVoteDateTimeInput(value: string, locale = "zh-TW"): Date | 
 export function formatVoteDateTime(value: string | Date, locale = "zh-TW"): string {
   const date = getDate(value);
   if (!date) return "";
-  return new Intl.DateTimeFormat(locale, {
-    timeZone: voteTimeZoneForLocale(locale),
+  const timeZone = voteTimeZoneForLocale(locale);
+  const formatted = new Intl.DateTimeFormat(locale, {
+    timeZone,
     year: "numeric",
     month: "numeric",
     day: "numeric",
@@ -123,16 +128,19 @@ export function formatVoteDateTime(value: string | Date, locale = "zh-TW"): stri
     minute: "2-digit",
     hourCycle: "h23",
   }).format(date);
+  return withTimeZoneLabel(formatted, timeZone);
 }
 
 /** Format a vote timestamp's time-of-day in the requested locale's vote time zone. */
 export function formatVoteTime(value: string | Date, locale = "zh-TW"): string {
   const date = getDate(value);
   if (!date) return "";
-  return new Intl.DateTimeFormat(locale, {
-    timeZone: voteTimeZoneForLocale(locale),
+  const timeZone = voteTimeZoneForLocale(locale);
+  const formatted = new Intl.DateTimeFormat(locale, {
+    timeZone,
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
   }).format(date);
+  return withTimeZoneLabel(formatted, timeZone);
 }
