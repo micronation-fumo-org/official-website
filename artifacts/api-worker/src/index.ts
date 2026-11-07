@@ -6,6 +6,7 @@ import { buildDiscordAuthorizationUrl, createPkceChallenge as createDiscordPkceC
 import { deliverWebhook, dispatchVoteEvent, DISCORD_ROLE_ID, normalizeDiscordRoleIds, normalizeWebhookEvents, runVoteNotificationSweep, validateWebhookUrl, voteWebhookPayload, webhookSecret, webhookSummary, WEBHOOK_EVENTS, type WebhookEvent, type WebhookRow } from "./voteWebhooks";
 import { canEditVoteDraft, validateVoteDraftFields } from "./voteDrafts";
 import { hasValidBotBearerToken, storedUtcInstantToIso } from "./botVoteAnnouncements";
+import { botAnnouncementSchema } from "./botAnnouncementSchema";
 interface Env {
   DB: D1Database;
   CORS_ORIGIN?: string;
@@ -971,12 +972,16 @@ app.get("/api/admin/bot/channels", async c => {
   const result = await botApiJson(c.env, "/channels");
   return c.json(result.data, (result.ok ? 200 : result.status) as any);
 });
+app.get("/api/admin/bot/roles", async c => {
+  const actor = await currentAccount(c);
+  if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
+  const result = await botApiJson(c.env, "/roles");
+  return c.json(result.data, (result.ok ? 200 : result.status) as any);
+});
 app.post("/api/admin/bot/announce", async c => {
   const actor = await currentAccount(c);
   if (!actor || actor.admin_level < ADMIN_TIER1) return c.json({ error: "管理員權限不足。" }, 403);
-  const body = z.object({ channelId: z.string().regex(/^\d{15,25}$/), mode: z.enum(["embed", "text"]).default("embed"), title: z.string().trim().max(256).optional().default(""), content: z.string().trim().min(1).max(1900), roleId: z.string().regex(/^\d{17,20}$/).optional().or(z.literal("")), author: z.string().trim().min(1).max(80).optional() }).superRefine((data, context) => {
-    if (data.mode === "embed" && !data.title) context.addIssue({ code: "custom", path: ["title"], message: "Embed 公告需要標題。" });
-  }).safeParse(await parseJson(c));
+  const body = botAnnouncementSchema.safeParse(await parseJson(c));
   if (!body.success) return c.json({ error: "公告標題、內容或頻道格式不正確。" }, 400);
   if (body.data.mode === "text") {
     const status = await botApiJson(c.env, "/healthz");

@@ -31,12 +31,21 @@ export function apiFetch(path: string, init: RequestInit = {}) {
 
 export interface BotChannel { id: string; name: string; type: number; }
 export interface BotChannelsResponse { guildId: string; channels: BotChannel[]; }
+export interface BotRole { id: string; name: string; position: number; mentionable: boolean; }
+export interface BotRolesResponse { guildId: string; roles: BotRole[]; }
 export type BotAnnouncementMode = "embed" | "text";
 
 export async function fetchBotChannels(): Promise<BotChannelsResponse> {
   const response = await apiFetch("/api/admin/bot/channels");
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "無法載入 Discord 頻道。");
+  return data;
+}
+
+export async function fetchBotRoles(): Promise<BotRolesResponse> {
+  const response = await apiFetch("/api/admin/bot/roles");
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "無法載入 Discord 身分組。");
   return data;
 }
 
@@ -47,7 +56,7 @@ export async function fetchBotStatus(): Promise<{ ok: boolean; bot: boolean; fea
   return data;
 }
 
-export async function sendBotAnnouncement(payload: { channelId: string; mode?: BotAnnouncementMode; title?: string; content: string; roleId?: string; author?: string }): Promise<{ ok: boolean; messageUrl?: string }> {
+export async function sendBotAnnouncement(payload: { channelId: string; mode?: BotAnnouncementMode; title?: string; content: string; roleIds?: string[]; roleId?: string; author?: string }): Promise<{ ok: boolean; messageUrl?: string }> {
   const response = await apiFetch("/api/admin/bot/announce", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "公告發布失敗。");

@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { buildRoleMentionOptions, normalizeAnnouncementRoleIds } from "./announcementRoles.js";
 
 const EVENT_TITLES = {
   "vote.created": "🗳️ 新投票已建立",
@@ -66,6 +67,17 @@ export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secr
       response.end(JSON.stringify({ guildId, channels }));
       return;
     }
+    if (request.method === "GET" && request.url === "/roles") {
+      const guild = guildId ? client.guilds.cache.get(guildId) : null;
+      if (!guild) { response.writeHead(404); response.end("Guild not found"); return; }
+      const roles = [...guild.roles.cache.values()]
+        .filter(role => role.id !== guild.id && !role.managed)
+        .map(role => ({ id: role.id, name: role.name, position: role.position, mentionable: role.mentionable }))
+        .sort((a, b) => b.position - a.position || a.name.localeCompare(b.name));
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ guildId, roles }));
+      return;
+    }
     if (request.method === "POST" && request.url === "/announce") {
       const chunks = [];
       for await (const chunk of request) chunks.push(chunk);
@@ -78,16 +90,16 @@ export function startWebhookRelay({ client, guildId, channelId, websiteUrl, secr
         const title = typeof data.title === "string" ? data.title.trim().slice(0, 256) : "";
         const content = typeof data.content === "string" ? data.content.trim().slice(0, 1900) : "";
         if (!content || (mode === "embed" && !title)) { response.writeHead(400); response.end("Content is required; embed announcements also need a title"); return; }
-        const roleId = typeof data.roleId === "string" && /^\d{17,20}$/.test(data.roleId) ? data.roleId : "";
+        const roleIds = normalizeAnnouncementRoleIds(data.roleIds, data.roleId);
+        const roleMentionOptions = buildRoleMentionOptions(roleIds);
         const authorName = typeof data.author === "string" && data.author.trim() ? data.author.trim().slice(0, 80) : defaultAuthor;
-        const mention = roleId ? `<@&${roleId}>` : "";
         let message;
         if (mode === "text") {
-          const plainText = [mention, title, content].filter(Boolean).join("\n\n");
+          const plainText = [roleMentionOptions.content, title, content].filter(Boolean).join("\n\n");
           if (plainText.length > 2000) { response.writeHead(400); response.end("Plain-text announcement exceeds Discord's 2000 character limit"); return; }
-          message = await target.send({ content: plainText, allowedMentions: roleId ? { roles: [roleId] } : { parse: [] } });
+          message = await target.send({ content: plainText, allowedMentions: roleMentionOptions.allowedMentions });
         } else {
-          message = await target.send({ content: mention, embeds: [{ author: { name: authorName }, title: `📢 ${title}`, description: content, color: 0x5865f2, url: websiteUrl, footer: { text: "FUMO 官方網站 Bot" }, timestamp: new Date().toISOString() }], allowedMentions: roleId ? { roles: [roleId] } : { parse: [] } });
+          message = await target.send({ content: roleMentionOptions.content, embeds: [{ author: { name: authorName }, title: `📢 ${title}`, description: content, color: 0x5865f2, url: websiteUrl, footer: { text: "FUMO 官方網站 Bot" }, timestamp: new Date().toISOString() }], allowedMentions: roleMentionOptions.allowedMentions });
         }
         logAction("web.admin_announcement.sent", { channelId: target.id, messageId: message.id, mode, author: mode === "embed" ? authorName : undefined, title, content });
         response.writeHead(200, { "Content-Type": "application/json" });

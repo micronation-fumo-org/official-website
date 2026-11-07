@@ -14,7 +14,7 @@
 - `/伺服器備份`：只有 Discord Bot 應用程式的擁有者可執行；備份自訂身分組、頻道／分類、常用頻道設定、排序及頻道權限覆寫，並保存本機 JSON、私密回傳可下載附件
 - `/伺服器還原`：只有 Discord Bot 應用程式的擁有者可執行；使用 Bot 本機最新備份，或上傳已下載的 JSON。顯示預覽並再次確認後才建立架構
 - 網站 Webhook relay：接收網站簽名事件，再由 Bot 發送 Discord Embed
-- 網站 `/bot-admin`：管理員可選擇沿用 Embed 公告，或改用純文字訊息；純文字模式會以標題與內容直接組成 Discord 訊息
+- 網站 `/bot-admin`：管理員可選擇沿用 Embed 公告，或改用純文字訊息；每則網站公告可獨立多選要提及的身分組，未選取的角色不會被允許提及
 
 `/國家查詢` 以 `/api/members` 讀取國家名稱、簡稱、代號、政體、領袖與會員狀態，並以 `/api/voters` 讀取公開代表姓名。代表資料只顯示姓名，絕不輸出 Discord ID；國家連結指向共用的 `FUMO_WEBSITE_URL/members` 名錄頁，因現有 API 未提供各國專屬網址。
 
@@ -40,7 +40,9 @@ npm start
 - `DISCORD_APPLICATION_ID`：Discord Application ID
 - `DISCORD_GUILD_ID`：測試 Server ID；設定後指令會立即註冊到該 Server。留空則註冊為全域指令
 - `ANNOUNCEMENT_CHANNEL_ID`：公告頻道 ID
-- `ANNOUNCEMENT_ROLE_ID`：公告要提及的身分組 ID，可留空
+- `ANNOUNCEMENT_ROLE_ID`：一般 `/公告` 及 webhook 通知使用的身分組 ID，可留空；不控制網站 `/bot-admin` 單次公告所選角色或投票開始通知
+- `VOTE_ANNOUNCEMENT_CHANNEL_ID`：投票開始通知專用頻道 ID，預設為 `1249237308096643186`
+- `VOTE_ANNOUNCEMENT_ROLE_ID`：投票開始通知專用身分組 ID，預設為 `1556182329238618154`；設為空字串可停用角色提及
 - `FUMO_WELCOME_CHANNEL_ID`：歡迎／歡送頻道 ID；未設定時沿用公告頻道
 - `FUMO_API_BASE_URL`：例如 `https://fumo-api.micronationfumo.workers.dev`
 - `FUMO_BOT_API_SECRET`：Worker 與 Bot 共用的內部投票通知 API bearer secret；只設在 Cloudflare Worker secrets 與 Wispbyte Environment Variables，不要提交至 Git
@@ -83,9 +85,9 @@ npm ci --omit=dev && exec node index.js
 
 ## 投票開始通知（Bot 直接發送）
 
-Bot 每 30 秒透過受保護的網站 API 輪詢到期的立即／預約開始投票，再以 `BOT_TOKEN` 直接向 `ANNOUNCEMENT_CHANNEL_ID` 呼叫 `channel.send()`；這個開始通知不使用 Discord Webhook。新建投票表單不預填標題或例會次數，由管理員自行輸入；Bot 依每張投票實際保存的名稱和次數動態組成標題，例如輸入「例行大會」和 `43` 時會顯示「第 43 次例行大會通知」。既有投票不會被改寫，缺少編號時 Bot 不猜測。時間同時標示台北與巴黎時區。Bot 需要公告頻道的 View Channel、Send Messages、Embed Links 和 Read Message History 權限。
+Bot 每 30 秒透過受保護的網站 API 輪詢到期的立即／預約開始投票，再以 `BOT_TOKEN` 直接向 `VOTE_ANNOUNCEMENT_CHANNEL_ID` 呼叫 `channel.send()`；這個開始通知不使用 Discord Webhook。投票通知的專用頻道與身分組預設分別是 `1249237308096643186` 和 `1556182329238618154`，可用 `VOTE_ANNOUNCEMENT_CHANNEL_ID`、`VOTE_ANNOUNCEMENT_ROLE_ID` 個別覆寫；不會沿用或修改一般公告的 `ANNOUNCEMENT_CHANNEL_ID`、`ANNOUNCEMENT_ROLE_ID`。新建投票表單不預填標題或例會次數，由管理員自行輸入；Bot 依每張投票實際保存的名稱和次數動態組成標題，例如輸入「例行大會」和 `43` 時會顯示「第 43 次例行大會通知」。既有投票不會被改寫，缺少編號時 Bot 不猜測。時間同時標示台北與巴黎時區。Bot 需要投票通知頻道的 View Channel、Send Messages、Embed Links 和 Read Message History 權限。
 
-排程是由 D1 outbox 持久化 claim、lease 與 Discord message ID；Bot 重啟後會重新取得未完成工作，若 Discord 已送出但回執未寫入，會先查找公告頻道最近 100 則 Bot 訊息中的固定通知標記再決定是否補送。請先在 `artifacts/api-worker` 套用 migration，再將同一個隨機 `FUMO_BOT_API_SECRET` 分別設為 Cloudflare Worker secret 與 Wispbyte Environment Variable：
+排程是由 D1 outbox 持久化 claim、lease 與 Discord message ID；Bot 重啟後會重新取得未完成工作，若 Discord 已送出但回執未寫入，會先查找投票通知頻道最近 100 則 Bot 訊息中的固定通知標記再決定是否補送。請先在 `artifacts/api-worker` 套用 migration，再將同一個隨機 `FUMO_BOT_API_SECRET` 分別設為 Cloudflare Worker secret 與 Wispbyte Environment Variable：
 
 ```bash
 cd artifacts/api-worker
@@ -96,7 +98,7 @@ pnpm run deploy
 
 部署 Worker 後，再更新並重啟 Wispbyte Bot。不要把 secret 寫入 `.env.example` 的空欄以外的 repository 檔案，也不要和 `FUMO_WEBHOOK_SECRET` 混用。管理後台不再提供 `vote.started` Webhook 訂閱；其他獨立投票事件和網站事件仍可照常使用既有 webhook relay。
 
-`/fumo/webhook` 仍是一般網站 webhook relay，可供其他事件使用；它不負責投票開始公告。網站 Bot 後台的 Embed 公告可自訂發布者顯示名稱，預設為 `FUMO 官方網站 Bot`；選擇純文字時標題與內容會直接作為一般訊息發送。
+`/fumo/webhook` 仍是一般網站 webhook relay，可供其他事件使用；它不負責投票開始公告。網站 Bot 後台的 Embed 公告可自訂發布者顯示名稱，預設為 `FUMO 官方網站 Bot`；選擇純文字時標題與內容會直接作為一般訊息發送。每次網站公告選取的多個角色只用於該次 `/announce` payload，Bot relay 僅允許這些選中角色被提及，並仍接受舊的單一 `roleId` payload。
 
 ## Discord Developer Portal
 

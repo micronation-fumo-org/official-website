@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import { randomUUID } from "node:crypto";
 import { startWebhookRelay } from "./webhookRelay.js";
 import { processDueVoteAnnouncements, voteAnnouncementMarker } from "./voteAnnouncements.js";
+import { buildVoteAnnouncementRoleOptions, getVoteAnnouncementConfig } from "./voteAnnouncementConfig.js";
 import { extractApplicationOwnerId, isBotOwner } from "./ownerAuth.js";
 import {
   createGuildBackup,
@@ -40,6 +41,7 @@ const APPLICATION_ID = process.env.DISCORD_APPLICATION_ID;
 const GUILD_ID = process.env.DISCORD_GUILD_ID || "";
 const ANNOUNCEMENT_CHANNEL_ID = process.env.ANNOUNCEMENT_CHANNEL_ID;
 const ANNOUNCEMENT_ROLE_ID = process.env.ANNOUNCEMENT_ROLE_ID || "";
+const VOTE_ANNOUNCEMENT = getVoteAnnouncementConfig(process.env);
 const API_BASE_URL = process.env.FUMO_API_BASE_URL.replace(/\/$/, "");
 const BOT_API_SECRET = process.env.FUMO_BOT_API_SECRET || "";
 const WEBSITE_URL = process.env.FUMO_WEBSITE_URL || "https://www.micronationfumo.org";
@@ -195,9 +197,9 @@ async function pollVoteAnnouncements() {
     let announcementChannel;
     const getAnnouncementChannel = async () => {
       if (!announcementChannel) {
-        announcementChannel = await client.channels.fetch(ANNOUNCEMENT_CHANNEL_ID);
+        announcementChannel = await client.channels.fetch(VOTE_ANNOUNCEMENT.channelId);
         if (!announcementChannel?.isTextBased() || !announcementChannel.isSendable()) {
-          throw new Error("Announcement channel is not writable");
+          throw new Error("Vote announcement channel is not writable");
         }
       }
       return announcementChannel;
@@ -222,9 +224,8 @@ async function pollVoteAnnouncements() {
       },
       send: async (_vote, payload) => {
         const channel = await getAnnouncementChannel();
-        const roleMention = ANNOUNCEMENT_ROLE_ID ? `<@&${ANNOUNCEMENT_ROLE_ID}>` : "";
-        const allowedMentions = ANNOUNCEMENT_ROLE_ID ? { roles: [ANNOUNCEMENT_ROLE_ID] } : { parse: [] };
-        return channel.send({ content: roleMention, ...payload, allowedMentions });
+        const roleMentionOptions = buildVoteAnnouncementRoleOptions(VOTE_ANNOUNCEMENT.roleId);
+        return channel.send({ ...payload, ...roleMentionOptions });
       },
       markSent: async (voteId, claimToken, discordMessageId) => {
         await fumoBotApi(`/api/internal/bot/vote-announcements/${voteId}/sent`, {
