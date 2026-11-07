@@ -591,7 +591,7 @@ html.dark .fumo-theme-toggle--mobile { border-color: var(--site-line); }
 .fumo-vote-link:hover .fumo-vote-card { background: var(--vote-soft) !important; }
 .fumo-voting-page .fumo-vote-card > div:first-child { padding: 16px 12px 8px !important; }
 .fumo-voting-page .fumo-vote-card > div:last-child { padding: 0 12px 16px !important; }
-.fumo-voting-page .fumo-vote-card [class*="text-primary"] { color: var(--vote-blue) !important; }
+.fumo-voting-page .fumo-vote-card [class*="text-primary"]:not([class*="text-primary-foreground"]) { color: var(--vote-blue) !important; }
 .fumo-vote-index h2 { margin-top: 34px; }
 
 .fumo-voting-page button:not([role="checkbox"]):not([role="radio"]) {
